@@ -14,6 +14,7 @@ import java.time.OffsetDateTime
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
+import java.util.HashMap
 import java.util.regex.Pattern
 
 private val FILENAME_DATE_REGEX = Pattern.compile("""(?<!\d)(\d{4})(\d{2})(\d{2})[_\-](\d{2})(\d{2})(\d{2})(?!\d)""")
@@ -35,20 +36,31 @@ object CaptureTimeReader {
 
     /**
      * MediaStore [Images.Media.DATE_TAKEN] is usually millis for photos, but many videos use epoch seconds.
-     * Tiny non-zero values are treated as invalid.
+     * Values between 1e9 and 1e12 can be either seconds or millis (e.g. 1999-01-01 is ~9.15e11 ms).
      */
     fun normalizeCaptureTimeMillis(value: Long): Long {
         if (value <= 0L) {
             return 0L
         }
 
-        val millis = when {
-            value >= 1_000_000_000_000L -> value
-            value >= 1_000_000_000L -> value * 1000L
-            else -> 0L
+        if (value >= 1_000_000_000_000L) {
+            return if (isPlausibleCaptureTimeMillis(value)) value else 0L
         }
 
-        return if (isPlausibleCaptureTimeMillis(millis)) millis else 0L
+        if (value >= 100_000_000_000L) {
+            if (isPlausibleCaptureTimeMillis(value)) {
+                return value
+            }
+        }
+
+        if (value >= 1_000_000_000L) {
+            val asMillisFromSeconds = value * 1000L
+            if (isPlausibleCaptureTimeMillis(asMillisFromSeconds)) {
+                return asMillisFromSeconds
+            }
+        }
+
+        return 0L
     }
 
     fun resolveCaptureTimeMillis(taken: Long, modifiedFallback: Long): Long {
@@ -60,20 +72,41 @@ object CaptureTimeReader {
         }
     }
 
+    fun lookupAndRemoveDateTaken(dateTakens: HashMap<String, Long>, path: String): Long? {
+        dateTakens.remove(path)?.let { return it }
+        val matchingKey = dateTakens.keys.firstOrNull { it.equals(path, ignoreCase = true) } ?: return null
+        return dateTakens.remove(matchingKey)
+    }
+
+    fun resolveDateTakenForSort(
+        context: Context,
+        path: String,
+        filename: String,
+        mediaStoreId: Long,
+        dateTakens: HashMap<String, Long>,
+        mediaStoreDateTaken: Long,
+        lastModified: Long
+    ): Long {
+        lookupAndRemoveDateTaken(dateTakens, path)?.let { cached ->
+            normalizeCaptureTimeMillis(cached).takeIf { it > 0L }?.let { return it }
+        }
+        normalizeCaptureTimeMillis(mediaStoreDateTaken).takeIf { it > 0L }?.let { return it }
+        readCaptureTimeMillis(context, path, filename, mediaStoreId)?.takeIf { it > 0L }?.let { return it }
+        return resolveCaptureTimeMillis(0L, lastModified)
+    }
+
     fun readCaptureTimeMillis(
         context: Context,
         path: String,
         filename: String,
         mediaStoreId: Long = 0L
     ): Long? {
-        if (path.isVideoFast()) {
-            readVideoCaptureTimeMillis(context, path, mediaStoreId)?.let { return normalizeCaptureTimeMillis(it) }
-        }
-        if (path.isImageFast()) {
-            readExifCaptureTimeMillis(path)?.let { return normalizeCaptureTimeMillis(it) }
-        }
-        parseTimestampFromFilename(filename)?.let { return it }
-        return null
+        val raw = when {
+            path.isVideoFast() -> readVideoCaptureTimeMillis(context, path, mediaStoreId)
+            path.isImageFast() -> readExifCaptureTimeMillis(path)
+            else -> null
+        } ?: parseTimestampFromFilename(filename)
+        return raw?.let { millis -> normalizeCaptureTimeMillis(millis).takeIf { it > 0L } }
     }
 
     fun readExifCaptureTimeMillis(path: String): Long? {
@@ -105,18 +138,30 @@ object CaptureTimeReader {
             return null
         }
 
+        return calendarMillisUtc(
+            year = matcher.group(1)!!.toInt(),
+            month = matcher.group(2)!!.toInt(),
+            day = matcher.group(3)!!.toInt(),
+            hour = matcher.group(4)!!.toInt(),
+            minute = matcher.group(5)!!.toInt(),
+            second = matcher.group(6)!!.toInt()
+        )
+    }
+
+    private fun calendarMillisUtc(
+        year: Int,
+        month: Int,
+        day: Int,
+        hour: Int,
+        minute: Int,
+        second: Int
+    ): Long? {
         return try {
-            val year = matcher.group(1)!!.toInt()
-            val month = matcher.group(2)!!.toInt()
-            val day = matcher.group(3)!!.toInt()
-            val hour = matcher.group(4)!!.toInt()
-            val minute = matcher.group(5)!!.toInt()
-            val second = matcher.group(6)!!.toInt()
             if (year < 1970 || year > 2100 || month !in 1..12 || day !in 1..31) {
                 return null
             }
 
-            val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+            val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"), Locale.US)
             calendar.set(year, month - 1, day, hour, minute, second)
             calendar.set(Calendar.MILLISECOND, 0)
             val millis = calendar.timeInMillis

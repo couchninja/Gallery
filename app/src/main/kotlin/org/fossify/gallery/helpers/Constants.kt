@@ -239,6 +239,9 @@ const val DEFAULT_BOTTOM_ACTIONS = BOTTOM_ACTION_TOGGLE_FAVORITE or BOTTOM_ACTIO
 const val ACTION_DATE_TAKEN_INDEX_UPDATED = "org.fossify.gallery.action.DATE_TAKEN_INDEX_UPDATED"
 const val ACTION_DATE_TAKEN_INDEX_PROGRESS = "org.fossify.gallery.action.DATE_TAKEN_INDEX_PROGRESS"
 
+/** [DateTaken.lastFixed] value for rows written by [DateTakenIndexer]; manual fix uses a unix timestamp. */
+const val AUTO_DATE_TAKEN_INDEX_LAST_FIXED = 0
+
 // aspect ratios used at the editor for cropping
 const val ASPECT_RATIO_FREE = 0
 const val ASPECT_RATIO_ONE_ONE = 1

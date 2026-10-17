@@ -1384,6 +1384,24 @@ fun Context.updateDirectoryPath(path: String) {
     updateDBDirectory(directory)
 }
 
+fun Context.getMediaStoreIdForPath(path: String): Long {
+    val projection = arrayOf(Images.Media._ID)
+    val uri = Files.getContentUri("external")
+    val selection = "${Images.Media.DATA} = ?"
+    val selectionArgs = arrayOf(path)
+
+    try {
+        contentResolver.query(uri, projection, selection, selectionArgs, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                return cursor.getLongValue(Images.Media._ID)
+            }
+        }
+    } catch (_: Exception) {
+    }
+
+    return 0L
+}
+
 fun Context.getFileDateTaken(path: String): Long {
     val projection = arrayOf(
         Images.Media.DATE_TAKEN

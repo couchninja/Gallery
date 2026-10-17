@@ -60,7 +60,8 @@ object DateTakenIndexer {
     }
 
     private fun runIndex(context: Context, force: Boolean) {
-        val pending = collectPending(context, force)
+        val cached = context.dateTakensDB.getAllDateTakens().associateBy { it.fullPath }
+        val pending = collectPending(context, force, cached)
         val total = pending.size
         publishProgress(context, DateTakenIndexProgress(isRunning = true, processed = 0, total = total))
 
@@ -70,14 +71,13 @@ object DateTakenIndexer {
 
         var processed = 0
         for (batch in pending.chunked(BATCH_SIZE)) {
-            indexBatch(context, batch)
+            indexBatch(context, batch, cached)
             processed += batch.size
             publishProgress(context, DateTakenIndexProgress(isRunning = true, processed = processed, total = total))
         }
     }
 
-    private fun collectPending(context: Context, force: Boolean): List<PendingItem> {
-        val cached = context.dateTakensDB.getAllDateTakens().associateBy { it.fullPath }
+    private fun collectPending(context: Context, force: Boolean, cached: Map<String, DateTaken>): List<PendingItem> {
         val pending = ArrayList<PendingItem>()
         val projection = arrayOf(
             Images.Media._ID,
@@ -95,6 +95,11 @@ object DateTakenIndexer {
                     return@queryCursor
                 }
 
+                val existing = findCachedDateTaken(cached, path)
+                if (isManualCaptureDateEntry(existing)) {
+                    return@queryCursor
+                }
+
                 val mediaStoreDateTaken = cursor.getLongValue(Images.Media.DATE_TAKEN)
                 if (CaptureTimeReader.normalizeCaptureTimeMillis(mediaStoreDateTaken) > 0L) {
                     return@queryCursor
@@ -104,11 +109,13 @@ object DateTakenIndexer {
                 val dateModifiedMillis = cursor.getLongValue(Images.Media.DATE_MODIFIED) * 1000L
                 val lastModified = CaptureTimeReader.fileLastModifiedMillis(path).takeIf { it > 0L } ?: dateModifiedMillis
                 if (!force) {
-                    val cachedEntry = cached[path]
                     if (
-                        cachedEntry != null &&
-                        cachedEntry.lastModified == lastModified &&
-                        CaptureTimeReader.isPlausibleCaptureTimeMillis(cachedEntry.taken)
+                        existing != null &&
+                        existing.lastModified == lastModified &&
+                        CaptureTimeReader.isPlausibleCaptureTimeMillis(
+                            CaptureTimeReader.normalizeCaptureTimeMillis(existing.taken)
+                        ) &&
+                        !looksLikeModifiedFallback(existing.taken, dateModifiedMillis, lastModified)
                     ) {
                         return@queryCursor
                     }
@@ -132,24 +139,28 @@ object DateTakenIndexer {
         return pending
     }
 
-    private fun indexBatch(context: Context, batch: List<PendingItem>) {
+    private fun indexBatch(context: Context, batch: List<PendingItem>, cached: Map<String, DateTaken>) {
         val dateTakens = ArrayList<DateTaken>()
         var improvedSortOrder = false
         for (item in batch) {
+            val existing = findCachedDateTaken(cached, item.path)
+            if (isManualCaptureDateEntry(existing)) {
+                continue
+            }
+
             val captureMillis = CaptureTimeReader.readCaptureTimeMillis(
                 context = context,
                 path = item.path,
                 filename = item.filename,
                 mediaStoreId = item.mediaStoreId
             )
-            val fallbackModified = item.dateModifiedMillis.takeIf { it > 0L } ?: item.lastModified
             val resolved = captureMillis?.let { CaptureTimeReader.normalizeCaptureTimeMillis(it) } ?: 0L
-            val taken = when {
-                resolved > 0L -> resolved
-                CaptureTimeReader.isPlausibleCaptureTimeMillis(fallbackModified) -> fallbackModified
-                else -> fallbackModified
+            if (resolved <= 0L) {
+                continue
             }
-            if (captureMillis != null && taken != fallbackModified) {
+
+            val fallbackModified = item.dateModifiedMillis.takeIf { it > 0L } ?: item.lastModified
+            if (resolved != fallbackModified) {
                 improvedSortOrder = true
             }
             dateTakens.add(
@@ -158,19 +169,50 @@ object DateTakenIndexer {
                     item.path,
                     item.filename,
                     item.path.getParentPath(),
-                    taken,
-                    AUTO_INDEX_LAST_FIXED,
+                    resolved,
+                    AUTO_DATE_TAKEN_INDEX_LAST_FIXED,
                     item.lastModified
                 )
             )
         }
 
-        context.dateTakensDB.insertAll(dateTakens)
+        if (dateTakens.isNotEmpty()) {
+            context.dateTakensDB.insertAll(dateTakens)
+        }
         if (improvedSortOrder) {
             context.sendBroadcast(
                 Intent(ACTION_DATE_TAKEN_INDEX_UPDATED).setPackage(context.packageName)
             )
         }
+    }
+
+    private fun findCachedDateTaken(cached: Map<String, DateTaken>, path: String): DateTaken? {
+        cached[path]?.let { return it }
+        return cached.entries.firstOrNull { it.key.equals(path, ignoreCase = true) }?.value
+    }
+
+    private fun looksLikeModifiedFallback(taken: Long, dateModifiedMillis: Long, fileLastModified: Long): Boolean {
+        val normalizedTaken = CaptureTimeReader.normalizeCaptureTimeMillis(taken)
+        if (normalizedTaken <= 0L) {
+            return false
+        }
+        val modified = dateModifiedMillis.takeIf { it > 0L } ?: fileLastModified
+        if (modified <= 0L) {
+            return false
+        }
+        return kotlin.math.abs(normalizedTaken - modified) < 86_400_000L
+    }
+
+    private fun isManualCaptureDateEntry(entry: DateTaken?): Boolean {
+        if (entry == null) {
+            return false
+        }
+        if (entry.lastFixed == AUTO_DATE_TAKEN_INDEX_LAST_FIXED) {
+            return false
+        }
+        return CaptureTimeReader.isPlausibleCaptureTimeMillis(
+            CaptureTimeReader.normalizeCaptureTimeMillis(entry.taken)
+        )
     }
 
     private fun publishProgress(context: Context, newProgress: DateTakenIndexProgress) {
@@ -194,7 +236,6 @@ object DateTakenIndexer {
     )
 
     private const val BATCH_SIZE = 100
-    private const val AUTO_INDEX_LAST_FIXED = 0
 
     const val EXTRA_INDEX_RUNNING = "running"
     const val EXTRA_INDEX_PROCESSED = "processed"

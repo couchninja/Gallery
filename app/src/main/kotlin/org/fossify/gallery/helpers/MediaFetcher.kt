@@ -396,18 +396,18 @@ class MediaFetcher(val context: Context) {
                 val videoDuration = if (getVideoDurations && isVideo) context.getDuration(path) ?: 0 else 0
 
                 if (getProperDateTaken) {
-                    var newDateTaken = dateTakens.remove(path)
-                    if (newDateTaken == null) {
-                        newDateTaken = if (getProperLastModified) {
-                            lastModified
-                        } else {
-                            file.lastModified()
-                        }
-                    }
-                    dateTaken = newDateTaken
+                    dateTaken = CaptureTimeReader.resolveDateTakenForSort(
+                        context = context,
+                        path = path,
+                        filename = filename,
+                        mediaStoreId = 0L,
+                        dateTakens = dateTakens,
+                        mediaStoreDateTaken = 0L,
+                        lastModified = lastModified
+                    )
+                } else {
+                    dateTaken = CaptureTimeReader.resolveCaptureTimeMillis(dateTaken, lastModified)
                 }
-
-                dateTaken = CaptureTimeReader.resolveCaptureTimeMillis(dateTaken, lastModified)
 
                 val type = when {
                     isVideo -> TYPE_VIDEOS
@@ -512,13 +512,20 @@ class MediaFetcher(val context: Context) {
                 }
 
                 val lastModified = cursor.getLongValue(Images.Media.DATE_MODIFIED) * 1000
-                var dateTaken = cursor.getLongValue(Images.Media.DATE_TAKEN)
-
-                if (getProperDateTaken) {
-                    dateTaken = dateTakens.remove(path) ?: lastModified
+                val mediaStoreDateTaken = cursor.getLongValue(Images.Media.DATE_TAKEN)
+                val dateTaken = if (getProperDateTaken) {
+                    CaptureTimeReader.resolveDateTakenForSort(
+                        context = context,
+                        path = path,
+                        filename = filename,
+                        mediaStoreId = mediaStoreId,
+                        dateTakens = dateTakens,
+                        mediaStoreDateTaken = mediaStoreDateTaken,
+                        lastModified = lastModified
+                    )
+                } else {
+                    CaptureTimeReader.resolveCaptureTimeMillis(mediaStoreDateTaken, lastModified)
                 }
-
-                dateTaken = CaptureTimeReader.resolveCaptureTimeMillis(dateTaken, lastModified)
 
                 val videoDuration = Math.round(cursor.getIntValue(MediaStore.MediaColumns.DURATION) / 1000.toDouble()).toInt()
                 val isFavorite = favoritePaths.contains(path)

@@ -11,6 +11,7 @@ import android.graphics.Matrix
 import android.graphics.Point
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.LayerDrawable
+import android.content.ContentUris
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
@@ -44,6 +45,7 @@ import org.fossify.gallery.dialogs.AllFilesPermissionDialog
 import org.fossify.gallery.dialogs.PickDirectoryDialog
 import org.fossify.gallery.dialogs.ResizeMultipleImagesDialog
 import org.fossify.gallery.dialogs.ResizeWithPathDialog
+import org.fossify.gallery.helpers.ACTION_DATE_TAKEN_INDEX_UPDATED
 import org.fossify.gallery.helpers.CaptureTimeReader
 import org.fossify.gallery.helpers.DIRECTORY
 import org.fossify.gallery.helpers.RECYCLE_BIN
@@ -574,16 +576,28 @@ fun AppCompatActivity.fixDateTaken(
 
             for (path in paths) {
                 try {
-                    val timestamp = CaptureTimeReader.readExifCaptureTimeMillis(path) ?: continue
-
-                    val uri = getFileUri(path)
-                    ContentProviderOperation.newUpdate(uri).apply {
-                        val selection = "${Images.Media.DATA} = ?"
-                        val selectionArgs = arrayOf(path)
-                        withSelection(selection, selectionArgs)
-                        withValue(Images.Media.DATE_TAKEN, timestamp)
-                        operations.add(build())
+                    val filename = path.getFilenameFromPath()
+                    val mediaStoreId = getMediaStoreIdForPath(path)
+                    val timestamp = CaptureTimeReader.readCaptureTimeMillis(
+                        context = applicationContext,
+                        path = path,
+                        filename = filename,
+                        mediaStoreId = mediaStoreId
+                    ) ?: continue
+                    val updateUri = if (mediaStoreId > 0L) {
+                        ContentUris.withAppendedId(Images.Media.EXTERNAL_CONTENT_URI, mediaStoreId)
+                    } else {
+                        getFileUri(path)
                     }
+                    val operation = ContentProviderOperation.newUpdate(updateUri).apply {
+                        if (mediaStoreId <= 0L) {
+                            val selection = "${Images.Media.DATA} = ?"
+                            val selectionArgs = arrayOf(path)
+                            withSelection(selection, selectionArgs)
+                        }
+                        withValue(Images.Media.DATE_TAKEN, timestamp)
+                    }
+                    operations.add(operation.build())
 
                     if (operations.size % BATCH_SIZE == 0) {
                         contentResolver.applyBatch(MediaStore.AUTHORITY, operations)
@@ -622,19 +636,29 @@ fun AppCompatActivity.fixDateTaken(
                 return@ensureBackgroundThread
             }
 
-            val resultSize = contentResolver.applyBatch(MediaStore.AUTHORITY, operations).size
-            if (resultSize == 0) {
-                didUpdateFile = false
+            if (operations.isNotEmpty()) {
+                val resultSize = contentResolver.applyBatch(MediaStore.AUTHORITY, operations).size
+                if (resultSize == 0) {
+                    didUpdateFile = false
+                }
             }
 
             if (hasRescanned || pathsToRescan.isEmpty()) {
                 if (dateTakens.isNotEmpty()) {
                     dateTakensDB.insertAll(dateTakens)
+                    sendBroadcast(
+                        Intent(ACTION_DATE_TAKEN_INDEX_UPDATED).setPackage(packageName)
+                    )
                 }
 
                 runOnUiThread {
                     if (showToasts) {
-                        toast(if (didUpdateFile) R.string.dates_fixed_successfully else org.fossify.commons.R.string.unknown_error_occurred)
+                        val message = when {
+                            dateTakens.isNotEmpty() -> R.string.dates_fixed_successfully
+                            didUpdateFile -> R.string.dates_fixed_successfully
+                            else -> org.fossify.commons.R.string.unknown_error_occurred
+                        }
+                        toast(message)
                     }
 
                     callback?.invoke()
