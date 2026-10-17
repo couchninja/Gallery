@@ -4,10 +4,13 @@ import android.content.ContentUris
 import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.provider.MediaStore
+import android.provider.MediaStore.Images
+import androidx.core.net.toUri
 import androidx.exifinterface.media.ExifInterface
 import org.fossify.commons.extensions.isImageFast
 import org.fossify.commons.extensions.isVideoFast
 import java.io.File
+import java.io.FileInputStream
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.OffsetDateTime
@@ -18,6 +21,7 @@ import java.util.HashMap
 import java.util.regex.Pattern
 
 private val FILENAME_DATE_REGEX = Pattern.compile("""(?<!\d)(\d{4})(\d{2})(\d{2})[_\-](\d{2})(\d{2})(\d{2})(?!\d)""")
+private val FILENAME_COMPACT_DATE_REGEX = Pattern.compile("""(?i)\bIMG[-_]?(\d{4})(\d{2})(\d{2})\b""")
 private val VIDEO_DATE_METADATA_KEY_CODES = intArrayOf(
     MediaMetadataRetriever.METADATA_KEY_DATE
 )
@@ -103,30 +107,77 @@ object CaptureTimeReader {
     ): Long? {
         val raw = when {
             path.isVideoFast() -> readVideoCaptureTimeMillis(context, path, mediaStoreId)
-            path.isImageFast() -> readExifCaptureTimeMillis(path)
-            else -> null
-        } ?: parseTimestampFromFilename(filename)
+            path.isImageFast() -> readExifCaptureTimeMillis(context, path, mediaStoreId)
+                ?: parseTimestampFromFilename(filename)
+                ?: parseCompactDateFromFilename(filename)
+            else -> parseTimestampFromFilename(filename) ?: parseCompactDateFromFilename(filename)
+        }
         return raw?.let { millis -> normalizeCaptureTimeMillis(millis).takeIf { it > 0L } }
     }
 
     fun readExifCaptureTimeMillis(path: String): Long? {
-        return try {
-            val exif = ExifInterface(path)
-            val dateTime = exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)
-                ?: exif.getAttribute(ExifInterface.TAG_DATETIME)
-                ?: return null
-            parseExifDateTime(dateTime)?.time
-        } catch (_: Exception) {
-            null
+        return readExifCaptureTimeMillisFromExif(runCatching { ExifInterface(path) }.getOrNull())
+    }
+
+    fun readExifCaptureTimeMillis(context: Context, path: String, mediaStoreId: Long = 0L): Long? {
+        for (exif in openExifInterfaces(context, path, mediaStoreId)) {
+            readExifCaptureTimeMillisFromExif(exif)?.let { return it }
         }
+        return null
+    }
+
+    private fun readExifCaptureTimeMillisFromExif(exif: ExifInterface?): Long? {
+        if (exif == null) {
+            return null
+        }
+        val dateTime = exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)
+            ?: exif.getAttribute(ExifInterface.TAG_DATETIME_DIGITIZED)
+            ?: exif.getAttribute(ExifInterface.TAG_DATETIME)
+            ?: return null
+        return parseExifDateTime(dateTime)?.time
+    }
+
+    private fun openExifInterfaces(context: Context, path: String, mediaStoreId: Long): List<ExifInterface> {
+        val opened = ArrayList<ExifInterface>()
+        fun add(block: () -> ExifInterface?) {
+            runCatching { block() }.getOrNull()?.let { opened.add(it) }
+        }
+
+        if (path.isNotEmpty()) {
+            add { ExifInterface(path) }
+            add {
+                FileInputStream(path).use { stream -> ExifInterface(stream) }
+            }
+        }
+
+        if (mediaStoreId > 0L) {
+            val uri = ContentUris.withAppendedId(Images.Media.EXTERNAL_CONTENT_URI, mediaStoreId)
+            add {
+                context.contentResolver.openInputStream(uri)?.use { stream -> ExifInterface(stream) }
+            }
+            add {
+                context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+                    ExifInterface(pfd.fileDescriptor)
+                }
+            }
+        }
+
+        if (path.startsWith("content://")) {
+            val uri = path.toUri()
+            add {
+                context.contentResolver.openInputStream(uri)?.use { stream -> ExifInterface(stream) }
+            }
+        }
+
+        return opened
     }
 
     fun parseExifDateTime(dateTime: String): java.util.Date? {
         return try {
             val t = if (dateTime.length > 10 && dateTime.substring(10, 11) == "T") "\'T\'" else " "
             val separator = dateTime.substring(4, 5)
-            val format = "yyyy${separator}MM${separator}dd${t}kk:mm:ss"
-            SimpleDateFormat(format, Locale.getDefault()).parse(dateTime)
+            val format = "yyyy${separator}MM${separator}dd${t}HH:mm:ss"
+            SimpleDateFormat(format, Locale.US).parse(dateTime)
         } catch (_: Exception) {
             null
         }
@@ -145,6 +196,21 @@ object CaptureTimeReader {
             hour = matcher.group(4)!!.toInt(),
             minute = matcher.group(5)!!.toInt(),
             second = matcher.group(6)!!.toInt()
+        )
+    }
+
+    fun parseCompactDateFromFilename(filename: String): Long? {
+        val matcher = FILENAME_COMPACT_DATE_REGEX.matcher(filename)
+        if (!matcher.find()) {
+            return null
+        }
+        return calendarMillisUtc(
+            year = matcher.group(1)!!.toInt(),
+            month = matcher.group(2)!!.toInt(),
+            day = matcher.group(3)!!.toInt(),
+            hour = 0,
+            minute = 0,
+            second = 0
         )
     }
 

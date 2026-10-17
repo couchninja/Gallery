@@ -555,6 +555,32 @@ fun Activity.hasNavBar(): Boolean {
     return (realDisplayMetrics.widthPixels - displayMetrics.widthPixels > 0) || (realDisplayMetrics.heightPixels - displayMetrics.heightPixels > 0)
 }
 
+private fun AppCompatActivity.resolveFixDateTakenTimestamp(
+    path: String,
+    filename: String,
+    mediaStoreId: Long
+): Long? {
+    CaptureTimeReader.readCaptureTimeMillis(
+        context = applicationContext,
+        path = path,
+        filename = filename,
+        mediaStoreId = mediaStoreId
+    )?.let { return it }
+
+    return try {
+        val dateTime = ExifInterface(path).getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)
+            ?: ExifInterface(path).getAttribute(ExifInterface.TAG_DATETIME)
+            ?: return null
+        val t = if (dateTime.length > 10 && dateTime.substring(10, 11) == "T") "\'T\'" else " "
+        val separator = dateTime.substring(4, 5)
+        val format = "yyyy${separator}MM${separator}dd${t}kk:mm:ss"
+        val parsed = SimpleDateFormat(format, Locale.getDefault()).parse(dateTime)?.time ?: return null
+        CaptureTimeReader.normalizeCaptureTimeMillis(parsed).takeIf { it > 0L }
+    } catch (_: Exception) {
+        null
+    }
+}
+
 fun AppCompatActivity.fixDateTaken(
     paths: ArrayList<String>,
     showToasts: Boolean,
@@ -578,12 +604,7 @@ fun AppCompatActivity.fixDateTaken(
                 try {
                     val filename = path.getFilenameFromPath()
                     val mediaStoreId = getMediaStoreIdForPath(path)
-                    val timestamp = CaptureTimeReader.readCaptureTimeMillis(
-                        context = applicationContext,
-                        path = path,
-                        filename = filename,
-                        mediaStoreId = mediaStoreId
-                    ) ?: continue
+                    val timestamp = resolveFixDateTakenTimestamp(path, filename, mediaStoreId) ?: continue
                     val updateUri = if (mediaStoreId > 0L) {
                         ContentUris.withAppendedId(Images.Media.EXTERNAL_CONTENT_URI, mediaStoreId)
                     } else {
