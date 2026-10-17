@@ -1,8 +1,12 @@
 package org.fossify.gallery.activities
 
 import android.app.WallpaperManager
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Bitmap
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.view.ViewGroup
@@ -86,6 +90,7 @@ import org.fossify.gallery.extensions.showRecycleBinEmptyingDialog
 import org.fossify.gallery.extensions.showRestoreConfirmationDialog
 import org.fossify.gallery.extensions.tryDeleteFileDirItem
 import org.fossify.gallery.extensions.updateWidgets
+import org.fossify.gallery.helpers.ACTION_DATE_TAKEN_INDEX_UPDATED
 import org.fossify.gallery.helpers.DIRECTORY
 import org.fossify.gallery.helpers.GET_ANY_INTENT
 import org.fossify.gallery.helpers.GET_IMAGE_INTENT
@@ -135,6 +140,15 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     private var mTempShowHiddenHandler = Handler()
     private var mCurrAsyncTask: GetMediaAsynctask? = null
     private var mZoomListener: MyRecyclerView.MyZoomListener? = null
+    private var mDateTakenIndexReceiverRegistered = false
+
+    private val mDateTakenIndexReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (mLoadedInitialPhotos) {
+                startAsyncTask()
+            }
+        }
+    }
 
     private var mStoredAnimateGifs = true
     private var mStoredCropThumbnails = true
@@ -264,10 +278,13 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                 }
             }
         }
+
+        registerDateTakenIndexReceiver()
     }
 
     override fun onPause() {
         super.onPause()
+        unregisterDateTakenIndexReceiver()
         mIsGettingMedia = false
         binding.mediaRefreshLayout.isRefreshing = false
         storeStateVariables()
@@ -678,6 +695,29 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         }
 
         mLoadedInitialPhotos = true
+    }
+
+    private fun registerDateTakenIndexReceiver() {
+        if (mDateTakenIndexReceiverRegistered) {
+            return
+        }
+
+        val filter = IntentFilter(ACTION_DATE_TAKEN_INDEX_UPDATED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(mDateTakenIndexReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(mDateTakenIndexReceiver, filter)
+        }
+        mDateTakenIndexReceiverRegistered = true
+    }
+
+    private fun unregisterDateTakenIndexReceiver() {
+        if (!mDateTakenIndexReceiverRegistered) {
+            return
+        }
+
+        unregisterReceiver(mDateTakenIndexReceiver)
+        mDateTakenIndexReceiverRegistered = false
     }
 
     private fun startAsyncTask() {

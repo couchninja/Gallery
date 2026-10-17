@@ -44,6 +44,7 @@ import org.fossify.gallery.dialogs.AllFilesPermissionDialog
 import org.fossify.gallery.dialogs.PickDirectoryDialog
 import org.fossify.gallery.dialogs.ResizeMultipleImagesDialog
 import org.fossify.gallery.dialogs.ResizeWithPathDialog
+import org.fossify.gallery.helpers.CaptureTimeReader
 import org.fossify.gallery.helpers.DIRECTORY
 import org.fossify.gallery.helpers.RECYCLE_BIN
 import org.fossify.gallery.helpers.TEMP_FOLDER_NAME
@@ -573,16 +574,7 @@ fun AppCompatActivity.fixDateTaken(
 
             for (path in paths) {
                 try {
-                    val dateTime: String = ExifInterface(path).getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)
-                        ?: ExifInterface(path).getAttribute(ExifInterface.TAG_DATETIME) ?: continue
-
-                    // some formats contain a "T" in the middle, some don't
-                    // sample dates: 2015-07-26T14:55:23, 2018:09:05 15:09:05
-                    val t = if (dateTime.substring(10, 11) == "T") "\'T\'" else " "
-                    val separator = dateTime.substring(4, 5)
-                    val format = "yyyy${separator}MM${separator}dd${t}kk:mm:ss"
-                    val formatter = SimpleDateFormat(format, Locale.getDefault())
-                    val timestamp = formatter.parse(dateTime).time
+                    val timestamp = CaptureTimeReader.readExifCaptureTimeMillis(path) ?: continue
 
                     val uri = getFileUri(path)
                     ContentProviderOperation.newUpdate(uri).apply {

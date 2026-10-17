@@ -2,7 +2,11 @@ package org.fossify.gallery.activities
 
 import android.app.Activity
 import android.content.ActivityNotFoundException
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
 import android.os.Bundle
 import android.text.TextUtils
 import android.widget.Toast
@@ -32,7 +36,22 @@ class SettingsActivity : SimpleActivity() {
     }
 
     private var mRecycleBinContentSize = 0L
+    private var mCaptureTimeIndexReceiverRegistered = false
     private val binding by viewBinding(ActivitySettingsBinding::inflate)
+
+    private val mCaptureTimeIndexProgressReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent == null) {
+                return
+            }
+
+            updateCaptureTimeIndexProgress(
+                running = intent.getBooleanExtra(DateTakenIndexer.EXTRA_INDEX_RUNNING, false),
+                processed = intent.getIntExtra(DateTakenIndexer.EXTRA_INDEX_PROCESSED, 0),
+                total = intent.getIntExtra(DateTakenIndexer.EXTRA_INDEX_TOTAL, 0)
+            )
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,6 +68,13 @@ class SettingsActivity : SimpleActivity() {
         super.onResume()
         setupTopAppBar(binding.settingsAppbar, NavigationIcon.Arrow)
         setupSettingItems()
+        registerCaptureTimeIndexProgressReceiver()
+        updateCaptureTimeIndexProgressFromStore()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        unregisterCaptureTimeIndexProgressReceiver()
     }
 
     private fun setupSettingItems() {
@@ -57,6 +83,7 @@ class SettingsActivity : SimpleActivity() {
         setupLanguage()
         setupChangeDateTimeFormat()
         setupFileLoadingPriority()
+        setupCaptureTimeIndexing()
         setupManageIncludedFolders()
         setupManageExcludedFolders()
         setupManageHiddenFolders()
@@ -171,6 +198,72 @@ class SettingsActivity : SimpleActivity() {
     private fun setupChangeDateTimeFormat() {
         binding.settingsChangeDateTimeFormatHolder.setOnClickListener {
             ChangeDateTimeFormatDialog(this) {}
+        }
+    }
+
+    private fun setupCaptureTimeIndexing() {
+        binding.settingsCaptureTimeIndexProgress.setIndicatorColor(getProperPrimaryColor())
+        binding.settingsCaptureTimeIndexProgress.trackColor = getProperPrimaryColor().adjustAlpha(0.25f)
+        binding.settingsCaptureTimeIndexHolder.setOnClickListener {
+            if (!DateTakenIndexer.getProgress().isRunning) {
+                DateTakenIndexer.schedule(this, force = true)
+            }
+        }
+    }
+
+    private fun registerCaptureTimeIndexProgressReceiver() {
+        if (mCaptureTimeIndexReceiverRegistered) {
+            return
+        }
+
+        val filter = IntentFilter(ACTION_DATE_TAKEN_INDEX_PROGRESS)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(mCaptureTimeIndexProgressReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(mCaptureTimeIndexProgressReceiver, filter)
+        }
+        mCaptureTimeIndexReceiverRegistered = true
+    }
+
+    private fun unregisterCaptureTimeIndexProgressReceiver() {
+        if (!mCaptureTimeIndexReceiverRegistered) {
+            return
+        }
+
+        unregisterReceiver(mCaptureTimeIndexProgressReceiver)
+        mCaptureTimeIndexReceiverRegistered = false
+    }
+
+    private fun updateCaptureTimeIndexProgressFromStore() {
+        with(DateTakenIndexer.getProgress()) {
+            updateCaptureTimeIndexProgress(isRunning, processed, total)
+        }
+    }
+
+    private fun updateCaptureTimeIndexProgress(running: Boolean, processed: Int, total: Int) {
+        binding.settingsCaptureTimeIndexProgress.apply {
+            isIndeterminate = running && total <= 0
+            if (total > 0) {
+                max = 100
+                val percent = (processed.coerceAtMost(total) * 100 / total).coerceIn(0, 100)
+                setProgressCompat(percent, true)
+            }
+            beVisibleIf(running)
+        }
+
+        binding.settingsCaptureTimeIndexStatus.text = when {
+            running && total > 0 -> {
+                val percent = (processed.coerceAtMost(total) * 100 / total).coerceIn(0, 100)
+                getString(R.string.capture_time_index_running, percent, processed, total)
+            }
+
+            running -> getString(R.string.fixing)
+
+            !DateTakenIndexer.hasCompletedRun() -> getString(R.string.capture_time_index_idle)
+
+            processed == 0 && total == 0 -> getString(R.string.capture_time_index_nothing_to_do)
+
+            else -> getString(R.string.capture_time_index_complete, processed)
         }
     }
 

@@ -8,6 +8,7 @@ import org.fossify.commons.helpers.SORT_BY_DATE_TAKEN
 import org.fossify.commons.helpers.SORT_BY_SIZE
 import org.fossify.gallery.extensions.config
 import org.fossify.gallery.extensions.getFavoritePaths
+import org.fossify.gallery.helpers.DateTakenIndexer
 import org.fossify.gallery.helpers.*
 import org.fossify.gallery.models.Medium
 import org.fossify.gallery.models.ThumbnailItem
@@ -18,6 +19,7 @@ class GetMediaAsynctask(
 ) :
     AsyncTask<Void, Void, ArrayList<ThumbnailItem>>() {
     private val mediaFetcher = MediaFetcher(context)
+    private var shouldIndexCaptureTimes = false
 
     override fun doInBackground(vararg params: Void): ArrayList<ThumbnailItem> {
         val pathToUse = if (showAll) SHOW_ALL else mPath
@@ -26,6 +28,7 @@ class GetMediaAsynctask(
         val getProperDateTaken = folderSorting and SORT_BY_DATE_TAKEN != 0 ||
             folderGrouping and GROUP_BY_DATE_TAKEN_DAILY != 0 ||
             folderGrouping and GROUP_BY_DATE_TAKEN_MONTHLY != 0
+        shouldIndexCaptureTimes = getProperDateTaken
 
         val getProperLastModified = folderSorting and SORT_BY_DATE_MODIFIED != 0 ||
             folderGrouping and GROUP_BY_LAST_MODIFIED_DAILY != 0 ||
@@ -63,6 +66,9 @@ class GetMediaAsynctask(
     override fun onPostExecute(media: ArrayList<ThumbnailItem>) {
         super.onPostExecute(media)
         callback(media)
+        if (shouldIndexCaptureTimes) {
+            DateTakenIndexer.schedule(context)
+        }
     }
 
     fun stopFetching() {

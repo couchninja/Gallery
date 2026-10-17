@@ -407,6 +407,8 @@ class MediaFetcher(val context: Context) {
                     dateTaken = newDateTaken
                 }
 
+                dateTaken = CaptureTimeReader.resolveCaptureTimeMillis(dateTaken, lastModified)
+
                 val type = when {
                     isVideo -> TYPE_VIDEOS
                     isGif -> TYPE_GIFS
@@ -516,9 +518,7 @@ class MediaFetcher(val context: Context) {
                     dateTaken = dateTakens.remove(path) ?: lastModified
                 }
 
-                if (dateTaken == 0L) {
-                    dateTaken = lastModified
-                }
+                dateTaken = CaptureTimeReader.resolveCaptureTimeMillis(dateTaken, lastModified)
 
                 val videoDuration = Math.round(cursor.getIntValue(MediaStore.MediaColumns.DURATION) / 1000.toDouble()).toInt()
                 val isFavorite = favoritePaths.contains(path)
@@ -612,7 +612,7 @@ class MediaFetcher(val context: Context) {
         val dateTakens = HashMap<String, Long>()
         if (folder != FAVORITES) {
             val projection = arrayOf(
-                Images.Media.DISPLAY_NAME,
+                Images.Media.DATA,
                 Images.Media.DATE_TAKEN
             )
 
@@ -622,10 +622,12 @@ class MediaFetcher(val context: Context) {
 
             context.queryCursor(uri, projection, selection, selectionArgs) { cursor ->
                 try {
-                    val dateTaken = cursor.getLongValue(Images.Media.DATE_TAKEN)
-                    if (dateTaken != 0L) {
-                        val name = cursor.getStringValue(Images.Media.DISPLAY_NAME)
-                        dateTakens["$folder/$name"] = dateTaken
+                    val dateTaken = CaptureTimeReader.normalizeCaptureTimeMillis(
+                        cursor.getLongValue(Images.Media.DATE_TAKEN)
+                    )
+                    if (dateTaken > 0L) {
+                        val path = cursor.getStringValue(Images.Media.DATA) ?: return@queryCursor
+                        dateTakens[path] = dateTaken
                     }
                 } catch (e: Exception) {
                 }
@@ -643,7 +645,10 @@ class MediaFetcher(val context: Context) {
         }
 
         dateTakenValues.forEach {
-            dateTakens[it.fullPath] = it.taken
+            val normalized = CaptureTimeReader.normalizeCaptureTimeMillis(it.taken)
+            if (normalized > 0L) {
+                dateTakens[it.fullPath] = normalized
+            }
         }
 
         return dateTakens
@@ -661,8 +666,10 @@ class MediaFetcher(val context: Context) {
         try {
             context.queryCursor(uri, projection) { cursor ->
                 try {
-                    val dateTaken = cursor.getLongValue(Images.Media.DATE_TAKEN)
-                    if (dateTaken != 0L) {
+                    val dateTaken = CaptureTimeReader.normalizeCaptureTimeMillis(
+                        cursor.getLongValue(Images.Media.DATE_TAKEN)
+                    )
+                    if (dateTaken > 0L) {
                         val path = cursor.getStringValue(Images.Media.DATA)
                         dateTakens[path] = dateTaken
                     }
@@ -673,7 +680,10 @@ class MediaFetcher(val context: Context) {
             val dateTakenValues = context.dateTakensDB.getAllDateTakens()
 
             dateTakenValues.forEach {
-                dateTakens[it.fullPath] = it.taken
+                val normalized = CaptureTimeReader.normalizeCaptureTimeMillis(it.taken)
+                if (normalized > 0L) {
+                    dateTakens[it.fullPath] = normalized
+                }
             }
         } catch (e: Exception) {
         }
@@ -789,7 +799,7 @@ class MediaFetcher(val context: Context) {
 
                 sorting and SORT_BY_SIZE != 0 -> o1.size.compareTo(o2.size)
                 sorting and SORT_BY_DATE_MODIFIED != 0 -> o1.modified.compareTo(o2.modified)
-                else -> o1.taken.compareTo(o2.taken)
+                else -> o1.resolvedCaptureTimeMillis().compareTo(o2.resolvedCaptureTimeMillis())
             }
 
             if (sorting and SORT_DESCENDING != 0) {

@@ -11,6 +11,7 @@ import java.io.File
 import java.io.Serializable
 import java.util.Calendar
 import java.util.Locale
+import java.util.TimeZone
 
 @Entity(tableName = "media", indices = [(Index(value = ["full_path"], unique = true))])
 data class Medium(
@@ -64,15 +65,21 @@ data class Medium(
         sorting and SORT_BY_SIZE != 0 -> size.formatSize()
         sorting and SORT_BY_DATE_MODIFIED != 0 -> modified.formatDate(context, dateFormat, timeFormat)
         sorting and SORT_BY_RANDOM != 0 -> name
-        else -> taken.formatDate(context)
+        else -> resolvedCaptureTimeMillis().formatDate(context)
+    }
+
+    fun resolvedCaptureTimeMillis(): Long = CaptureTimeReader.resolveCaptureTimeMillis(taken, modified)
+
+    private fun captureTimeForGrouping(): Long {
+        return resolvedCaptureTimeMillis().takeIf { it > 0L && CaptureTimeReader.isPlausibleCaptureTimeMillis(it) } ?: modified
     }
 
     fun getGroupingKey(groupBy: Int): String {
         return when {
             groupBy and GROUP_BY_LAST_MODIFIED_DAILY != 0 -> getDayStartTS(modified, false)
             groupBy and GROUP_BY_LAST_MODIFIED_MONTHLY != 0 -> getDayStartTS(modified, true)
-            groupBy and GROUP_BY_DATE_TAKEN_DAILY != 0 -> getDayStartTS(taken, false)
-            groupBy and GROUP_BY_DATE_TAKEN_MONTHLY != 0 -> getDayStartTS(taken, true)
+            groupBy and GROUP_BY_DATE_TAKEN_DAILY != 0 -> getDayStartTS(captureTimeForGrouping(), false)
+            groupBy and GROUP_BY_DATE_TAKEN_MONTHLY != 0 -> getDayStartTS(captureTimeForGrouping(), true)
             groupBy and GROUP_BY_FILE_TYPE != 0 -> type.toString()
             groupBy and GROUP_BY_EXTENSION != 0 -> name.getFilenameExtension().lowercase(Locale.getDefault())
             groupBy and GROUP_BY_FOLDER != 0 -> parentPath
@@ -83,7 +90,11 @@ data class Medium(
     fun getIsInRecycleBin() = deletedTS != 0L
 
     private fun getDayStartTS(ts: Long, resetDays: Boolean): String {
-        val calendar = Calendar.getInstance(Locale.ENGLISH).apply {
+        if (ts <= 0L) {
+            return "0"
+        }
+
+        val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"), Locale.ENGLISH).apply {
             timeInMillis = ts
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)

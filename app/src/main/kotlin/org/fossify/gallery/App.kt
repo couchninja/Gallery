@@ -6,6 +6,8 @@ import com.squareup.picasso.Picasso
 import okhttp3.Request
 import okhttp3.Response
 import org.fossify.commons.FossifyApp
+import org.fossify.commons.helpers.ensureBackgroundThread
+import org.fossify.gallery.helpers.DateTakenIndexer
 
 class App : FossifyApp() {
 
@@ -13,6 +15,9 @@ class App : FossifyApp() {
 
     override fun onCreate() {
         super.onCreate()
+        ensureBackgroundThread {
+            DateTakenIndexer.schedule(this)
+        }
         Reprint.initialize(this)
         Picasso.setSingletonInstance(Picasso.Builder(this).downloader(object : Downloader {
             override fun load(request: Request) = Response.Builder().build()

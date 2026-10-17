@@ -27,6 +27,11 @@
     <string name="fixing">Fixing…</string>
     <string name="dates_fixed_successfully">Dates fixed successfully</string>
     <string name="no_date_takens_found">No Date Taken values have been found</string>
+    <string name="capture_time_index">Capture date indexing</string>
+    <string name="capture_time_index_idle">Tap to scan files missing capture dates in MediaStore</string>
+    <string name="capture_time_index_running">Reading capture dates: %1$d%% (%2$d / %3$d)</string>
+    <string name="capture_time_index_complete">Ready — %1$d files indexed for sorting</string>
+    <string name="capture_time_index_nothing_to_do">Up to date — no files need indexing</string>
     <string name="share_resized">Share a resized version</string>
     <string name="switch_to_file_search">Switch to file search across all visible folders</string>
     <string name="set_as_default_folder">Set as default folder</string>
