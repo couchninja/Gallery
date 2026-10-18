@@ -148,6 +148,7 @@ import org.fossify.gallery.helpers.cacheExifRating
 import org.fossify.gallery.helpers.isJpeg
 import org.fossify.gallery.helpers.readExifRatingFromPath
 import org.fossify.gallery.helpers.setExifRating
+import org.fossify.gallery.helpers.syncExifRatingOnGalleryMedia
 import org.fossify.gallery.helpers.ColorModeHelper
 import org.fossify.gallery.helpers.DefaultPageTransformer
 import org.fossify.gallery.helpers.FadePageTransformer
@@ -1113,6 +1114,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
             ensureBackgroundThread {
                 if (setExifRating(medium.path, newRating)) {
                     medium.exifRating = newRating
+                    syncExifRatingOnGalleryMedia(medium.path, newRating)
                     runOnUiThread {
                         bindViewerExifRating(getViewerExifRatingBar(), newRating)
                     }

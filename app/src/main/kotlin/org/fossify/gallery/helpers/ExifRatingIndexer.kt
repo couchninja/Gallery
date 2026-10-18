@@ -71,7 +71,7 @@ object ExifRatingIndexer {
                 val dateModifiedMillis = cursor.getLongValue(Images.Media.DATE_MODIFIED) * 1000L
                 val lastModified = CaptureTimeReader.fileLastModifiedMillis(path).takeIf { it > 0L } ?: dateModifiedMillis
                 val existing = findCached(cached, path)
-                if (!force && existing != null && existing.lastModified == lastModified && existing.rating > 0) {
+                if (!force && existing != null && existing.lastModified == lastModified) {
                     return@queryCursor
                 }
 

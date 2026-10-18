@@ -32,13 +32,26 @@ fun lookupExifRating(ratings: Map<String, Int>, path: String): Int {
     return ratings.entries.firstOrNull { it.key.equals(path, ignoreCase = true) }?.value ?: 0
 }
 
-fun applyExifRatingsToMedia(media: List<Medium>, exifRatings: HashMap<String, Int>) {
+fun syncExifRatingOnGalleryMedia(path: String, rating: Int) {
+    org.fossify.gallery.activities.MediaActivity.mMedia.filterIsInstance<Medium>().firstOrNull {
+        it.path.equals(path, ignoreCase = true)
+    }?.exifRating = rating.coerceIn(0, 5)
+    org.fossify.gallery.activities.MediaActivity.pendingExifRatingRefreshPaths.add(path)
+}
+
+fun applyExifRatingsToMedia(media: List<Medium>, exifRatings: HashMap<String, Int>): List<String> {
     if (exifRatings.isEmpty()) {
-        return
+        return emptyList()
     }
+    val changedPaths = ArrayList<String>()
     media.forEach { medium ->
-        medium.exifRating = lookupExifRating(exifRatings, medium.path)
+        val newRating = lookupExifRating(exifRatings, medium.path)
+        if (medium.exifRating != newRating) {
+            medium.exifRating = newRating
+            changedPaths.add(medium.path)
+        }
     }
+    return changedPaths
 }
 
 fun Context.cacheExifRating(path: String, rating: Int, lastModified: Long? = null) {

@@ -90,6 +90,7 @@ import org.fossify.gallery.helpers.LOCATION_INTERNAL
 import org.fossify.gallery.helpers.LOCATION_OTG
 import org.fossify.gallery.helpers.LOCATION_SD
 import org.fossify.gallery.helpers.MediaFetcher
+import org.fossify.gallery.helpers.applyExifRatingsToMedia
 import org.fossify.gallery.helpers.MyWidgetProvider
 import org.fossify.gallery.helpers.PicassoRoundedCornersTransformation
 import org.fossify.gallery.helpers.RECYCLE_BIN
@@ -985,6 +986,12 @@ fun Context.getCachedMedia(
         }) as ArrayList<Medium>
 
         val pathToUse = path.ifEmpty { SHOW_ALL }
+        val exifRatings = if (path.isEmpty() || path == FAVORITES) {
+            mediaFetcher.getExifRatings()
+        } else {
+            mediaFetcher.getFolderExifRatings(path)
+        }
+        applyExifRatingsToMedia(media, exifRatings)
         mediaFetcher.sortMedia(media, config.getFolderSorting(pathToUse))
         val grouped = mediaFetcher.groupMedia(media, pathToUse)
         callback(grouped.clone() as ArrayList<ThumbnailItem>)

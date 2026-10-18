@@ -76,7 +76,9 @@ class GetMediaAsynctask(
         if (shouldIndexCaptureTimes) {
             DateTakenIndexer.schedule(context)
         }
-        ExifRatingIndexer.schedule(context)
+        if (context.config.showExifRatings) {
+            ExifRatingIndexer.schedule(context)
+        }
     }
 
     fun stopFetching() {

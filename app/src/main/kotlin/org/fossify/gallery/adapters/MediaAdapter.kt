@@ -113,6 +113,10 @@ class MediaAdapter(
     private val ITEM_MEDIUM_VIDEO_PORTRAIT = 1
     private val ITEM_MEDIUM_PHOTO = 2
 
+    companion object {
+        private const val PAYLOAD_EXIF_RATING = "exif_rating"
+    }
+
     private val config = activity.config
     private val viewType = config.getFolderViewType(if (config.showAll) SHOW_ALL else path)
     private val isListViewType = viewType == VIEW_TYPE_LIST
@@ -158,6 +162,20 @@ class MediaAdapter(
     }
 
     override fun onBindViewHolder(holder: MyRecyclerViewAdapter.ViewHolder, position: Int) {
+        onBindViewHolder(holder, position, mutableListOf())
+    }
+
+    override fun onBindViewHolder(holder: MyRecyclerViewAdapter.ViewHolder, position: Int, payloads: MutableList<Any>) {
+        if (payloads.contains(PAYLOAD_EXIF_RATING)) {
+            val medium = media.getOrNull(position) as? Medium ?: return
+            bindThumbnailExifRating(
+                bindItem(holder.itemView, medium).exifRatingBar,
+                medium.exifRating,
+                medium.isJpeg() && config.showExifRatings
+            )
+            return
+        }
+
         val tmbItem = media.getOrNull(position) ?: return
         val allowLongPress = (!isAGetIntent || allowMultiplePicks) && tmbItem is Medium
         holder.bindView(tmbItem, tmbItem is Medium, allowLongPress) { itemView, adapterPosition ->
@@ -168,6 +186,19 @@ class MediaAdapter(
             }
         }
         bindViewHolder(holder)
+    }
+
+    fun notifyExifRatingPathsChanged(paths: Collection<String>) {
+        if (paths.isEmpty()) {
+            return
+        }
+        val normalized = paths.mapTo(HashSet()) { it.lowercase() }
+        media.forEachIndexed { index, item ->
+            val medium = item as? Medium ?: return@forEachIndexed
+            if (medium.isJpeg() && normalized.any { medium.path.equals(it, ignoreCase = true) }) {
+                notifyItemChanged(index, PAYLOAD_EXIF_RATING)
+            }
+        }
     }
 
     override fun getItemCount() = media.size

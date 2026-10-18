@@ -100,6 +100,7 @@ import org.fossify.gallery.helpers.GridSpacingItemDecoration
 import org.fossify.gallery.helpers.IS_IN_RECYCLE_BIN
 import org.fossify.gallery.helpers.MAX_COLUMN_COUNT
 import org.fossify.gallery.helpers.MediaFetcher
+import org.fossify.gallery.helpers.applyExifRatingsToMedia
 import org.fossify.gallery.helpers.PATH
 import org.fossify.gallery.helpers.PICKED_PATHS
 import org.fossify.gallery.helpers.RECYCLE_BIN
@@ -155,7 +156,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     private val mExifRatingIndexReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (mLoadedInitialPhotos) {
-                startAsyncTask()
+                refreshDisplayedExifRatings()
             }
         }
     }
@@ -174,6 +175,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
 
     companion object {
         var mMedia = ArrayList<ThumbnailItem>()
+        val pendingExifRatingRefreshPaths = LinkedHashSet<String>()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -286,6 +288,15 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                         finish()
                     }
                 }
+            }
+        }
+
+        if (mWasFullscreenViewOpen) {
+            val paths = pendingExifRatingRefreshPaths.toList()
+            pendingExifRatingRefreshPaths.clear()
+            mWasFullscreenViewOpen = false
+            if (paths.isNotEmpty()) {
+                getMediaAdapter()?.notifyExifRatingPathsChanged(paths)
             }
         }
 
@@ -753,6 +764,32 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
 
         unregisterReceiver(mExifRatingIndexReceiver)
         mExifRatingIndexReceiverRegistered = false
+    }
+
+    private fun refreshDisplayedExifRatings() {
+        if (mMedia.isEmpty()) {
+            return
+        }
+
+        ensureBackgroundThread {
+            val fetcher = MediaFetcher(applicationContext)
+            val ratings = if (mShowAll) {
+                fetcher.getExifRatings()
+            } else {
+                fetcher.getFolderExifRatings(mPath)
+            }
+            if (ratings.isEmpty()) {
+                return@ensureBackgroundThread
+            }
+
+            val changedPaths = applyExifRatingsToMedia(mMedia.filterIsInstance<Medium>(), ratings)
+            if (changedPaths.isEmpty()) {
+                return@ensureBackgroundThread
+            }
+            runOnUiThread {
+                getMediaAdapter()?.notifyExifRatingPathsChanged(changedPaths)
+            }
+        }
     }
 
     private fun startAsyncTask() {
