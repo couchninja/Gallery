@@ -100,7 +100,7 @@ import org.fossify.gallery.helpers.GridSpacingItemDecoration
 import org.fossify.gallery.helpers.IS_IN_RECYCLE_BIN
 import org.fossify.gallery.helpers.MAX_COLUMN_COUNT
 import org.fossify.gallery.helpers.MediaFetcher
-import org.fossify.gallery.helpers.applyExifRatingsToMedia
+import org.fossify.gallery.helpers.mergeExifRatingsIntoMediaAsync
 import org.fossify.gallery.helpers.PATH
 import org.fossify.gallery.helpers.PICKED_PATHS
 import org.fossify.gallery.helpers.RECYCLE_BIN
@@ -767,25 +767,11 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     }
 
     private fun refreshDisplayedExifRatings() {
-        if (!config.showExifRatings || mMedia.isEmpty()) {
-            return
-        }
-
-        ensureBackgroundThread {
-            val fetcher = MediaFetcher(applicationContext)
-            val ratings = if (mShowAll) {
-                fetcher.getExifRatings()
-            } else {
-                fetcher.getFolderExifRatings(mPath)
-            }
-            if (ratings.isEmpty()) {
-                return@ensureBackgroundThread
-            }
-
-            val changedPaths = applyExifRatingsToMedia(mMedia.filterIsInstance<Medium>(), ratings)
-            if (changedPaths.isEmpty()) {
-                return@ensureBackgroundThread
-            }
+        mergeExifRatingsIntoMediaAsync(
+            media = mMedia.filterIsInstance<Medium>(),
+            folderPath = mPath,
+            treatAsShowAll = mShowAll,
+        ) { changedPaths ->
             runOnUiThread {
                 getMediaAdapter()?.notifyExifRatingPathsChanged(changedPaths)
             }
@@ -1130,6 +1116,9 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             }
             binding.mediaFastscroller.beVisibleIf(binding.mediaEmptyTextPlaceholder.isGone())
             setupAdapter()
+            if (isFromCache && config.showExifRatings) {
+                refreshDisplayedExifRatings()
+            }
         }
 
         mLatestMediaId = getLatestMediaId()

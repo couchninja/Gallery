@@ -11,6 +11,7 @@ import android.widget.ImageView
 import android.widget.Toast
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.view.allViews
+import androidx.recyclerview.widget.GridLayoutManager
 import com.bumptech.glide.Glide
 import com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller
 import org.fossify.commons.activities.BaseSimpleActivity
@@ -115,6 +116,8 @@ class MediaAdapter(
 
     companion object {
         private const val PAYLOAD_EXIF_RATING = "exif_rating"
+        private const val MAX_TARGETED_EXIF_RATING_NOTIFIES = 32
+        private const val EXIF_RATING_VISIBLE_SLACK = 8
     }
 
     private val config = activity.config
@@ -192,10 +195,30 @@ class MediaAdapter(
         if (paths.isEmpty()) {
             return
         }
+        if (paths.size > MAX_TARGETED_EXIF_RATING_NOTIFIES) {
+            notifyVisibleExifRatingItemsChanged()
+            return
+        }
+
         val normalized = paths.mapTo(HashSet()) { it.lowercase() }
         media.forEachIndexed { index, item ->
             val medium = item as? Medium ?: return@forEachIndexed
             if (medium.isJpeg() && normalized.any { medium.path.equals(it, ignoreCase = true) }) {
+                notifyItemChanged(index, PAYLOAD_EXIF_RATING)
+            }
+        }
+    }
+
+    fun notifyVisibleExifRatingItemsChanged() {
+        val layoutManager = recyclerView.layoutManager as? GridLayoutManager ?: return
+        if (media.isEmpty()) {
+            return
+        }
+
+        val first = (layoutManager.findFirstVisibleItemPosition() - EXIF_RATING_VISIBLE_SLACK).coerceAtLeast(0)
+        val last = (layoutManager.findLastVisibleItemPosition() + EXIF_RATING_VISIBLE_SLACK).coerceAtMost(media.lastIndex)
+        for (index in first..last) {
+            if (media.getOrNull(index) is Medium) {
                 notifyItemChanged(index, PAYLOAD_EXIF_RATING)
             }
         }

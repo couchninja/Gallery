@@ -18,6 +18,7 @@ import org.fossify.gallery.databinding.ActivitySearchBinding
 import org.fossify.gallery.extensions.*
 import org.fossify.gallery.helpers.GridSpacingItemDecoration
 import org.fossify.gallery.helpers.MediaFetcher
+import org.fossify.gallery.helpers.mergeExifRatingsIntoMediaAsync
 import org.fossify.gallery.helpers.PATH
 import org.fossify.gallery.helpers.SHOW_ALL
 import org.fossify.gallery.helpers.VIDEO_PLAYER_APP
@@ -224,6 +225,18 @@ class SearchActivity : SimpleActivity(), MediaOperationsListener {
         binding.searchFastscroller.setScrollVertically(!scrollHorizontally)
     }
 
+    private fun refreshCachedExifRatings() {
+        mergeExifRatingsIntoMediaAsync(
+            media = mAllMedia.filterIsInstance<Medium>(),
+            folderPath = "",
+            treatAsShowAll = true,
+        ) { changedPaths ->
+            runOnUiThread {
+                getMediaAdapter()?.notifyExifRatingPathsChanged(changedPaths)
+            }
+        }
+    }
+
     private fun getAllMedia() {
         getCachedMedia("") {
             if (it.isNotEmpty()) {
@@ -231,6 +244,7 @@ class SearchActivity : SimpleActivity(), MediaOperationsListener {
             }
             runOnUiThread {
                 setupAdapter()
+                refreshCachedExifRatings()
             }
             startAsyncTask(false)
         }

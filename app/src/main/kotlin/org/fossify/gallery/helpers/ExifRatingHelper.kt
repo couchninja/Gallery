@@ -3,6 +3,9 @@ package org.fossify.gallery.helpers
 import android.content.Context
 import org.fossify.commons.extensions.getFilenameFromPath
 import org.fossify.commons.extensions.getParentPath
+import org.fossify.commons.helpers.ensureBackgroundThread
+import org.fossify.commons.helpers.FAVORITES
+import org.fossify.gallery.extensions.config
 import org.fossify.gallery.extensions.exifRatingsDB
 import org.fossify.gallery.models.ExifRating
 import org.fossify.gallery.models.Medium
@@ -39,15 +42,49 @@ fun syncExifRatingOnGalleryMedia(path: String, rating: Int) {
     org.fossify.gallery.activities.MediaActivity.pendingExifRatingRefreshPaths.add(path)
 }
 
+fun Context.mergeExifRatingsIntoMediaAsync(
+    media: List<Medium>,
+    folderPath: String,
+    treatAsShowAll: Boolean,
+    onMerged: (changedPaths: List<String>) -> Unit
+) {
+    if (!config.showExifRatings || media.isEmpty()) {
+        return
+    }
+
+    ensureBackgroundThread {
+        val fetcher = MediaFetcher(applicationContext)
+        val ratings = if (treatAsShowAll || folderPath.isEmpty() || folderPath == FAVORITES) {
+            fetcher.getExifRatings()
+        } else {
+            fetcher.getFolderExifRatings(folderPath)
+        }
+        if (ratings.isEmpty()) {
+            return@ensureBackgroundThread
+        }
+
+        val changedPaths = applyExifRatingsToMedia(media, ratings)
+        if (changedPaths.isNotEmpty()) {
+            onMerged(changedPaths)
+        }
+    }
+}
+
 fun applyExifRatingsToMedia(media: List<Medium>, exifRatings: HashMap<String, Int>): List<String> {
     if (exifRatings.isEmpty()) {
         return emptyList()
     }
-    val changedPaths = ArrayList<String>()
+
+    val mediaByPath = HashMap<String, Medium>(media.size.coerceAtLeast(exifRatings.size))
     media.forEach { medium ->
-        val newRating = lookupExifRating(exifRatings, medium.path)
-        if (medium.exifRating != newRating) {
-            medium.exifRating = newRating
+        mediaByPath[medium.path.lowercase()] = medium
+    }
+
+    val changedPaths = ArrayList<String>()
+    exifRatings.forEach { (path, rating) ->
+        val medium = mediaByPath[path.lowercase()] ?: return@forEach
+        if (medium.exifRating != rating) {
+            medium.exifRating = rating
             changedPaths.add(medium.path)
         }
     }
