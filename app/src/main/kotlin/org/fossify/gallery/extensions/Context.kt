@@ -986,12 +986,14 @@ fun Context.getCachedMedia(
         }) as ArrayList<Medium>
 
         val pathToUse = path.ifEmpty { SHOW_ALL }
-        val exifRatings = if (path.isEmpty() || path == FAVORITES) {
-            mediaFetcher.getExifRatings()
-        } else {
-            mediaFetcher.getFolderExifRatings(path)
+        if (config.showExifRatings) {
+            val exifRatings = if (path.isEmpty() || path == FAVORITES) {
+                mediaFetcher.getExifRatings()
+            } else {
+                mediaFetcher.getFolderExifRatings(path)
+            }
+            applyExifRatingsToMedia(media, exifRatings)
         }
-        applyExifRatingsToMedia(media, exifRatings)
         mediaFetcher.sortMedia(media, config.getFolderSorting(pathToUse))
         val grouped = mediaFetcher.groupMedia(media, pathToUse)
         callback(grouped.clone() as ArrayList<ThumbnailItem>)

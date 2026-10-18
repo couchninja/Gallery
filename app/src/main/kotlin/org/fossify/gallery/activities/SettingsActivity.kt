@@ -97,6 +97,7 @@ class SettingsActivity : SimpleActivity() {
         setupMaxBrightness()
         setupUltraHdrRendering()
         setupCropThumbnails()
+        setupShowExifRatings()
         setupAnimateGifs()
         setupDarkBackground()
         setupScrollHorizontally()
@@ -441,6 +442,14 @@ class SettingsActivity : SimpleActivity() {
         binding.settingsCropThumbnailsHolder.setOnClickListener {
             binding.settingsCropThumbnails.toggle()
             config.cropThumbnails = binding.settingsCropThumbnails.isChecked
+        }
+    }
+
+    private fun setupShowExifRatings() {
+        binding.settingsShowExifRatings.isChecked = config.showExifRatings
+        binding.settingsShowExifRatingsHolder.setOnClickListener {
+            binding.settingsShowExifRatings.toggle()
+            config.showExifRatings = binding.settingsShowExifRatings.isChecked
         }
     }
 
@@ -1019,6 +1028,7 @@ class SettingsActivity : SimpleActivity() {
                 put(CROP_THUMBNAILS, config.cropThumbnails)
                 put(SHOW_THUMBNAIL_VIDEO_DURATION, config.showThumbnailVideoDuration)
                 put(SHOW_THUMBNAIL_FILE_TYPES, config.showThumbnailFileTypes)
+                put(SHOW_EXIF_RATINGS, config.showExifRatings)
                 put(MARK_FAVORITE_ITEMS, config.markFavoriteItems)
                 put(SCROLL_HORIZONTALLY, config.scrollHorizontally)
                 put(ENABLE_PULL_TO_REFRESH, config.enablePullToRefresh)
@@ -1165,6 +1175,7 @@ class SettingsActivity : SimpleActivity() {
                 CROP_THUMBNAILS -> config.cropThumbnails = value.toBoolean()
                 SHOW_THUMBNAIL_VIDEO_DURATION -> config.showThumbnailVideoDuration = value.toBoolean()
                 SHOW_THUMBNAIL_FILE_TYPES -> config.showThumbnailFileTypes = value.toBoolean()
+                SHOW_EXIF_RATINGS -> config.showExifRatings = value.toBoolean()
                 MARK_FAVORITE_ITEMS -> config.markFavoriteItems = value.toBoolean()
                 SCROLL_HORIZONTALLY -> config.scrollHorizontally = value.toBoolean()
                 ENABLE_PULL_TO_REFRESH -> config.enablePullToRefresh = value.toBoolean()

@@ -40,10 +40,14 @@ class GetMediaAsynctask(
         val getVideoDurations = context.config.showThumbnailVideoDuration
         val lastModifieds = if (getProperLastModified) mediaFetcher.getLastModifieds() else HashMap()
         val dateTakens = if (getProperDateTaken) mediaFetcher.getDateTakens() else HashMap()
-        val exifRatings = if (showAll) {
-            mediaFetcher.getExifRatings()
+        val exifRatings = if (context.config.showExifRatings) {
+            if (showAll) {
+                mediaFetcher.getExifRatings()
+            } else {
+                mediaFetcher.getFolderExifRatings(mPath)
+            }
         } else {
-            mediaFetcher.getFolderExifRatings(mPath)
+            HashMap()
         }
 
         val media = if (showAll) {

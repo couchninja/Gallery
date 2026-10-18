@@ -1177,7 +1177,11 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
         val dirPathsToRemove = ArrayList<String>()
         val lastModifieds = mLastMediaFetcher!!.getLastModifieds()
         val dateTakens = mLastMediaFetcher!!.getDateTakens()
-        val exifRatings = mLastMediaFetcher!!.getExifRatings()
+        val exifRatings = if (config.showExifRatings) {
+            mLastMediaFetcher!!.getExifRatings()
+        } else {
+            HashMap()
+        }
 
         if (
             config.showRecycleBinAtFolders

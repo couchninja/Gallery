@@ -767,7 +767,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     }
 
     private fun refreshDisplayedExifRatings() {
-        if (mMedia.isEmpty()) {
+        if (!config.showExifRatings || mMedia.isEmpty()) {
             return
         }
 
