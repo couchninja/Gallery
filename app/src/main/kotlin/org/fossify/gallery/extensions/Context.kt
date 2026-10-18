@@ -927,15 +927,19 @@ fun Context.getCachedMedia(
     path: String,
     getVideosOnly: Boolean = false,
     getImagesOnly: Boolean = false,
+    onStatus: ((String) -> Unit)? = null,
     callback: (ArrayList<ThumbnailItem>) -> Unit
 ) {
     ensureBackgroundThread {
         val mediaFetcher = MediaFetcher(this)
         val foldersToScan = if (path.isEmpty()) {
+            onStatus?.invoke(getString(R.string.loading_media_finding_folders))
             mediaFetcher.getFoldersToScan()
         } else {
             arrayListOf(path)
         }
+
+        onStatus?.invoke(getString(R.string.loading_media_reading_cache))
 
         var media = ArrayList<Medium>()
         if (path == FAVORITES) {
@@ -985,6 +989,7 @@ fun Context.getCachedMedia(
         }) as ArrayList<Medium>
 
         val pathToUse = path.ifEmpty { SHOW_ALL }
+        onStatus?.invoke(getString(R.string.loading_media_organizing))
         mediaFetcher.sortMedia(media, config.getFolderSorting(pathToUse))
         val grouped = mediaFetcher.groupMedia(media, pathToUse)
         callback(grouped.clone() as ArrayList<ThumbnailItem>)

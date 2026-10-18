@@ -32,6 +32,13 @@
     <string name="capture_time_index_running">Reading capture dates: %1$d%% (%2$d / %3$d)</string>
     <string name="capture_time_index_complete">Ready — %1$d files indexed for sorting</string>
     <string name="capture_time_index_nothing_to_do">Up to date — no files need indexing</string>
+    <string name="loading_media_start">Loading gallery…</string>
+    <string name="loading_media_finding_folders">Finding folders…</string>
+    <string name="loading_media_reading_cache">Reading saved library…</string>
+    <string name="loading_media_organizing">Sorting and grouping…</string>
+    <string name="loading_media_scanning_library">Scanning photos and videos…</string>
+    <string name="loading_media_reading_dates">Loading capture dates…</string>
+    <string name="loading_media_reading_ratings">Loading star ratings…</string>
     <string name="share_resized">Share a resized version</string>
     <string name="switch_to_file_search">Switch to file search across all visible folders</string>
     <string name="set_as_default_folder">Set as default folder</string>

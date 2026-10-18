@@ -271,6 +271,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         }
 
         binding.loadingIndicator.setIndicatorColor(getProperPrimaryColor())
+        binding.loadingIndicatorMessage.setTextColor(getProperTextColor())
         binding.mediaEmptyTextPlaceholder.setTextColor(getProperTextColor())
         binding.mediaEmptyTextPlaceholder2.setTextColor(getProperPrimaryColor())
         binding.mediaEmptyTextPlaceholder2.bringToFront()
@@ -523,7 +524,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             }
 
             if (mShowLoadingIndicator) {
-                binding.loadingIndicator.show()
+                showLoadingStatus(getString(R.string.loading_media_start))
                 mShowLoadingIndicator = false
             }
 
@@ -692,6 +693,25 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         }
     }
 
+    private fun showLoadingStatus(message: String) {
+        binding.loadingIndicatorMessage.text = message
+        binding.loadingIndicatorHolder.beVisible()
+        binding.loadingIndicator.show()
+    }
+
+    private fun updateLoadingStatus(message: String) {
+        runOnUiThread {
+            if (binding.loadingIndicatorHolder.isVisible()) {
+                binding.loadingIndicatorMessage.text = message
+            }
+        }
+    }
+
+    private fun hideLoadingStatus() {
+        binding.loadingIndicator.hide()
+        binding.loadingIndicatorHolder.beGone()
+    }
+
     private fun getMedia() {
         if (mIsGettingMedia) {
             return
@@ -704,7 +724,8 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             getCachedMedia(
                 mPath,
                 mIsGetVideoIntent && !mIsGetImageIntent,
-                mIsGetImageIntent && !mIsGetVideoIntent
+                mIsGetImageIntent && !mIsGetVideoIntent,
+                onStatus = { updateLoadingStatus(it) },
             ) {
                 if (it.isEmpty()) {
                     runOnUiThread {
@@ -785,7 +806,8 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             mPath = mPath,
             isPickImage = mIsGetImageIntent && !mIsGetVideoIntent,
             isPickVideo = mIsGetVideoIntent && !mIsGetImageIntent,
-            showAll = mShowAll
+            showAll = mShowAll,
+            onStatus = { updateLoadingStatus(it) },
         ) {
             ensureBackgroundThread {
                 val oldMedia = mMedia.clone() as ArrayList<ThumbnailItem>
@@ -1106,7 +1128,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         mMedia = media
 
         runOnUiThread {
-            binding.loadingIndicator.hide()
+            hideLoadingStatus()
             binding.mediaRefreshLayout.isRefreshing = false
             binding.mediaEmptyTextPlaceholder.beVisibleIf(media.isEmpty() && !isFromCache)
             binding.mediaEmptyTextPlaceholder2.beVisibleIf(media.isEmpty() && !isFromCache)
