@@ -1177,6 +1177,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
         val dirPathsToRemove = ArrayList<String>()
         val lastModifieds = mLastMediaFetcher!!.getLastModifieds()
         val dateTakens = mLastMediaFetcher!!.getDateTakens()
+        val exifRatings = mLastMediaFetcher!!.getExifRatings()
 
         if (
             config.showRecycleBinAtFolders
@@ -1248,6 +1249,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
                     getVideoDurations = false,
                     lastModifieds = lastModifieds,
                     dateTakens = dateTakens,
+                    exifRatings = exifRatings,
                     android11Files = android11Files
                 )
 
@@ -1372,6 +1374,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
                 getVideoDurations = false,
                 lastModifieds = lastModifieds,
                 dateTakens = dateTakens,
+                exifRatings = exifRatings,
                 android11Files = android11Files
             )
 

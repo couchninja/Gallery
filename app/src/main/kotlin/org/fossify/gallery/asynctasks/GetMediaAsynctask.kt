@@ -9,6 +9,7 @@ import org.fossify.commons.helpers.SORT_BY_SIZE
 import org.fossify.gallery.extensions.config
 import org.fossify.gallery.extensions.getFavoritePaths
 import org.fossify.gallery.helpers.DateTakenIndexer
+import org.fossify.gallery.helpers.ExifRatingIndexer
 import org.fossify.gallery.helpers.*
 import org.fossify.gallery.models.Medium
 import org.fossify.gallery.models.ThumbnailItem
@@ -39,6 +40,11 @@ class GetMediaAsynctask(
         val getVideoDurations = context.config.showThumbnailVideoDuration
         val lastModifieds = if (getProperLastModified) mediaFetcher.getLastModifieds() else HashMap()
         val dateTakens = if (getProperDateTaken) mediaFetcher.getDateTakens() else HashMap()
+        val exifRatings = if (showAll) {
+            mediaFetcher.getExifRatings()
+        } else {
+            mediaFetcher.getFolderExifRatings(mPath)
+        }
 
         val media = if (showAll) {
             val foldersToScan = mediaFetcher.getFoldersToScan().filter { it != RECYCLE_BIN && it != FAVORITES && !context.config.isFolderProtected(it) }
@@ -46,7 +52,8 @@ class GetMediaAsynctask(
             foldersToScan.forEach {
                 val newMedia = mediaFetcher.getFilesFrom(
                     it, isPickImage, isPickVideo, getProperDateTaken, getProperLastModified, getProperFileSize,
-                    favoritePaths, getVideoDurations, lastModifieds, dateTakens.clone() as HashMap<String, Long>, null
+                    favoritePaths, getVideoDurations, lastModifieds, dateTakens.clone() as HashMap<String, Long>,
+                    exifRatings, null
                 )
                 media.addAll(newMedia)
             }
@@ -56,7 +63,7 @@ class GetMediaAsynctask(
         } else {
             mediaFetcher.getFilesFrom(
                 mPath, isPickImage, isPickVideo, getProperDateTaken, getProperLastModified, getProperFileSize, favoritePaths,
-                getVideoDurations, lastModifieds, dateTakens, null
+                getVideoDurations, lastModifieds, dateTakens, exifRatings, null
             )
         }
 
@@ -69,6 +76,7 @@ class GetMediaAsynctask(
         if (shouldIndexCaptureTimes) {
             DateTakenIndexer.schedule(context)
         }
+        ExifRatingIndexer.schedule(context)
     }
 
     fun stopFetching() {

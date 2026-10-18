@@ -8,6 +8,7 @@ import okhttp3.Response
 import org.fossify.commons.FossifyApp
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.gallery.helpers.DateTakenIndexer
+import org.fossify.gallery.helpers.ExifRatingIndexer
 
 class App : FossifyApp() {
 
@@ -17,6 +18,7 @@ class App : FossifyApp() {
         super.onCreate()
         ensureBackgroundThread {
             DateTakenIndexer.schedule(this)
+            ExifRatingIndexer.schedule(this)
         }
         Reprint.initialize(this)
         Picasso.setSingletonInstance(Picasso.Builder(this).downloader(object : Downloader {

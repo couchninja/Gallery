@@ -91,6 +91,7 @@ import org.fossify.gallery.extensions.showRestoreConfirmationDialog
 import org.fossify.gallery.extensions.tryDeleteFileDirItem
 import org.fossify.gallery.extensions.updateWidgets
 import org.fossify.gallery.helpers.ACTION_DATE_TAKEN_INDEX_UPDATED
+import org.fossify.gallery.helpers.ACTION_EXIF_RATING_INDEX_UPDATED
 import org.fossify.gallery.helpers.DIRECTORY
 import org.fossify.gallery.helpers.GET_ANY_INTENT
 import org.fossify.gallery.helpers.GET_IMAGE_INTENT
@@ -141,8 +142,17 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     private var mCurrAsyncTask: GetMediaAsynctask? = null
     private var mZoomListener: MyRecyclerView.MyZoomListener? = null
     private var mDateTakenIndexReceiverRegistered = false
+    private var mExifRatingIndexReceiverRegistered = false
 
     private val mDateTakenIndexReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (mLoadedInitialPhotos) {
+                startAsyncTask()
+            }
+        }
+    }
+
+    private val mExifRatingIndexReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (mLoadedInitialPhotos) {
                 startAsyncTask()
@@ -155,7 +165,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     private var mStoredScrollHorizontally = true
     private var mStoredShowFileTypes = true
     private var mStoredRoundedCorners = false
-    private var mStoredMarkFavoriteItems = true
+    private var mStoredShowExifRatings = true
     private var mStoredTextColor = 0
     private var mStoredPrimaryColor = 0
     private var mStoredThumbnailSpacing = 0
@@ -243,7 +253,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         if (
             mStoredThumbnailSpacing != config.thumbnailSpacing
             || mStoredRoundedCorners != config.fileRoundedCorners
-            || mStoredMarkFavoriteItems != config.markFavoriteItems
+            || mStoredShowExifRatings != config.showExifRatings
         ) {
             binding.mediaGrid.adapter = null
             setupAdapter()
@@ -280,11 +290,13 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         }
 
         registerDateTakenIndexReceiver()
+        registerExifRatingIndexReceiver()
     }
 
     override fun onPause() {
         super.onPause()
         unregisterDateTakenIndexReceiver()
+        unregisterExifRatingIndexReceiver()
         mIsGettingMedia = false
         binding.mediaRefreshLayout.isRefreshing = false
         storeStateVariables()
@@ -441,7 +453,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             mStoredCropThumbnails = cropThumbnails
             mStoredScrollHorizontally = scrollHorizontally
             mStoredShowFileTypes = showThumbnailFileTypes
-            mStoredMarkFavoriteItems = markFavoriteItems
+            mStoredShowExifRatings = showExifRatings
             mStoredThumbnailSpacing = thumbnailSpacing
             mStoredRoundedCorners = fileRoundedCorners
             mShowAll = showAll && mPath != RECYCLE_BIN
@@ -718,6 +730,29 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
 
         unregisterReceiver(mDateTakenIndexReceiver)
         mDateTakenIndexReceiverRegistered = false
+    }
+
+    private fun registerExifRatingIndexReceiver() {
+        if (mExifRatingIndexReceiverRegistered) {
+            return
+        }
+
+        val filter = IntentFilter(ACTION_EXIF_RATING_INDEX_UPDATED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(mExifRatingIndexReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(mExifRatingIndexReceiver, filter)
+        }
+        mExifRatingIndexReceiverRegistered = true
+    }
+
+    private fun unregisterExifRatingIndexReceiver() {
+        if (!mExifRatingIndexReceiverRegistered) {
+            return
+        }
+
+        unregisterReceiver(mExifRatingIndexReceiver)
+        mExifRatingIndexReceiverRegistered = false
     }
 
     private fun startAsyncTask() {

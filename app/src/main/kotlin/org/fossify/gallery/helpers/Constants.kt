@@ -91,6 +91,7 @@ const val FILE_LOADING_PRIORITY = "file_loading_priority"
 const val SPAM_FOLDERS_CHECKED = "spam_folders_checked"
 const val SHOW_THUMBNAIL_FILE_TYPES = "show_thumbnail_file_types"
 const val MARK_FAVORITE_ITEMS = "mark_favorite_items"
+const val SHOW_EXIF_RATINGS = "show_exif_ratings"
 const val EDITOR_BRUSH_COLOR = "editor_brush_color"
 const val EDITOR_BRUSH_HARDNESS = "editor_brush_hardness"
 const val EDITOR_BRUSH_SIZE = "editor_brush_size"
@@ -234,8 +235,9 @@ const val BOTTOM_ACTION_COPY = 4096
 const val BOTTOM_ACTION_MOVE = 8192
 const val BOTTOM_ACTION_RESIZE = 16384
 
-const val DEFAULT_BOTTOM_ACTIONS = BOTTOM_ACTION_TOGGLE_FAVORITE or BOTTOM_ACTION_EDIT or BOTTOM_ACTION_SHARE or BOTTOM_ACTION_DELETE
+const val DEFAULT_BOTTOM_ACTIONS = BOTTOM_ACTION_EDIT or BOTTOM_ACTION_SHARE or BOTTOM_ACTION_DELETE
 
+const val ACTION_EXIF_RATING_INDEX_UPDATED = "org.fossify.gallery.action.EXIF_RATING_INDEX_UPDATED"
 const val ACTION_DATE_TAKEN_INDEX_UPDATED = "org.fossify.gallery.action.DATE_TAKEN_INDEX_UPDATED"
 const val ACTION_DATE_TAKEN_INDEX_PROGRESS = "org.fossify.gallery.action.DATE_TAKEN_INDEX_PROGRESS"
 

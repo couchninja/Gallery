@@ -368,7 +368,6 @@ open class PhotoVideoActivity : BaseViewerActivity(), ViewPagerFragment.Fragment
 
     private fun initBottomActionButtons() {
         arrayListOf(
-            binding.bottomActions.bottomFavorite,
             binding.bottomActions.bottomDelete,
             binding.bottomActions.bottomRotate,
             binding.bottomActions.bottomProperties,

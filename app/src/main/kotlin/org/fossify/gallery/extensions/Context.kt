@@ -104,6 +104,7 @@ import org.fossify.gallery.helpers.TYPE_RAWS
 import org.fossify.gallery.helpers.TYPE_SVGS
 import org.fossify.gallery.helpers.TYPE_VIDEOS
 import org.fossify.gallery.interfaces.DateTakensDao
+import org.fossify.gallery.interfaces.ExifRatingsDao
 import org.fossify.gallery.interfaces.DirectoryDao
 import org.fossify.gallery.interfaces.FavoritesDao
 import org.fossify.gallery.interfaces.MediumDao
@@ -144,6 +145,9 @@ val Context.favoritesDB: FavoritesDao
 
 val Context.dateTakensDB: DateTakensDao
     get() = GalleryDatabase.getInstance(applicationContext).DateTakensDao()
+
+val Context.exifRatingsDB: ExifRatingsDao
+    get() = GalleryDatabase.getInstance(applicationContext).ExifRatingsDao()
 
 val Context.recycleBin: File get() = filesDir
 
@@ -1107,6 +1111,7 @@ fun Context.deleteDBPath(path: String) {
 fun Context.deleteMediumWithPath(path: String) {
     try {
         mediaDB.deleteMediumPath(path)
+        exifRatingsDB.deleteRatingPath(path)
     } catch (ignored: Exception) {
     }
 }
@@ -1358,6 +1363,7 @@ fun Context.updateDirectoryPath(path: String) {
     }
 
     val dateTakens = mediaFetcher.getFolderDateTakens(path)
+    val exifRatings = mediaFetcher.getFolderExifRatings(path)
     val favoritePaths = getFavoritePaths()
     val curMedia = mediaFetcher.getFilesFrom(
         curPath = path,
@@ -1370,6 +1376,7 @@ fun Context.updateDirectoryPath(path: String) {
         getVideoDurations = false,
         lastModifieds = lastModifieds,
         dateTakens = dateTakens,
+        exifRatings = exifRatings,
         android11Files = null
     )
     val directory = createDirectoryFromMedia(

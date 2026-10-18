@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import org.fossify.gallery.interfaces.*
 import org.fossify.gallery.models.*
 
-@Database(entities = [Directory::class, Medium::class, Widget::class, DateTaken::class, Favorite::class], version = 10)
+@Database(entities = [Directory::class, Medium::class, Widget::class, DateTaken::class, Favorite::class, ExifRating::class], version = 11)
 abstract class GalleryDatabase : RoomDatabase() {
 
     abstract fun DirectoryDao(): DirectoryDao
@@ -21,6 +21,8 @@ abstract class GalleryDatabase : RoomDatabase() {
     abstract fun DateTakensDao(): DateTakensDao
 
     abstract fun FavoritesDao(): FavoritesDao
+
+    abstract fun ExifRatingsDao(): ExifRatingsDao
 
     companion object {
         private var db: GalleryDatabase? = null
@@ -37,6 +39,7 @@ abstract class GalleryDatabase : RoomDatabase() {
                             .addMigrations(MIGRATION_7_8)
                             .addMigrations(MIGRATION_8_9)
                             .addMigrations(MIGRATION_9_10)
+                            .addMigrations(MIGRATION_10_11)
                             .build()
                     }
                 }
@@ -89,6 +92,21 @@ abstract class GalleryDatabase : RoomDatabase() {
         private val MIGRATION_9_10 = object : Migration(9, 10) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE media ADD COLUMN media_store_id INTEGER default 0 NOT NULL")
+            }
+        }
+
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `exif_ratings` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                        "`full_path` TEXT NOT NULL, " +
+                        "`filename` TEXT NOT NULL, " +
+                        "`parent_path` TEXT NOT NULL, " +
+                        "`rating` INTEGER NOT NULL, " +
+                        "`last_modified` INTEGER NOT NULL)"
+                )
+                database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_exif_ratings_full_path` ON `exif_ratings` (`full_path`)")
             }
         }
     }

@@ -142,8 +142,12 @@ import org.fossify.gallery.helpers.BOTTOM_ACTION_SET_AS
 import org.fossify.gallery.helpers.BOTTOM_ACTION_SHARE
 import org.fossify.gallery.helpers.BOTTOM_ACTION_SHOW_ON_MAP
 import org.fossify.gallery.helpers.BOTTOM_ACTION_SLIDESHOW
-import org.fossify.gallery.helpers.BOTTOM_ACTION_TOGGLE_FAVORITE
 import org.fossify.gallery.helpers.BOTTOM_ACTION_TOGGLE_VISIBILITY
+import org.fossify.gallery.helpers.bindViewerExifRating
+import org.fossify.gallery.helpers.cacheExifRating
+import org.fossify.gallery.helpers.isJpeg
+import org.fossify.gallery.helpers.readExifRatingFromPath
+import org.fossify.gallery.helpers.setExifRating
 import org.fossify.gallery.helpers.ColorModeHelper
 import org.fossify.gallery.helpers.DefaultPageTransformer
 import org.fossify.gallery.helpers.FadePageTransformer
@@ -310,10 +314,10 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
                     (!isRPlus() || isExternalStorageManager()) && currentMedium.isHidden() && visibleBottomActions and BOTTOM_ACTION_TOGGLE_VISIBILITY == 0 && !currentMedium.getIsInRecycleBin()
 
                 findItem(R.id.menu_add_to_favorites).isVisible =
-                    !currentMedium.isFavorite && visibleBottomActions and BOTTOM_ACTION_TOGGLE_FAVORITE == 0 && !currentMedium.getIsInRecycleBin()
+                    !currentMedium.isFavorite && !currentMedium.getIsInRecycleBin()
 
                 findItem(R.id.menu_remove_from_favorites).isVisible =
-                    currentMedium.isFavorite && visibleBottomActions and BOTTOM_ACTION_TOGGLE_FAVORITE == 0 && !currentMedium.getIsInRecycleBin()
+                    currentMedium.isFavorite && !currentMedium.getIsInRecycleBin()
 
                 findItem(R.id.menu_restore_file).isVisible = currentMedium.path.startsWith(recycleBinPath)
                 findItem(R.id.menu_create_shortcut).isVisible = true
@@ -330,6 +334,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
             if (visibleBottomActions != 0) {
                 updateBottomActionIcons(currentMedium)
             }
+            updateExifRatingBar()
         }
     }
 
@@ -556,8 +561,11 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
         }
     }
 
+    private var mExifRatingBarInitialized = false
+
     private fun initBottomActions() {
         initBottomActionButtons()
+        initExifRatingBar()
         initBottomActionsLayout()
     }
 
@@ -939,18 +947,15 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
             binding.bottomActions.root.beVisible()
         } else {
             binding.bottomActions.root.beGone()
+            binding.viewerExifRating.root.beGone()
         }
     }
+
+    private fun getViewerExifRatingBar() = binding.viewerExifRating.root
 
     private fun initBottomActionButtons() {
         val currentMedium = getCurrentMedium()
         val visibleBottomActions = if (config.bottomActions) config.visibleBottomActions else 0
-        binding.bottomActions.bottomFavorite.beVisibleIf(visibleBottomActions and BOTTOM_ACTION_TOGGLE_FAVORITE != 0 && currentMedium?.getIsInRecycleBin() == false)
-        binding.bottomActions.bottomFavorite.setOnLongClickListener { toast(R.string.toggle_favorite); true }
-        binding.bottomActions.bottomFavorite.setOnClickListener {
-            toggleFavorite()
-        }
-
         binding.bottomActions.bottomEdit.beVisibleIf(visibleBottomActions and BOTTOM_ACTION_EDIT != 0 && currentMedium?.isSVG() == false)
         binding.bottomActions.bottomEdit.setOnLongClickListener { toast(R.string.edit); true }
         binding.bottomActions.bottomEdit.setOnClickListener {
@@ -1056,10 +1061,6 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
             return
         }
 
-        val favoriteIcon =
-            if (medium.isFavorite) org.fossify.commons.R.drawable.ic_star_vector else org.fossify.commons.R.drawable.ic_star_outline_vector
-        binding.bottomActions.bottomFavorite.setImageResource(favoriteIcon)
-
         val hideIcon =
             if (medium.isHidden()) org.fossify.commons.R.drawable.ic_unhide_vector else org.fossify.commons.R.drawable.ic_hide_vector
         binding.bottomActions.bottomToggleFileVisibility.setImageResource(hideIcon)
@@ -1081,6 +1082,72 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
 
             runOnUiThread {
                 refreshMenuItems()
+            }
+        }
+    }
+
+    private fun initExifRatingBar() {
+        if (!mExifRatingBarInitialized) {
+            mExifRatingBarInitialized = true
+            val bar = getViewerExifRatingBar()
+            bar.findViewById<android.widget.ImageView>(R.id.viewer_rating_star_1).setOnClickListener { onViewerRatingStarClicked(1) }
+            bar.findViewById<android.widget.ImageView>(R.id.viewer_rating_star_2).setOnClickListener { onViewerRatingStarClicked(2) }
+            bar.findViewById<android.widget.ImageView>(R.id.viewer_rating_star_3).setOnClickListener { onViewerRatingStarClicked(3) }
+            bar.findViewById<android.widget.ImageView>(R.id.viewer_rating_star_4).setOnClickListener { onViewerRatingStarClicked(4) }
+            bar.findViewById<android.widget.ImageView>(R.id.viewer_rating_star_5).setOnClickListener { onViewerRatingStarClicked(5) }
+        }
+        updateExifRatingBar()
+    }
+
+    private fun onViewerRatingStarClicked(rating: Int) {
+        val medium = getCurrentMedium() ?: return
+        if (!medium.isJpeg()) {
+            return
+        }
+        handleMediaManagementPrompt {
+            val newRating = if (medium.exifRating == rating) {
+                0
+            } else {
+                rating
+            }
+            ensureBackgroundThread {
+                if (setExifRating(medium.path, newRating)) {
+                    medium.exifRating = newRating
+                    runOnUiThread {
+                        bindViewerExifRating(getViewerExifRatingBar(), newRating)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun updateExifRatingBar() {
+        val medium = getCurrentMedium()
+        val showBar = config.bottomActions && medium != null && medium.isJpeg() && !medium.getIsInRecycleBin()
+        getViewerExifRatingBar().beVisibleIf(showBar)
+        if (!showBar || medium == null) {
+            return
+        }
+
+        bindViewerExifRating(getViewerExifRatingBar(), medium.exifRating)
+        ensureBackgroundThread {
+            syncExifRatingFromFile(medium)
+        }
+    }
+
+    private fun syncExifRatingFromFile(medium: Medium) {
+        if (!medium.isJpeg()) {
+            return
+        }
+        val fromFile = readExifRatingFromPath(medium.path)
+        if (fromFile == medium.exifRating) {
+            return
+        }
+        medium.exifRating = fromFile
+        cacheExifRating(medium.path, fromFile)
+        runOnUiThread {
+            if (getCurrentMedium()?.path == medium.path) {
+                bindViewerExifRating(getViewerExifRatingBar(), fromFile)
             }
         }
     }
@@ -1527,6 +1594,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
             mPos = position
             updateActionbarTitle()
             refreshMenuItems()
+            updateExifRatingBar()
             scheduleSwipe()
         }
     }

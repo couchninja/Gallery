@@ -79,6 +79,10 @@ import org.fossify.gallery.extensions.updateDBMediaPath
 import org.fossify.gallery.extensions.updateFavorite
 import org.fossify.gallery.extensions.updateFavoritePaths
 import org.fossify.gallery.helpers.PATH
+import org.fossify.gallery.helpers.bindThumbnailExifRating
+import org.fossify.gallery.helpers.isJpeg
+import org.fossify.gallery.helpers.setExifRating
+import org.fossify.gallery.dialogs.SetExifRatingDialog
 import org.fossify.gallery.helpers.RECYCLE_BIN
 import org.fossify.gallery.helpers.ROUNDED_CORNERS_BIG
 import org.fossify.gallery.helpers.ROUNDED_CORNERS_NONE
@@ -199,6 +203,8 @@ class MediaAdapter(
             findItem(R.id.cab_restore_recycle_bin_files).isVisible = selectedPaths.all { it.startsWith(activity.recycleBinPath) }
             findItem(R.id.cab_create_shortcut).isVisible = isOneItemSelected
 
+            findItem(R.id.cab_set_rating).isVisible = selectedItems.none { it.getIsInRecycleBin() } && selectedItems.any { it.isJpeg() }
+
             checkHideBtnVisibility(this, selectedItems)
             checkFavoriteBtnVisibility(this, selectedItems)
         }
@@ -229,6 +235,7 @@ class MediaAdapter(
             R.id.cab_select_all -> selectAll()
             R.id.cab_open_with -> openPath()
             R.id.cab_fix_date_taken -> fixDateTaken()
+            R.id.cab_set_rating -> setExifRatingForSelection()
             R.id.cab_set_as -> setAs()
             R.id.cab_resize -> resize()
             R.id.cab_delete -> checkDeleteConfirmation()
@@ -371,6 +378,29 @@ class MediaAdapter(
             activity.runOnUiThread {
                 listener?.refreshItems()
                 finishActMode()
+            }
+        }
+    }
+
+    private fun setExifRatingForSelection() {
+        val jpegs = getSelectedItems().filter { it.isJpeg() }
+        if (jpegs.isEmpty()) {
+            return
+        }
+
+        SetExifRatingDialog(activity, 0) { rating ->
+            activity.handleMediaManagementPrompt {
+                ensureBackgroundThread {
+                    jpegs.forEach { medium ->
+                        if (activity.setExifRating(medium.path, rating)) {
+                            medium.exifRating = rating
+                        }
+                    }
+                    activity.runOnUiThread {
+                        listener?.refreshItems()
+                        finishActMode()
+                    }
+                }
             }
         }
     }
@@ -666,7 +696,11 @@ class MediaAdapter(
 
             mediaItemHolder.setPadding(padding, padding, padding, padding)
 
-            favorite.beVisibleIf(medium.isFavorite && config.markFavoriteItems)
+            bindThumbnailExifRating(
+                exifRatingBar,
+                medium.exifRating,
+                medium.isJpeg() && config.showExifRatings
+            )
 
             playPortraitOutline?.beVisibleIf(medium.isVideo() || medium.isPortrait())
             if (medium.isVideo()) {

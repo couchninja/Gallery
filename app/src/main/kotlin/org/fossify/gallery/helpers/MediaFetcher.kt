@@ -29,7 +29,8 @@ class MediaFetcher(val context: Context) {
     fun getFilesFrom(
         curPath: String, isPickImage: Boolean, isPickVideo: Boolean, getProperDateTaken: Boolean, getProperLastModified: Boolean,
         getProperFileSize: Boolean, favoritePaths: ArrayList<String>, getVideoDurations: Boolean,
-        lastModifieds: HashMap<String, Long>, dateTakens: HashMap<String, Long>, android11Files: HashMap<String, ArrayList<Medium>>?
+        lastModifieds: HashMap<String, Long>, dateTakens: HashMap<String, Long>, exifRatings: HashMap<String, Int>,
+        android11Files: HashMap<String, ArrayList<Medium>>?
     ): ArrayList<Medium> {
         val filterMedia = context.config.filterMedia
         if (filterMedia == 0) {
@@ -77,6 +78,7 @@ class MediaFetcher(val context: Context) {
             }
         }
 
+        applyExifRatingsToMedia(curMedia, exifRatings)
         sortMedia(curMedia, context.config.getFolderSorting(curPath))
         return curMedia
     }
@@ -659,6 +661,35 @@ class MediaFetcher(val context: Context) {
         }
 
         return dateTakens
+    }
+
+    fun getFolderExifRatings(folder: String): HashMap<String, Int> {
+        val exifRatings = HashMap<String, Int>()
+        val ratingValues = try {
+            if (folder == FAVORITES) {
+                context.exifRatingsDB.getAllRatings()
+            } else {
+                context.exifRatingsDB.getRatingsFromPath(folder)
+            }
+        } catch (_: Exception) {
+            return exifRatings
+        }
+
+        ratingValues.forEach {
+            exifRatings[it.fullPath] = it.rating.coerceIn(0, 5)
+        }
+        return exifRatings
+    }
+
+    fun getExifRatings(): HashMap<String, Int> {
+        val exifRatings = HashMap<String, Int>()
+        try {
+            context.exifRatingsDB.getAllRatings().forEach {
+                exifRatings[it.fullPath] = it.rating.coerceIn(0, 5)
+            }
+        } catch (_: Exception) {
+        }
+        return exifRatings
     }
 
     fun getDateTakens(): HashMap<String, Long> {

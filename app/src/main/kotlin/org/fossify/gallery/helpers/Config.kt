@@ -201,6 +201,15 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getBoolean(MARK_FAVORITE_ITEMS, true)
         set(markFavoriteItems) = prefs.edit().putBoolean(MARK_FAVORITE_ITEMS, markFavoriteItems).apply()
 
+    var showExifRatings: Boolean
+        get() {
+            if (prefs.contains(SHOW_EXIF_RATINGS)) {
+                return prefs.getBoolean(SHOW_EXIF_RATINGS, true)
+            }
+            return prefs.getBoolean(MARK_FAVORITE_ITEMS, true)
+        }
+        set(showExifRatings) = prefs.edit().putBoolean(SHOW_EXIF_RATINGS, showExifRatings).apply()
+
     var screenRotation: Int
         get() = prefs.getInt(SCREEN_ROTATION, ROTATE_BY_SYSTEM_SETTING)
         set(screenRotation) = prefs.edit().putInt(SCREEN_ROTATION, screenRotation).apply()

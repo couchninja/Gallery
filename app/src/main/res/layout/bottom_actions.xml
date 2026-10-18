@@ -10,22 +10,6 @@
     android:paddingTop="@dimen/normal_margin">
 
     <ImageView
-        android:id="@+id/bottom_favorite"
-        android:layout_width="@dimen/list_touch_target_min"
-        android:layout_height="@dimen/list_touch_target_min"
-        android:layout_marginBottom="@dimen/normal_margin"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:contentDescription="@string/toggle_favorite"
-        android:padding="@dimen/normal_margin"
-        android:src="@drawable/ic_star_outline_vector"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/bottom_edit"
-        app:layout_constraintHorizontal_bias="0.5"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.0" />
-
-    <ImageView
         android:id="@+id/bottom_edit"
         android:layout_width="@dimen/list_touch_target_min"
         android:layout_height="@dimen/list_touch_target_min"
@@ -37,7 +21,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/bottom_share"
         app:layout_constraintHorizontal_bias="0.5"
-        app:layout_constraintStart_toEndOf="@+id/bottom_favorite"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_bias="0.0" />
 

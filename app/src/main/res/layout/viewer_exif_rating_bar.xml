@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/viewer_exif_rating_bar"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/gradient_background"
+    android:gravity="center"
+    android:orientation="horizontal"
+    android:paddingTop="@dimen/small_margin"
+    android:paddingBottom="@dimen/small_margin"
+    android:visibility="gone"
+    tools:visibility="visible">
+
+    <ImageView
+        android:id="@+id/viewer_rating_star_1"
+        android:layout_width="@dimen/list_touch_target_min"
+        android:layout_height="@dimen/list_touch_target_min"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@null"
+        android:padding="@dimen/normal_margin"
+        android:src="@drawable/ic_star_outline_vector" />
+
+    <ImageView
+        android:id="@+id/viewer_rating_star_2"
+        android:layout_width="@dimen/list_touch_target_min"
+        android:layout_height="@dimen/list_touch_target_min"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@null"
+        android:padding="@dimen/normal_margin"
+        android:src="@drawable/ic_star_outline_vector" />
+
+    <ImageView
+        android:id="@+id/viewer_rating_star_3"
+        android:layout_width="@dimen/list_touch_target_min"
+        android:layout_height="@dimen/list_touch_target_min"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@null"
+        android:padding="@dimen/normal_margin"
+        android:src="@drawable/ic_star_outline_vector" />
+
+    <ImageView
+        android:id="@+id/viewer_rating_star_4"
+        android:layout_width="@dimen/list_touch_target_min"
+        android:layout_height="@dimen/list_touch_target_min"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@null"
+        android:padding="@dimen/normal_margin"
+        android:src="@drawable/ic_star_outline_vector" />
+
+    <ImageView
+        android:id="@+id/viewer_rating_star_5"
+        android:layout_width="@dimen/list_touch_target_min"
+        android:layout_height="@dimen/list_touch_target_min"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@null"
+        android:padding="@dimen/normal_margin"
+        android:src="@drawable/ic_star_outline_vector" />
+
+</LinearLayout>
