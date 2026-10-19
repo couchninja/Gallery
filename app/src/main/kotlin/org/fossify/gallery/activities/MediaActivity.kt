@@ -272,6 +272,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
 
         binding.loadingIndicator.setIndicatorColor(getProperPrimaryColor())
         binding.loadingIndicatorMessage.setTextColor(getProperTextColor())
+        binding.mediaRefreshStatus.setTextColor(getProperTextColor())
         binding.mediaEmptyTextPlaceholder.setTextColor(getProperTextColor())
         binding.mediaEmptyTextPlaceholder2.setTextColor(getProperPrimaryColor())
         binding.mediaEmptyTextPlaceholder2.bringToFront()
@@ -311,6 +312,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         unregisterExifRatingIndexReceiver()
         mIsGettingMedia = false
         binding.mediaRefreshLayout.isRefreshing = false
+        binding.mediaRefreshStatus.beGone()
         storeStateVariables()
         mLastMediaHandler.removeCallbacksAndMessages(null)
 
@@ -704,12 +706,18 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             if (binding.loadingIndicatorHolder.isVisible()) {
                 binding.loadingIndicatorMessage.text = message
             }
+            if (binding.mediaRefreshLayout.isRefreshing && binding.loadingIndicatorHolder.isGone()) {
+                binding.mediaRefreshStatus.text = message
+                binding.mediaRefreshStatus.beVisible()
+                binding.mediaRefreshStatus.bringToFront()
+            }
         }
     }
 
     private fun hideLoadingStatus() {
         binding.loadingIndicator.hide()
         binding.loadingIndicatorHolder.beGone()
+        binding.mediaRefreshStatus.beGone()
     }
 
     private fun getMedia() {
@@ -719,6 +727,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
 
         mIsGettingMedia = true
         if (mLoadedInitialPhotos) {
+            updateLoadingStatus(getString(R.string.loading_media_start))
             startAsyncTask()
         } else {
             getCachedMedia(
