@@ -231,6 +231,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
         setupEdgeToEdge(
             padBottomSystem = listOf(binding.bottomActions.bottomActionsWrapper),
         )
+        binding.bottomActions.root.background = null
 
         setupOptionsMenu()
         refreshMenuItems()
@@ -1554,10 +1555,10 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
             (it as MyPagerAdapter).toggleFullscreen(mIsFullScreen)
             val newAlpha = if (mIsFullScreen) 0f else 1f
             binding.topShadow.animate().alpha(newAlpha).start()
-            binding.bottomActions.root.animate().alpha(newAlpha).withStartAction {
-                binding.bottomActions.root.beVisible()
+            binding.bottomControls.animate().alpha(newAlpha).withStartAction {
+                binding.bottomControls.beVisible()
             }.withEndAction {
-                binding.bottomActions.root.beVisibleIf(newAlpha == 1f)
+                binding.bottomControls.beVisibleIf(newAlpha == 1f)
             }.start()
 
             binding.mediumViewerAppbar.animate().alpha(newAlpha).withStartAction {
