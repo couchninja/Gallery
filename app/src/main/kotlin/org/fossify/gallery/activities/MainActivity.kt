@@ -1241,6 +1241,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
                             || sorting and SORT_BY_DATE_MODIFIED != 0
                             || grouping and GROUP_BY_LAST_MODIFIED_DAILY != 0
                             || grouping and GROUP_BY_LAST_MODIFIED_MONTHLY != 0
+                            || getProperDateTaken
 
                 val curMedia = mLastMediaFetcher!!.getFilesFrom(
                     curPath = directory.path,
@@ -1366,6 +1367,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
                     || sorting and SORT_BY_DATE_MODIFIED != 0
                     || grouping and GROUP_BY_LAST_MODIFIED_DAILY != 0
                     || grouping and GROUP_BY_LAST_MODIFIED_MONTHLY != 0
+                    || getProperDateTaken
 
             val newMedia = mLastMediaFetcher!!.getFilesFrom(
                 curPath = folder,

@@ -75,15 +75,26 @@ data class Medium(
     fun resolvedCaptureTimeMillis(): Long = CaptureTimeReader.resolveCaptureTimeMillis(taken, modified)
 
     private fun captureTimeForGrouping(): Long {
-        return resolvedCaptureTimeMillis().takeIf { it > 0L && CaptureTimeReader.isPlausibleCaptureTimeMillis(it) } ?: modified
+        return resolvedCaptureTimeMillis().takeIf { it > 0L && CaptureTimeReader.isPlausibleCaptureTimeMillis(it) }
+            ?: modified.takeIf { it > 0L && CaptureTimeReader.isPlausibleCaptureTimeMillis(it) }
+            ?: 0L
+    }
+
+    private fun groupingKeyForCaptureTime(monthly: Boolean): String {
+        val captureTime = captureTimeForGrouping()
+        return if (captureTime > 0L) {
+            getDayStartTS(captureTime, monthly)
+        } else {
+            ""
+        }
     }
 
     fun getGroupingKey(groupBy: Int): String {
         return when {
             groupBy and GROUP_BY_LAST_MODIFIED_DAILY != 0 -> getDayStartTS(modified, false)
             groupBy and GROUP_BY_LAST_MODIFIED_MONTHLY != 0 -> getDayStartTS(modified, true)
-            groupBy and GROUP_BY_DATE_TAKEN_DAILY != 0 -> getDayStartTS(captureTimeForGrouping(), false)
-            groupBy and GROUP_BY_DATE_TAKEN_MONTHLY != 0 -> getDayStartTS(captureTimeForGrouping(), true)
+            groupBy and GROUP_BY_DATE_TAKEN_DAILY != 0 -> groupingKeyForCaptureTime(false)
+            groupBy and GROUP_BY_DATE_TAKEN_MONTHLY != 0 -> groupingKeyForCaptureTime(true)
             groupBy and GROUP_BY_FILE_TYPE != 0 -> type.toString()
             groupBy and GROUP_BY_EXTENSION != 0 -> name.getFilenameExtension().lowercase(Locale.getDefault())
             groupBy and GROUP_BY_FOLDER != 0 -> parentPath

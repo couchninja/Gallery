@@ -39,7 +39,8 @@ class GetMediaAsynctask(
 
         val getProperLastModified = folderSorting and SORT_BY_DATE_MODIFIED != 0 ||
             folderGrouping and GROUP_BY_LAST_MODIFIED_DAILY != 0 ||
-            folderGrouping and GROUP_BY_LAST_MODIFIED_MONTHLY != 0
+            folderGrouping and GROUP_BY_LAST_MODIFIED_MONTHLY != 0 ||
+            getProperDateTaken
 
         val getProperFileSize = folderSorting and SORT_BY_SIZE != 0
         val favoritePaths = context.getFavoritePaths()

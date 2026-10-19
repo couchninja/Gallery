@@ -1383,6 +1383,7 @@ fun Context.updateDirectoryPath(path: String) {
             || sorting and SORT_BY_DATE_MODIFIED != 0
             || grouping and GROUP_BY_LAST_MODIFIED_DAILY != 0
             || grouping and GROUP_BY_LAST_MODIFIED_MONTHLY != 0
+            || getProperDateTaken
 
     val getProperFileSize = config.directorySorting and SORT_BY_SIZE != 0
 

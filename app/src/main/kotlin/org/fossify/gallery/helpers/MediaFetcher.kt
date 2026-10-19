@@ -386,7 +386,7 @@ class MediaFetcher(val context: Context) {
                 var lastModified: Long
                 var newLastModified = lastModifieds.remove(path)
                 if (newLastModified == null) {
-                    newLastModified = if (getProperLastModified) {
+                    newLastModified = if (getProperLastModified || getProperDateTaken) {
                         file.lastModified()
                     } else {
                         0L
