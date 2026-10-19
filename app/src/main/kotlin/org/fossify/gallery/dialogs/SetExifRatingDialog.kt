@@ -1,12 +1,12 @@
 package org.fossify.gallery.dialogs
 
 import android.view.View
-import android.widget.ImageView
 import org.fossify.commons.activities.BaseSimpleActivity
 import org.fossify.commons.extensions.getAlertDialogBuilder
 import org.fossify.commons.extensions.setupDialogStuff
 import org.fossify.gallery.R
 import org.fossify.gallery.helpers.bindViewerExifRating
+import org.fossify.gallery.helpers.setupViewerExifRatingInput
 
 class SetExifRatingDialog(
     val activity: BaseSimpleActivity,
@@ -20,20 +20,11 @@ class SetExifRatingDialog(
         bar.visibility = View.VISIBLE
         updateStars(bar)
 
-        val starClick = { rating: Int ->
-            selectedRating = if (selectedRating == rating) {
-                0
-            } else {
-                rating
-            }
-            updateStars(bar)
-        }
-
-        bar.findViewById<ImageView>(R.id.viewer_rating_star_1).setOnClickListener { starClick(1) }
-        bar.findViewById<ImageView>(R.id.viewer_rating_star_2).setOnClickListener { starClick(2) }
-        bar.findViewById<ImageView>(R.id.viewer_rating_star_3).setOnClickListener { starClick(3) }
-        bar.findViewById<ImageView>(R.id.viewer_rating_star_4).setOnClickListener { starClick(4) }
-        bar.findViewById<ImageView>(R.id.viewer_rating_star_5).setOnClickListener { starClick(5) }
+        setupViewerExifRatingInput(
+            bar = bar,
+            getRating = { selectedRating },
+            onCommit = { rating, _ -> selectedRating = rating },
+        )
 
         activity.getAlertDialogBuilder()
             .setPositiveButton(org.fossify.commons.R.string.ok) { _, _ ->

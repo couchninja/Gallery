@@ -144,6 +144,7 @@ import org.fossify.gallery.helpers.BOTTOM_ACTION_SHOW_ON_MAP
 import org.fossify.gallery.helpers.BOTTOM_ACTION_SLIDESHOW
 import org.fossify.gallery.helpers.BOTTOM_ACTION_TOGGLE_VISIBILITY
 import org.fossify.gallery.helpers.bindViewerExifRating
+import org.fossify.gallery.helpers.setupViewerExifRatingInput
 import org.fossify.gallery.helpers.cacheExifRating
 import org.fossify.gallery.helpers.isJpeg
 import org.fossify.gallery.helpers.readExifRatingFromPath
@@ -1092,33 +1093,31 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
         if (!mExifRatingBarInitialized) {
             mExifRatingBarInitialized = true
             val bar = getViewerExifRatingBar()
-            bar.findViewById<android.widget.ImageView>(R.id.viewer_rating_star_1).setOnClickListener { onViewerRatingStarClicked(1) }
-            bar.findViewById<android.widget.ImageView>(R.id.viewer_rating_star_2).setOnClickListener { onViewerRatingStarClicked(2) }
-            bar.findViewById<android.widget.ImageView>(R.id.viewer_rating_star_3).setOnClickListener { onViewerRatingStarClicked(3) }
-            bar.findViewById<android.widget.ImageView>(R.id.viewer_rating_star_4).setOnClickListener { onViewerRatingStarClicked(4) }
-            bar.findViewById<android.widget.ImageView>(R.id.viewer_rating_star_5).setOnClickListener { onViewerRatingStarClicked(5) }
+            setupViewerExifRatingInput(
+                bar = bar,
+                getRating = { getCurrentMedium()?.exifRating ?: 0 },
+                onCommit = { rating, fromTap -> onViewerRatingCommitted(rating, fromTap) },
+            )
         }
         updateExifRatingBar()
     }
 
-    private fun onViewerRatingStarClicked(rating: Int) {
+    private fun onViewerRatingCommitted(newRating: Int, fromTap: Boolean) {
         val medium = getCurrentMedium() ?: return
         if (!medium.isJpeg()) {
             return
         }
+        if (newRating == medium.exifRating) {
+            return
+        }
         handleMediaManagementPrompt {
-            val newRating = if (medium.exifRating == rating) {
-                0
-            } else {
-                rating
-            }
             ensureBackgroundThread {
                 if (setExifRating(medium.path, newRating)) {
                     medium.exifRating = newRating
                     syncExifRatingOnGalleryMedia(medium.path, newRating)
                     runOnUiThread {
                         bindViewerExifRating(getViewerExifRatingBar(), newRating)
-                        if (config.goToNextAfterExifRating) {
+                        if (config.goToNextAfterExifRating && fromTap) {
                             goToNextItemAnimated()
                         }
                     }
