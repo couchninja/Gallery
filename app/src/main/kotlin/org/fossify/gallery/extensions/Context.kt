@@ -923,6 +923,38 @@ fun Context.getCachedDirectories(
     }
 }
 
+private fun Context.loadAllCachedVisibleMedia(onStatus: ((String) -> Unit)? = null): ArrayList<Medium> {
+    onStatus?.invoke(getString(R.string.loading_media_reading_cache))
+    val folderNoMediaStatuses = HashMap<String, Boolean>()
+    getNoMediaFoldersSync().forEach { folderNoMediaStatuses["$it/$NOMEDIA"] = true }
+    val excludedPaths = if (config.temporarilyShowExcluded) {
+        HashSet()
+    } else {
+        config.excludedFolders
+    }
+    val includedPaths = config.includedFolders
+    val shouldShowHidden = config.shouldShowHidden
+    val parentVisible = HashMap<String, Boolean>()
+
+    fun isParentVisible(parent: String): Boolean {
+        return parentVisible.getOrPut(parent) {
+            !config.isFolderProtected(parent)
+                && parent != RECYCLE_BIN
+                && parent != FAVORITES
+                && parent.shouldFolderBeVisible(
+                    excludedPaths = excludedPaths,
+                    includedPaths = includedPaths,
+                    showHidden = shouldShowHidden,
+                    folderNoMediaStatuses = folderNoMediaStatuses,
+                ) { nomediaPath, hasNoMedia ->
+                    folderNoMediaStatuses[nomediaPath] = hasNoMedia
+                }
+        }
+    }
+
+    return mediaDB.getAllActiveMedia().filter { isParentVisible(it.parentPath) } as ArrayList<Medium>
+}
+
 fun Context.getCachedMedia(
     path: String,
     getVideosOnly: Boolean = false,
@@ -932,43 +964,36 @@ fun Context.getCachedMedia(
 ) {
     ensureBackgroundThread {
         val mediaFetcher = MediaFetcher(this)
-        val foldersToScan = if (path.isEmpty()) {
-            onStatus?.invoke(getString(R.string.loading_media_finding_folders))
-            mediaFetcher.getFoldersToScan()
-        } else {
-            arrayListOf(path)
-        }
-
-        onStatus?.invoke(getString(R.string.loading_media_reading_cache))
-
         var media = ArrayList<Medium>()
         if (path == FAVORITES) {
             media.addAll(mediaDB.getFavorites())
-        }
-
-        if (path == RECYCLE_BIN) {
+        } else if (path == RECYCLE_BIN) {
             media.addAll(getUpdatedDeletedMedia())
-        }
+        } else if (path.isEmpty()) {
+            media.addAll(loadAllCachedVisibleMedia(onStatus))
+        } else {
+            var foldersToScan = arrayListOf(path)
+            if (config.filterMedia and TYPE_PORTRAITS != 0) {
+                val foldersToAdd = ArrayList<String>()
+                for (folder in foldersToScan) {
+                    val allFiles = File(folder).listFiles() ?: continue
+                    allFiles.filter { it.name.startsWith("img_", true) && it.isDirectory }.forEach {
+                        foldersToAdd.add(it.absolutePath)
+                    }
+                }
+                foldersToScan.addAll(foldersToAdd)
+            }
 
-        if (config.filterMedia and TYPE_PORTRAITS != 0) {
-            val foldersToAdd = ArrayList<String>()
-            for (folder in foldersToScan) {
-                val allFiles = File(folder).listFiles() ?: continue
-                allFiles.filter { it.name.startsWith("img_", true) && it.isDirectory }.forEach {
-                    foldersToAdd.add(it.absolutePath)
+            onStatus?.invoke(getString(R.string.loading_media_reading_cache))
+            foldersToScan.filter { !config.isFolderProtected(it) }.forEach {
+                try {
+                    media.addAll(mediaDB.getMediaFromPath(it))
+                } catch (ignored: Exception) {
                 }
             }
-            foldersToScan.addAll(foldersToAdd)
         }
 
         val shouldShowHidden = config.shouldShowHidden
-        foldersToScan.filter { path.isNotEmpty() || !config.isFolderProtected(it) }.forEach {
-            try {
-                val currMedia = mediaDB.getMediaFromPath(it)
-                media.addAll(currMedia)
-            } catch (ignored: Exception) {
-            }
-        }
 
         if (!shouldShowHidden) {
             media = media.filter { !it.path.contains("/.") } as ArrayList<Medium>
