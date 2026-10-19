@@ -198,7 +198,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
 
     private val mDateTakenIndexReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (mLoadedInitialPhotos && !config.showAll) {
+            if (mLoadedInitialPhotos) {
                 getDirectories()
             }
         }
