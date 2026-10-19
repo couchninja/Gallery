@@ -114,8 +114,7 @@ object DateTakenIndexer {
                         existing.lastModified == lastModified &&
                         CaptureTimeReader.isPlausibleCaptureTimeMillis(
                             CaptureTimeReader.normalizeCaptureTimeMillis(existing.taken)
-                        ) &&
-                        !looksLikeModifiedFallback(existing.taken, dateModifiedMillis, lastModified)
+                        )
                     ) {
                         return@queryCursor
                     }
@@ -189,18 +188,6 @@ object DateTakenIndexer {
     private fun findCachedDateTaken(cached: Map<String, DateTaken>, path: String): DateTaken? {
         cached[path]?.let { return it }
         return cached.entries.firstOrNull { it.key.equals(path, ignoreCase = true) }?.value
-    }
-
-    private fun looksLikeModifiedFallback(taken: Long, dateModifiedMillis: Long, fileLastModified: Long): Boolean {
-        val normalizedTaken = CaptureTimeReader.normalizeCaptureTimeMillis(taken)
-        if (normalizedTaken <= 0L) {
-            return false
-        }
-        val modified = dateModifiedMillis.takeIf { it > 0L } ?: fileLastModified
-        if (modified <= 0L) {
-            return false
-        }
-        return kotlin.math.abs(normalizedTaken - modified) < 86_400_000L
     }
 
     private fun isManualCaptureDateEntry(entry: DateTaken?): Boolean {
