@@ -232,7 +232,10 @@ class SearchActivity : SimpleActivity(), MediaOperationsListener {
             treatAsShowAll = true,
         ) { changedPaths ->
             runOnUiThread {
-                getMediaAdapter()?.notifyExifRatingPathsChanged(changedPaths)
+                getMediaAdapter()?.let { adapter ->
+                    val synced = adapter.syncExifRatingsFrom(mAllMedia.filterIsInstance<Medium>())
+                    adapter.notifyExifRatingPathsChanged((changedPaths + synced).toSet())
+                }
             }
         }
     }

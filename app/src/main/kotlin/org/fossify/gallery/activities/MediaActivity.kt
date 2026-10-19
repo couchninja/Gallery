@@ -325,7 +325,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             pendingExifRatingRefreshPaths.clear()
             mWasFullscreenViewOpen = false
             if (paths.isNotEmpty()) {
-                getMediaAdapter()?.notifyExifRatingPathsChanged(paths)
+                notifyGridExifRatingsChanged(paths)
             }
         }
 
@@ -913,6 +913,13 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         mMediaStorePathReceiverRegistered = false
     }
 
+    private fun notifyGridExifRatingsChanged(paths: Collection<String>) {
+        getMediaAdapter()?.let { adapter ->
+            val synced = adapter.syncExifRatingsFrom(mMedia.filterIsInstance<Medium>())
+            adapter.notifyExifRatingPathsChanged((paths + synced).toSet())
+        }
+    }
+
     private fun refreshDisplayedExifRatings() {
         mergeExifRatingsIntoMediaAsync(
             media = mMedia.filterIsInstance<Medium>(),
@@ -920,7 +927,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             treatAsShowAll = mShowAll,
         ) { changedPaths ->
             runOnUiThread {
-                getMediaAdapter()?.notifyExifRatingPathsChanged(changedPaths)
+                notifyGridExifRatingsChanged(changedPaths)
             }
         }
     }

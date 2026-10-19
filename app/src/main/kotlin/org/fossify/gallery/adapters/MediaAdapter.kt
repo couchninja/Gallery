@@ -80,6 +80,7 @@ import org.fossify.gallery.extensions.updateDBMediaPath
 import org.fossify.gallery.extensions.updateFavorite
 import org.fossify.gallery.extensions.updateFavoritePaths
 import org.fossify.gallery.helpers.PATH
+import org.fossify.gallery.helpers.applyExifRatingsToMedia
 import org.fossify.gallery.helpers.bindThumbnailExifRating
 import org.fossify.gallery.helpers.isJpeg
 import org.fossify.gallery.helpers.setExifRating
@@ -189,6 +190,16 @@ class MediaAdapter(
             }
         }
         bindViewHolder(holder)
+    }
+
+    fun syncExifRatingsFrom(source: Iterable<Medium>): List<String> {
+        if (!config.showExifRatings) {
+            return emptyList()
+        }
+
+        val ratings = HashMap<String, Int>()
+        source.forEach { ratings[it.path] = it.exifRating }
+        return applyExifRatingsToMedia(media.filterIsInstance<Medium>(), ratings)
     }
 
     fun notifyExifRatingPathsChanged(paths: Collection<String>) {
@@ -716,6 +727,11 @@ class MediaAdapter(
             media = thumbnailItems
             notifyDataSetChanged()
             finishActMode()
+        } else {
+            val changedPaths = syncExifRatingsFrom(thumbnailItems.filterIsInstance<Medium>())
+            if (changedPaths.isNotEmpty()) {
+                notifyExifRatingPathsChanged(changedPaths)
+            }
         }
     }
 
