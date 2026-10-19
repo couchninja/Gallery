@@ -13,40 +13,40 @@
 
     <ImageView
         android:id="@+id/exif_rating_star_1"
-        android:layout_width="@dimen/favorite_list_icon_size"
-        android:layout_height="@dimen/favorite_list_icon_size"
+        android:layout_width="@dimen/exif_rating_thumbnail_star_size"
+        android:layout_height="@dimen/exif_rating_thumbnail_star_size"
         android:contentDescription="@null"
         android:padding="@dimen/tiny_margin"
         android:src="@drawable/ic_star_outline_vector" />
 
     <ImageView
         android:id="@+id/exif_rating_star_2"
-        android:layout_width="@dimen/favorite_list_icon_size"
-        android:layout_height="@dimen/favorite_list_icon_size"
+        android:layout_width="@dimen/exif_rating_thumbnail_star_size"
+        android:layout_height="@dimen/exif_rating_thumbnail_star_size"
         android:contentDescription="@null"
         android:padding="@dimen/tiny_margin"
         android:src="@drawable/ic_star_outline_vector" />
 
     <ImageView
         android:id="@+id/exif_rating_star_3"
-        android:layout_width="@dimen/favorite_list_icon_size"
-        android:layout_height="@dimen/favorite_list_icon_size"
+        android:layout_width="@dimen/exif_rating_thumbnail_star_size"
+        android:layout_height="@dimen/exif_rating_thumbnail_star_size"
         android:contentDescription="@null"
         android:padding="@dimen/tiny_margin"
         android:src="@drawable/ic_star_outline_vector" />
 
     <ImageView
         android:id="@+id/exif_rating_star_4"
-        android:layout_width="@dimen/favorite_list_icon_size"
-        android:layout_height="@dimen/favorite_list_icon_size"
+        android:layout_width="@dimen/exif_rating_thumbnail_star_size"
+        android:layout_height="@dimen/exif_rating_thumbnail_star_size"
         android:contentDescription="@null"
         android:padding="@dimen/tiny_margin"
         android:src="@drawable/ic_star_outline_vector" />
 
     <ImageView
         android:id="@+id/exif_rating_star_5"
-        android:layout_width="@dimen/favorite_list_icon_size"
-        android:layout_height="@dimen/favorite_list_icon_size"
+        android:layout_width="@dimen/exif_rating_thumbnail_star_size"
+        android:layout_height="@dimen/exif_rating_thumbnail_star_size"
         android:contentDescription="@null"
         android:padding="@dimen/tiny_margin"
         android:src="@drawable/ic_star_outline_vector" />
