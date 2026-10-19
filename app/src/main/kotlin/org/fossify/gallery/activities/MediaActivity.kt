@@ -49,6 +49,7 @@ import org.fossify.commons.extensions.viewBinding
 import org.fossify.commons.helpers.FAVORITES
 import org.fossify.commons.helpers.IS_FROM_GALLERY
 import org.fossify.commons.helpers.REQUEST_EDIT_IMAGE
+import org.fossify.commons.helpers.SORT_BY_DATE_TAKEN
 import org.fossify.commons.helpers.SORT_BY_RANDOM
 import org.fossify.commons.helpers.VIEW_TYPE_GRID
 import org.fossify.commons.helpers.VIEW_TYPE_LIST
@@ -74,6 +75,7 @@ import org.fossify.gallery.extensions.directoryDB
 import org.fossify.gallery.extensions.emptyAndDisableTheRecycleBin
 import org.fossify.gallery.extensions.emptyTheRecycleBin
 import org.fossify.gallery.extensions.favoritesDB
+import org.fossify.gallery.extensions.buildGroupedMediaFromCache
 import org.fossify.gallery.extensions.getCachedMedia
 import org.fossify.gallery.extensions.getHumanizedFilename
 import org.fossify.gallery.extensions.isDownloadsFolder
@@ -92,6 +94,12 @@ import org.fossify.gallery.extensions.tryDeleteFileDirItem
 import org.fossify.gallery.extensions.updateWidgets
 import org.fossify.gallery.helpers.ACTION_DATE_TAKEN_INDEX_UPDATED
 import org.fossify.gallery.helpers.ACTION_EXIF_RATING_INDEX_UPDATED
+import org.fossify.gallery.helpers.ACTION_MEDIA_STORE_PATH_CHANGED
+import org.fossify.gallery.helpers.DateTakenIndexer
+import org.fossify.gallery.helpers.ExifRatingIndexer
+import org.fossify.gallery.helpers.GROUP_BY_DATE_TAKEN_DAILY
+import org.fossify.gallery.helpers.GROUP_BY_DATE_TAKEN_MONTHLY
+import org.fossify.gallery.helpers.syncMediaStoreItemsWithIdGreaterThan
 import org.fossify.gallery.helpers.DIRECTORY
 import org.fossify.gallery.helpers.GET_ANY_INTENT
 import org.fossify.gallery.helpers.GET_IMAGE_INTENT
@@ -144,11 +152,19 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     private var mZoomListener: MyRecyclerView.MyZoomListener? = null
     private var mDateTakenIndexReceiverRegistered = false
     private var mExifRatingIndexReceiverRegistered = false
+    private var mMediaStorePathReceiverRegistered = false
+    private var mRequireFullMediaRescan = false
+    private var mIsRefreshingFromCache = false
+    private val mLightRefreshHandler = Handler()
+
+    private val mLightRefreshRunnable = Runnable {
+        performLightMediaRefresh()
+    }
 
     private val mDateTakenIndexReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (mLoadedInitialPhotos) {
-                startAsyncTask()
+                scheduleLightMediaRefresh()
             }
         }
     }
@@ -157,6 +173,14 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (mLoadedInitialPhotos) {
                 refreshDisplayedExifRatings()
+            }
+        }
+    }
+
+    private val mMediaStorePathReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (mLoadedInitialPhotos) {
+                scheduleLightMediaRefresh()
             }
         }
     }
@@ -189,7 +213,10 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             mAllowPickingMultiple = getBooleanExtra(Intent.EXTRA_ALLOW_MULTIPLE, false)
         }
 
-        binding.mediaRefreshLayout.setOnRefreshListener { getMedia() }
+        binding.mediaRefreshLayout.setOnRefreshListener {
+            mRequireFullMediaRescan = true
+            getMedia()
+        }
         try {
             mPath = intent.getStringExtra(DIRECTORY) ?: ""
         } catch (e: Exception) {
@@ -304,12 +331,15 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
 
         registerDateTakenIndexReceiver()
         registerExifRatingIndexReceiver()
+        registerMediaStorePathReceiver()
     }
 
     override fun onPause() {
         super.onPause()
         unregisterDateTakenIndexReceiver()
         unregisterExifRatingIndexReceiver()
+        unregisterMediaStorePathReceiver()
+        mLightRefreshHandler.removeCallbacks(mLightRefreshRunnable)
         mIsGettingMedia = false
         binding.mediaRefreshLayout.isRefreshing = false
         binding.mediaRefreshStatus.beGone()
@@ -585,8 +615,61 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         binding.mediaFastscroller.setScrollVertically(!scrollHorizontally)
     }
 
+    private fun mediaConfigPath() = if (mShowAll || mPath.isEmpty()) SHOW_ALL else mPath
+
+    private fun scheduleLightMediaRefresh() {
+        mLightRefreshHandler.removeCallbacks(mLightRefreshRunnable)
+        mLightRefreshHandler.postDelayed(mLightRefreshRunnable, 250L)
+    }
+
+    private fun performLightMediaRefresh() {
+        refreshMediaFromCache()
+        scheduleMetadataIndexers()
+    }
+
+    private fun scheduleMetadataIndexers() {
+        if (config.showExifRatings) {
+            ExifRatingIndexer.schedule(applicationContext)
+        }
+
+        val pathToUse = mediaConfigPath()
+        val folderSorting = config.getFolderSorting(pathToUse)
+        val folderGrouping = config.getFolderGrouping(pathToUse)
+        val needsCaptureTime = folderSorting and SORT_BY_DATE_TAKEN != 0
+            || folderGrouping and GROUP_BY_DATE_TAKEN_DAILY != 0
+            || folderGrouping and GROUP_BY_DATE_TAKEN_MONTHLY != 0
+        if (needsCaptureTime) {
+            DateTakenIndexer.schedule(applicationContext)
+        }
+    }
+
+    private fun refreshMediaFromCache() {
+        if (mIsRefreshingFromCache || isFinishing) {
+            return
+        }
+
+        mIsRefreshingFromCache = true
+        ensureBackgroundThread {
+            try {
+                val grouped = applicationContext.buildGroupedMediaFromCache(
+                    path = mPath,
+                    getVideosOnly = mIsGetVideoIntent && !mIsGetImageIntent,
+                    getImagesOnly = mIsGetImageIntent && !mIsGetVideoIntent,
+                )
+                runOnUiThread {
+                    if (!isFinishing) {
+                        gotMedia(grouped, isFromCache = true)
+                    }
+                }
+            } catch (_: Exception) {
+            } finally {
+                mIsRefreshingFromCache = false
+            }
+        }
+    }
+
     private fun checkLastMediaChanged() {
-        if (isDestroyed || config.getFolderSorting(mPath) and SORT_BY_RANDOM != 0) {
+        if (isDestroyed || config.getFolderSorting(mediaConfigPath()) and SORT_BY_RANDOM != 0) {
             return
         }
 
@@ -596,10 +679,13 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                 val mediaId = getLatestMediaId()
                 val mediaDateId = getLatestMediaByDateId()
                 if (mLatestMediaId != mediaId || mLatestMediaDateId != mediaDateId) {
+                    if (mediaId > mLatestMediaId) {
+                        syncMediaStoreItemsWithIdGreaterThan(mLatestMediaId)
+                    }
                     mLatestMediaId = mediaId
                     mLatestMediaDateId = mediaDateId
                     runOnUiThread {
-                        getMedia()
+                        scheduleLightMediaRefresh()
                     }
                 } else {
                     checkLastMediaChanged()
@@ -725,6 +811,14 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             return
         }
 
+        if (mLoadedInitialPhotos && !mRequireFullMediaRescan) {
+            checkLastMediaChanged()
+            scheduleMetadataIndexers()
+            refreshMediaFromCache()
+            return
+        }
+
+        mRequireFullMediaRescan = false
         mIsGettingMedia = true
         if (mLoadedInitialPhotos) {
             updateLoadingStatus(getString(R.string.loading_media_start))
@@ -794,6 +888,29 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
 
         unregisterReceiver(mExifRatingIndexReceiver)
         mExifRatingIndexReceiverRegistered = false
+    }
+
+    private fun registerMediaStorePathReceiver() {
+        if (mMediaStorePathReceiverRegistered) {
+            return
+        }
+
+        val filter = IntentFilter(ACTION_MEDIA_STORE_PATH_CHANGED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(mMediaStorePathReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(mMediaStorePathReceiver, filter)
+        }
+        mMediaStorePathReceiverRegistered = true
+    }
+
+    private fun unregisterMediaStorePathReceiver() {
+        if (!mMediaStorePathReceiverRegistered) {
+            return
+        }
+
+        unregisterReceiver(mMediaStorePathReceiver)
+        mMediaStorePathReceiverRegistered = false
     }
 
     private fun refreshDisplayedExifRatings() {

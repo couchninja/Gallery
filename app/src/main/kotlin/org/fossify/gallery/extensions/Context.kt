@@ -89,7 +89,11 @@ import org.fossify.gallery.helpers.IsoTypeReader
 import org.fossify.gallery.helpers.LOCATION_INTERNAL
 import org.fossify.gallery.helpers.LOCATION_OTG
 import org.fossify.gallery.helpers.LOCATION_SD
+import org.fossify.gallery.helpers.ACTION_MEDIA_STORE_PATH_CHANGED
+import org.fossify.gallery.helpers.CaptureTimeReader
 import org.fossify.gallery.helpers.MediaFetcher
+import org.fossify.gallery.helpers.PATH
+import org.fossify.gallery.helpers.applyExifRatingsToMedia
 import org.fossify.gallery.helpers.MyWidgetProvider
 import org.fossify.gallery.helpers.PicassoRoundedCornersTransformation
 import org.fossify.gallery.helpers.RECYCLE_BIN
@@ -955,6 +959,118 @@ private fun Context.loadAllCachedVisibleMedia(onStatus: ((String) -> Unit)? = nu
     return mediaDB.getAllActiveMedia().filter { isParentVisible(it.parentPath) } as ArrayList<Medium>
 }
 
+private fun Context.loadCachedMediaList(
+    path: String,
+    getVideosOnly: Boolean,
+    getImagesOnly: Boolean,
+    onStatus: ((String) -> Unit)? = null,
+): ArrayList<Medium> {
+    var media = ArrayList<Medium>()
+    if (path == FAVORITES) {
+        media.addAll(mediaDB.getFavorites())
+    } else if (path == RECYCLE_BIN) {
+        media.addAll(getUpdatedDeletedMedia())
+    } else if (path.isEmpty()) {
+        media.addAll(loadAllCachedVisibleMedia(onStatus))
+    } else {
+        var foldersToScan = arrayListOf(path)
+        if (config.filterMedia and TYPE_PORTRAITS != 0) {
+            val foldersToAdd = ArrayList<String>()
+            for (folder in foldersToScan) {
+                val allFiles = File(folder).listFiles() ?: continue
+                allFiles.filter { it.name.startsWith("img_", true) && it.isDirectory }.forEach {
+                    foldersToAdd.add(it.absolutePath)
+                }
+            }
+            foldersToScan.addAll(foldersToAdd)
+        }
+
+        onStatus?.invoke(getString(R.string.loading_media_reading_cache))
+        foldersToScan.filter { !config.isFolderProtected(it) }.forEach {
+            try {
+                media.addAll(mediaDB.getMediaFromPath(it))
+            } catch (ignored: Exception) {
+            }
+        }
+    }
+
+    if (!config.shouldShowHidden) {
+        media = media.filter { !it.path.contains("/.") } as ArrayList<Medium>
+    }
+
+    val filterMedia = config.filterMedia
+    return (when {
+        getVideosOnly -> media.filter { it.type == TYPE_VIDEOS }
+        getImagesOnly -> media.filter { it.type == TYPE_IMAGES }
+        else -> media.filter {
+            (filterMedia and TYPE_IMAGES != 0 && it.type == TYPE_IMAGES)
+                || (filterMedia and TYPE_VIDEOS != 0 && it.type == TYPE_VIDEOS)
+                || (filterMedia and TYPE_GIFS != 0 && it.type == TYPE_GIFS)
+                || (filterMedia and TYPE_RAWS != 0 && it.type == TYPE_RAWS)
+                || (filterMedia and TYPE_SVGS != 0 && it.type == TYPE_SVGS)
+                || (filterMedia and TYPE_PORTRAITS != 0 && it.type == TYPE_PORTRAITS)
+        }
+    }) as ArrayList<Medium>
+}
+
+private fun Context.applyDbCaptureTimesForSort(media: ArrayList<Medium>, path: String) {
+    val pathToUse = path.ifEmpty { SHOW_ALL }
+    val folderSorting = config.getFolderSorting(pathToUse)
+    val folderGrouping = config.getFolderGrouping(pathToUse)
+    val needsCaptureTime = folderSorting and SORT_BY_DATE_TAKEN != 0
+        || folderGrouping and GROUP_BY_DATE_TAKEN_DAILY != 0
+        || folderGrouping and GROUP_BY_DATE_TAKEN_MONTHLY != 0
+    if (!needsCaptureTime) {
+        return
+    }
+
+    val dateTakenValues = try {
+        when {
+            path.isEmpty() || path == FAVORITES -> dateTakensDB.getAllDateTakens()
+            else -> dateTakensDB.getDateTakensFromPath(path)
+        }
+    } catch (_: Exception) {
+        return
+    }
+
+    val byPath = HashMap<String, Long>(dateTakenValues.size)
+    dateTakenValues.forEach { entry ->
+        val normalized = CaptureTimeReader.normalizeCaptureTimeMillis(entry.taken)
+        if (normalized > 0L) {
+            byPath[entry.fullPath] = normalized
+        }
+    }
+
+    media.forEach { medium ->
+        byPath[medium.path]?.let { medium.taken = it }
+    }
+}
+
+fun Context.buildGroupedMediaFromCache(
+    path: String,
+    getVideosOnly: Boolean = false,
+    getImagesOnly: Boolean = false,
+    onStatus: ((String) -> Unit)? = null,
+): ArrayList<ThumbnailItem> {
+    val mediaFetcher = MediaFetcher(this)
+    val media = loadCachedMediaList(path, getVideosOnly, getImagesOnly, onStatus)
+    applyDbCaptureTimesForSort(media, path)
+
+    if (config.showExifRatings && media.isNotEmpty()) {
+        val ratings = when {
+            path.isEmpty() -> mediaFetcher.getExifRatings()
+            path == FAVORITES -> mediaFetcher.getExifRatings()
+            else -> mediaFetcher.getFolderExifRatings(path)
+        }
+        applyExifRatingsToMedia(media, ratings)
+    }
+
+    val pathToUse = path.ifEmpty { SHOW_ALL }
+    onStatus?.invoke(getString(R.string.loading_media_organizing))
+    mediaFetcher.sortMedia(media, config.getFolderSorting(pathToUse))
+    return mediaFetcher.groupMedia(media, pathToUse)
+}
+
 fun Context.getCachedMedia(
     path: String,
     getVideosOnly: Boolean = false,
@@ -963,60 +1079,8 @@ fun Context.getCachedMedia(
     callback: (ArrayList<ThumbnailItem>) -> Unit
 ) {
     ensureBackgroundThread {
-        val mediaFetcher = MediaFetcher(this)
-        var media = ArrayList<Medium>()
-        if (path == FAVORITES) {
-            media.addAll(mediaDB.getFavorites())
-        } else if (path == RECYCLE_BIN) {
-            media.addAll(getUpdatedDeletedMedia())
-        } else if (path.isEmpty()) {
-            media.addAll(loadAllCachedVisibleMedia(onStatus))
-        } else {
-            var foldersToScan = arrayListOf(path)
-            if (config.filterMedia and TYPE_PORTRAITS != 0) {
-                val foldersToAdd = ArrayList<String>()
-                for (folder in foldersToScan) {
-                    val allFiles = File(folder).listFiles() ?: continue
-                    allFiles.filter { it.name.startsWith("img_", true) && it.isDirectory }.forEach {
-                        foldersToAdd.add(it.absolutePath)
-                    }
-                }
-                foldersToScan.addAll(foldersToAdd)
-            }
-
-            onStatus?.invoke(getString(R.string.loading_media_reading_cache))
-            foldersToScan.filter { !config.isFolderProtected(it) }.forEach {
-                try {
-                    media.addAll(mediaDB.getMediaFromPath(it))
-                } catch (ignored: Exception) {
-                }
-            }
-        }
-
-        val shouldShowHidden = config.shouldShowHidden
-
-        if (!shouldShowHidden) {
-            media = media.filter { !it.path.contains("/.") } as ArrayList<Medium>
-        }
-
-        val filterMedia = config.filterMedia
-        media = (when {
-            getVideosOnly -> media.filter { it.type == TYPE_VIDEOS }
-            getImagesOnly -> media.filter { it.type == TYPE_IMAGES }
-            else -> media.filter {
-                (filterMedia and TYPE_IMAGES != 0 && it.type == TYPE_IMAGES)
-                        || (filterMedia and TYPE_VIDEOS != 0 && it.type == TYPE_VIDEOS)
-                        || (filterMedia and TYPE_GIFS != 0 && it.type == TYPE_GIFS)
-                        || (filterMedia and TYPE_RAWS != 0 && it.type == TYPE_RAWS)
-                        || (filterMedia and TYPE_SVGS != 0 && it.type == TYPE_SVGS)
-                        || (filterMedia and TYPE_PORTRAITS != 0 && it.type == TYPE_PORTRAITS)
-            }
-        }) as ArrayList<Medium>
-
-        val pathToUse = path.ifEmpty { SHOW_ALL }
-        onStatus?.invoke(getString(R.string.loading_media_organizing))
-        mediaFetcher.sortMedia(media, config.getFolderSorting(pathToUse))
-        val grouped = mediaFetcher.groupMedia(media, pathToUse)
+        val grouped = buildGroupedMediaFromCache(path, getVideosOnly, getImagesOnly, onStatus)
+        val media = grouped.filterIsInstance<Medium>() as ArrayList<Medium>
         callback(grouped.clone() as ArrayList<ThumbnailItem>)
         val OTGPath = config.OTGPath
 
@@ -1261,6 +1325,12 @@ fun Context.addPathToDB(path: String) {
             )
 
             mediaDB.insert(medium)
+            sendBroadcast(
+                Intent(ACTION_MEDIA_STORE_PATH_CHANGED).apply {
+                    setPackage(packageName)
+                    putExtra(PATH, path)
+                }
+            )
         } catch (ignored: Exception) {
         }
     }
