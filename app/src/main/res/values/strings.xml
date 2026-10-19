@@ -233,6 +233,7 @@
     <string name="file_thumbnail_style">File thumbnail style</string>
     <string name="mark_favorite_items">Mark favorite items</string>
     <string name="show_exif_ratings">Show EXIF star ratings on JPEG thumbnails</string>
+    <string name="go_to_next_after_exif_rating">After rating a photo, go to the next item</string>
     <string name="set_exif_rating">Set rating</string>
     <string name="thumbnail_spacing">Thumbnail spacing</string>
     <string name="show_file_count_line">Show file count on a separate line</string>

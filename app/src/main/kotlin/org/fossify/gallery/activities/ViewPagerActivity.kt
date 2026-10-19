@@ -1118,6 +1118,9 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
                     syncExifRatingOnGalleryMedia(medium.path, newRating)
                     runOnUiThread {
                         bindViewerExifRating(getViewerExifRatingBar(), newRating)
+                        if (config.goToNextAfterExifRating) {
+                            goToNextItemAnimated()
+                        }
                     }
                 }
             }
@@ -1511,6 +1514,14 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
 
     override fun goToNextItem() {
         binding.viewPager.setCurrentItem(binding.viewPager.currentItem + 1, false)
+        checkOrientation()
+    }
+
+    private fun goToNextItemAnimated() {
+        if (binding.viewPager.currentItem >= mMediaFiles.lastIndex) {
+            return
+        }
+        binding.viewPager.setCurrentItem(binding.viewPager.currentItem + 1, true)
         checkOrientation()
     }
 

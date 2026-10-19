@@ -98,6 +98,7 @@ class SettingsActivity : SimpleActivity() {
         setupUltraHdrRendering()
         setupCropThumbnails()
         setupShowExifRatings()
+        setupGoToNextAfterExifRating()
         setupAnimateGifs()
         setupDarkBackground()
         setupScrollHorizontally()
@@ -450,6 +451,14 @@ class SettingsActivity : SimpleActivity() {
         binding.settingsShowExifRatingsHolder.setOnClickListener {
             binding.settingsShowExifRatings.toggle()
             config.showExifRatings = binding.settingsShowExifRatings.isChecked
+        }
+    }
+
+    private fun setupGoToNextAfterExifRating() {
+        binding.settingsGoToNextAfterExifRating.isChecked = config.goToNextAfterExifRating
+        binding.settingsGoToNextAfterExifRatingHolder.setOnClickListener {
+            binding.settingsGoToNextAfterExifRating.toggle()
+            config.goToNextAfterExifRating = binding.settingsGoToNextAfterExifRating.isChecked
         }
     }
 
@@ -1029,6 +1038,7 @@ class SettingsActivity : SimpleActivity() {
                 put(SHOW_THUMBNAIL_VIDEO_DURATION, config.showThumbnailVideoDuration)
                 put(SHOW_THUMBNAIL_FILE_TYPES, config.showThumbnailFileTypes)
                 put(SHOW_EXIF_RATINGS, config.showExifRatings)
+                put(GO_TO_NEXT_AFTER_EXIF_RATING, config.goToNextAfterExifRating)
                 put(MARK_FAVORITE_ITEMS, config.markFavoriteItems)
                 put(SCROLL_HORIZONTALLY, config.scrollHorizontally)
                 put(ENABLE_PULL_TO_REFRESH, config.enablePullToRefresh)
@@ -1176,6 +1186,7 @@ class SettingsActivity : SimpleActivity() {
                 SHOW_THUMBNAIL_VIDEO_DURATION -> config.showThumbnailVideoDuration = value.toBoolean()
                 SHOW_THUMBNAIL_FILE_TYPES -> config.showThumbnailFileTypes = value.toBoolean()
                 SHOW_EXIF_RATINGS -> config.showExifRatings = value.toBoolean()
+                GO_TO_NEXT_AFTER_EXIF_RATING -> config.goToNextAfterExifRating = value.toBoolean()
                 MARK_FAVORITE_ITEMS -> config.markFavoriteItems = value.toBoolean()
                 SCROLL_HORIZONTALLY -> config.scrollHorizontally = value.toBoolean()
                 ENABLE_PULL_TO_REFRESH -> config.enablePullToRefresh = value.toBoolean()

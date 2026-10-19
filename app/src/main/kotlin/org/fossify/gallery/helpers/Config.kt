@@ -210,6 +210,10 @@ class Config(context: Context) : BaseConfig(context) {
         }
         set(showExifRatings) = prefs.edit().putBoolean(SHOW_EXIF_RATINGS, showExifRatings).apply()
 
+    var goToNextAfterExifRating: Boolean
+        get() = prefs.getBoolean(GO_TO_NEXT_AFTER_EXIF_RATING, true)
+        set(goToNextAfterExifRating) = prefs.edit().putBoolean(GO_TO_NEXT_AFTER_EXIF_RATING, goToNextAfterExifRating).apply()
+
     var screenRotation: Int
         get() = prefs.getInt(SCREEN_ROTATION, ROTATE_BY_SYSTEM_SETTING)
         set(screenRotation) = prefs.edit().putInt(SCREEN_ROTATION, screenRotation).apply()
