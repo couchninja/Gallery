@@ -22,7 +22,11 @@ fun bindThumbnailExifRating(bar: LinearLayout?, rating: Int, visible: Boolean) {
         bar.findViewById(R.id.exif_rating_star_5)
     )
     stars.forEachIndexed { index, star ->
-        setStarFilled(star, index + 1 <= rating)
+        val filled = index + 1 <= rating
+        star.beVisibleIf(filled)
+        if (filled) {
+            star.setImageResource(org.fossify.commons.R.drawable.ic_star_vector)
+        }
     }
 }
 

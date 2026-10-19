@@ -4,7 +4,7 @@
     android:id="@+id/exif_rating_bar"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:background="@drawable/circle_black_background"
+    android:background="@drawable/exif_rating_thumbnail_pill_background"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:padding="@dimen/tiny_margin"
