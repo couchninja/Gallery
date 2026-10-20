@@ -14,6 +14,9 @@ private const val HEADER_READ_BUFFER_SIZE = 64 * 1024
 /** Adobe XAP namespace for Basic `Rating` (canonical). */
 const val CANONICAL_XAP_NS = "http://ns.adobe.com/xap/1.0/"
 
+private const val DC_ELEMENTS_NS = "http://purl.org/dc/elements/1.1/"
+private const val DC_NS_DECL = """ xmlns:dc="$DC_ELEMENTS_NS""""
+
 private val FSTOP_XAP_TYPO_NS = "http://ns.abobe.com/xap/1.0/"
 
 private val ISO_8859_1: Charset = Charsets.ISO_8859_1
@@ -28,6 +31,7 @@ private val SUBJECT_ATTR = Regex("""(?i)\sdc:subject\s*=\s*(?:"([^"]*)"|'([^']*)
 private val RDF_LI = Regex("""(?is)<rdf:li\b[^>]*>(.*?)</rdf:li>""")
 private val XML_ENTITY = Regex("""&(#x[0-9a-fA-F]+|#\d+|amp|lt|gt|quot|apos);""")
 private val LOOSE_XMPMETA = Regex("""(?s)<x:xmpmeta\b.*?</x:xmpmeta>""")
+private val SELF_CLOSING_RDF_DESCRIPTION = Regex("""<rdf:Description\b([^>]*)/>""", RegexOption.IGNORE_CASE)
 
 /** Rating (0 = none) and `dc:subject` tags (exposed by ExifTool as `XMP:Subject`) of a JPEG. */
 data class XmpMetadata(val rating: Int = 0, val tags: List<String> = emptyList()) {
@@ -187,26 +191,162 @@ fun writeXmpRatingToJpegFile(path: String, rating: Int): Boolean {
     if (!path.isJpegPath()) {
         return false
     }
+    val existing = readXmpMetadataFromJpegFile(path)
+    return writeXmpMetadataToJpegFile(path, existing.copy(rating = rating.coerceIn(0, 5)))
+}
+
+fun writeXmpTagsToJpegFile(path: String, tags: List<String>): Boolean {
+    if (!path.isJpegPath()) {
+        return false
+    }
+    val normalized = normalizeXmpTags(tags)
+    val existing = readXmpMetadataFromJpegFile(path)
+    return writeXmpMetadataToJpegFile(path, existing.copy(tags = normalized))
+}
+
+fun normalizeXmpTags(tags: List<String>): List<String> {
+    return tags.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+}
+
+fun writeXmpMetadataToJpegFile(path: String, metadata: XmpMetadata): Boolean {
+    if (!path.isJpegPath()) {
+        return false
+    }
+    val rating = metadata.rating.coerceIn(0, 5)
+    val tags = normalizeXmpTags(metadata.tags)
+    if (rating == 0 && tags.isEmpty()) {
+        return try {
+            val jpeg = File(path).readBytes()
+            val existing = extractXmpPacketFromJpeg(jpeg) ?: return true
+            val cleared = setMetadataInXmpPacket(existing, XmpMetadata.EMPTY)
+            if (cleared.contentEquals(existing)) {
+                return true
+            }
+            writeJpegWithXmpPacket(path, jpeg, cleared)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
     return try {
-        val clamped = rating.coerceIn(0, 5)
         val jpeg = File(path).readBytes()
         val existing = extractXmpPacketFromJpeg(jpeg)
         val newPacket = if (existing != null) {
-            setRatingInXmpPacket(existing, clamped)
-        } else if (clamped == 0) {
-            return true
+            setMetadataInXmpPacket(existing, XmpMetadata(rating, tags))
         } else {
-            buildMinimalCanonicalXmpPacket(clamped)
+            buildMinimalXmpPacket(rating, tags)
         }
-        val updated = replaceOrInsertXmpInJpeg(jpeg, newPacket)
-        RandomAccessFile(path, "rw").use { raf ->
-            raf.setLength(0)
-            raf.write(updated)
-        }
+        writeJpegWithXmpPacket(path, jpeg, newPacket)
         true
     } catch (_: Exception) {
         false
     }
+}
+
+private fun writeJpegWithXmpPacket(path: String, jpeg: ByteArray, newPacket: ByteArray) {
+    val updated = replaceOrInsertXmpInJpeg(jpeg, newPacket)
+    RandomAccessFile(path, "rw").use { raf ->
+        raf.setLength(0)
+        raf.write(updated)
+    }
+}
+
+fun setMetadataInXmpPacket(xmp: ByteArray, metadata: XmpMetadata): ByteArray {
+    var packet = setRatingInXmpPacket(xmp, metadata.rating.coerceIn(0, 5))
+    packet = setTagsInXmpPacket(packet, normalizeXmpTags(metadata.tags))
+    return packet
+}
+
+fun setTagsInXmpPacket(xmp: ByteArray, tags: List<String>): ByteArray {
+    var text = xmp.toString(Charsets.UTF_8)
+    text = SUBJECT_ELEMENT.replace(text, "")
+    text = SUBJECT_ATTR.replace(text, "")
+    val normalized = normalizeXmpTags(tags)
+    if (normalized.isEmpty()) {
+        return text.toByteArray(Charsets.UTF_8)
+    }
+    val items = normalized.joinToString("") { tag -> """<rdf:li>${escapeXmlText(tag)}</rdf:li>""" }
+    val subjectBlock = """<dc:subject><rdf:Bag>$items</rdf:Bag></dc:subject>"""
+    val selfClosing = SELF_CLOSING_RDF_DESCRIPTION.find(text)
+    text = if (selfClosing != null) {
+        val attrs = rdfDescriptionAttrsWithDcNamespace(selfClosing.groupValues[1])
+        text.replaceRange(
+            selfClosing.range,
+            "<rdf:Description$attrs>$subjectBlock</rdf:Description>",
+        )
+    } else {
+        val descriptionClose = "</rdf:Description>"
+        val insertAt = text.indexOf(descriptionClose, ignoreCase = true)
+        if (insertAt >= 0) {
+            text.substring(0, insertAt) + subjectBlock + text.substring(insertAt)
+        } else {
+        """<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?>
+<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Fossify Gallery">
+ <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/">$subjectBlock</rdf:Description>
+ </rdf:RDF>
+</x:xmpmeta>
+<?xpacket end="w"?>"""
+        }
+    }
+    return ensureDcNamespaceForSubjectBlock(text).toByteArray(Charsets.UTF_8)
+}
+
+private fun rdfDescriptionAttrsWithDcNamespace(attrs: String): String {
+    return if (Regex("""xmlns:dc\s=""", RegexOption.IGNORE_CASE).containsMatchIn(attrs)) {
+        attrs
+    } else {
+        attrs + DC_NS_DECL
+    }
+}
+
+/** `dc:subject` requires `xmlns:dc` on the containing `rdf:Description` (strict XMP/XML parsers). */
+private fun ensureDcNamespaceForSubjectBlock(text: String): String {
+    if (!Regex("""<dc:subject\b""", RegexOption.IGNORE_CASE).containsMatchIn(text)) {
+        return text
+    }
+    if (Regex("""xmlns:dc\s=""", RegexOption.IGNORE_CASE).containsMatchIn(text)) {
+        return text
+    }
+    val openDescription = Regex("""<rdf:Description\b([^>]*)>""", RegexOption.IGNORE_CASE).find(text)
+        ?: return text
+    val attrs = rdfDescriptionAttrsWithDcNamespace(openDescription.groupValues[1])
+    return text.replaceRange(
+        openDescription.range,
+        "<rdf:Description$attrs>",
+    )
+}
+
+private fun escapeXmlText(value: String): String {
+    return value
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+        .replace("'", "&apos;")
+}
+
+fun buildMinimalXmpPacket(rating: Int, tags: List<String>): ByteArray {
+    val clamped = rating.coerceIn(0, 5)
+    val normalized = normalizeXmpTags(tags)
+    val ratingAttr = if (clamped > 0) """ xmp:Rating="$clamped"""" else ""
+    val xmpNs = if (clamped > 0) """ xmlns:xmp="$CANONICAL_XAP_NS"""" else ""
+    val subjectBlock = if (normalized.isEmpty()) {
+        ""
+    } else {
+        val items = normalized.joinToString("") { tag -> """<rdf:li>${escapeXmlText(tag)}</rdf:li>""" }
+        "\n  <dc:subject><rdf:Bag>$items</rdf:Bag></dc:subject>"
+    }
+    val dcNs = if (normalized.isNotEmpty()) DC_NS_DECL else ""
+    val xml = """<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?>
+<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Fossify Gallery">
+ <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <rdf:Description rdf:about=""$xmpNs$dcNs$ratingAttr>$subjectBlock
+  </rdf:Description>
+ </rdf:RDF>
+</x:xmpmeta>
+<?xpacket end="w"?>"""
+    return xml.toByteArray(Charsets.UTF_8)
 }
 
 fun setRatingInXmpPacket(xmp: ByteArray, rating: Int): ByteArray {
@@ -250,16 +390,7 @@ private fun applyRatingToPacket(xmp: ByteArray, rating: Int): ByteArray {
     return text.toByteArray(ISO_8859_1)
 }
 
-fun buildMinimalCanonicalXmpPacket(rating: Int): ByteArray {
-    val xml = """<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?>
-<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Fossify Gallery">
- <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
-  <rdf:Description rdf:about="" xmlns:xmp="$CANONICAL_XAP_NS" xmp:Rating="$rating"/>
- </rdf:RDF>
-</x:xmpmeta>
-<?xpacket end="w"?>"""
-    return xml.toByteArray(Charsets.UTF_8)
-}
+fun buildMinimalCanonicalXmpPacket(rating: Int): ByteArray = buildMinimalXmpPacket(rating, emptyList())
 
 fun extractXmpPacketFromJpeg(jpeg: ByteArray): ByteArray? {
     var i = 2

@@ -235,6 +235,11 @@
     <string name="show_exif_ratings">Show EXIF star ratings on JPEG thumbnails</string>
     <string name="go_to_next_after_exif_rating">After rating a photo, go to the next item</string>
     <string name="set_exif_rating">Set rating</string>
+    <string name="edit_xmp_tags">Edit tags</string>
+    <string name="edit_xmp_tags_known">Tags found in your library</string>
+    <string name="edit_xmp_tags_add">Add a new tag</string>
+    <string name="edit_xmp_tags_hint">Tag name</string>
+    <string name="edit_xmp_tags_add_button">Add</string>
     <string name="thumbnail_spacing">Thumbnail spacing</string>
     <string name="show_file_count_line">Show file count on a separate line</string>
     <string name="show_file_count_brackets">Show file count in brackets</string>

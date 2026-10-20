@@ -48,6 +48,9 @@ object XmpTagIndex {
     @Synchronized
     fun getAllTags(): Map<String, Set<String>> = pathsByTag.mapValues { it.value.toSet() }
 
+    @Synchronized
+    fun getAllTagNamesSorted(): List<String> = pathsByTag.keys.sortedBy { it.lowercase() }
+
     private fun putLocked(path: String, tags: List<String>) {
         if (tags.isEmpty()) {
             return

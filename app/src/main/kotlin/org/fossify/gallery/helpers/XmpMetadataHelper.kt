@@ -137,3 +137,14 @@ fun Context.setExifRating(path: String, rating: Int): Boolean {
     cacheXmpMetadata(path, readXmpMetadataFromJpegFile(path), File(path).lastModified())
     return true
 }
+
+fun Context.setXmpTags(path: String, tags: List<String>): Boolean {
+    if (!path.isJpegPath()) {
+        return false
+    }
+    if (!writeXmpTagsToJpegFile(path, tags)) {
+        return false
+    }
+    cacheXmpMetadata(path, readXmpMetadataFromJpegFile(path), File(path).lastModified())
+    return true
+}

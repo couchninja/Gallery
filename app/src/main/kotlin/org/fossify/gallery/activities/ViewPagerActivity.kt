@@ -146,9 +146,13 @@ import org.fossify.gallery.helpers.BOTTOM_ACTION_TOGGLE_VISIBILITY
 import org.fossify.gallery.helpers.bindViewerExifRating
 import org.fossify.gallery.helpers.setupViewerExifRatingInput
 import org.fossify.gallery.helpers.loadXmpMetadata
+import org.fossify.gallery.helpers.readXmpMetadataFromPath
 import org.fossify.gallery.helpers.isJpeg
+import org.fossify.gallery.dialogs.EditXmpTagsDialog
 import org.fossify.gallery.helpers.setExifRating
+import org.fossify.gallery.helpers.setXmpTags
 import org.fossify.gallery.helpers.syncExifRatingOnGalleryMedia
+import org.fossify.gallery.helpers.XmpTagIndex
 import org.fossify.gallery.helpers.ColorModeHelper
 import org.fossify.gallery.helpers.DefaultPageTransformer
 import org.fossify.gallery.helpers.FadePageTransformer
@@ -340,6 +344,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
             if (visibleBottomActions != 0) {
                 updateBottomActionIcons(currentMedium)
             }
+            updateXmpTagsBottomActionVisibility(currentMedium)
             updateXmpMetadataViews()
         }
     }
@@ -1001,6 +1006,13 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
             showProperties()
         }
 
+        binding.bottomActions.bottomXmpTags.applyColorFilter(Color.WHITE)
+        updateXmpTagsBottomActionVisibility(currentMedium)
+        binding.bottomActions.bottomXmpTags.setOnLongClickListener { toast(R.string.edit_xmp_tags); true }
+        binding.bottomActions.bottomXmpTags.setOnClickListener {
+            openEditXmpTagsDialog()
+        }
+
         binding.bottomActions.bottomChangeOrientation.beVisibleIf(visibleBottomActions and BOTTOM_ACTION_CHANGE_ORIENTATION != 0)
         binding.bottomActions.bottomChangeOrientation.setOnLongClickListener { toast(R.string.change_orientation); true }
         binding.bottomActions.bottomChangeOrientation.setOnClickListener {
@@ -1070,6 +1082,14 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
         }
     }
 
+    private fun updateXmpTagsBottomActionVisibility(medium: Medium?) {
+        val show = config.bottomActions
+            && medium != null
+            && medium.isJpeg()
+            && !medium.getIsInRecycleBin()
+        binding.bottomActions.bottomXmpTags.beVisibleIf(show)
+    }
+
     private fun updateBottomActionIcons(medium: Medium?) {
         if (medium == null) {
             return
@@ -1111,6 +1131,26 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
             )
         }
         updateXmpMetadataViews()
+    }
+
+    private fun openEditXmpTagsDialog() {
+        val medium = getCurrentMedium() ?: return
+        if (!medium.isJpeg()) {
+            return
+        }
+        val initialTags = XmpTagIndex.getTags(medium.path)
+            .ifEmpty { readXmpMetadataFromPath(medium.path).tags }
+        EditXmpTagsDialog(this, initialTags) { tags ->
+            handleMediaManagementPrompt {
+                ensureBackgroundThread {
+                    if (setXmpTags(medium.path, tags)) {
+                        runOnUiThread {
+                            bindViewerXmpTags(tags, medium.path)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private fun onViewerRatingCommitted(newRating: Int, fromTap: Boolean) {
@@ -1174,22 +1214,25 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
                 if (config.bottomActions) {
                     bindViewerExifRating(getViewerExifRatingBar(), metadata.rating)
                 }
-                bindViewerXmpTags(metadata.tags)
-                mViewerXmpTagsPath = medium.path
+                bindViewerXmpTags(metadata.tags, medium.path)
             }
         }
     }
 
     // INVISIBLE rather than GONE, and no setText when unchanged, so swiping doesn't trigger a relayout.
-    private fun bindViewerXmpTags(tags: List<String>) {
+    private fun bindViewerXmpTags(tags: List<String>, mediumPath: String? = null) {
         val view = binding.viewerXmpTags
         if (tags.isEmpty()) {
             mViewerXmpTagsPath = null
+            if (view.text.isNotEmpty()) {
+                view.text = ""
+            }
             if (view.visibility != View.INVISIBLE) {
                 view.visibility = View.INVISIBLE
             }
             return
         }
+        mViewerXmpTagsPath = mediumPath ?: getCurrentMedium()?.path
         val text = tags.joinToString("\n")
         if (view.text.toString() != text) {
             view.text = text

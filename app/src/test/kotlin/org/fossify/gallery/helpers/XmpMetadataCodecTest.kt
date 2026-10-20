@@ -121,6 +121,35 @@ class XmpMetadataCodecTest {
         temp.delete()
     }
 
+    @Test
+    fun writeTagsRoundTrip() {
+        val temp = copyResourceToTemp("xmp_rating/canonical_rated_3.jpg")
+        assertTrue(writeXmpTagsToJpegFile(temp.absolutePath, listOf("keep 2 months", "archive")))
+        assertEquals(
+            XmpMetadata(3, listOf("keep 2 months", "archive")),
+            readXmpMetadataFromJpegFile(temp.absolutePath),
+        )
+        val packet = extractXmpPacketFromJpeg(temp.readBytes())!!.toString(Charsets.UTF_8)
+        assertTrue(packet.contains("""xmlns:dc="http://purl.org/dc/elements/1.1/""""))
+        temp.delete()
+    }
+
+    @Test
+    fun writeTagsPreservesRating() {
+        val temp = copyResourceToTemp("xmp_metadata/tagged_rated_4.jpg")
+        assertTrue(writeXmpTagsToJpegFile(temp.absolutePath, listOf("new tag")))
+        assertEquals(XmpMetadata(4, listOf("new tag")), readXmpMetadataFromJpegFile(temp.absolutePath))
+        temp.delete()
+    }
+
+    @Test
+    fun clearTagsRemovesSubject() {
+        val temp = copyResourceToTemp("xmp_metadata/tagged_rated_4.jpg")
+        assertTrue(writeXmpTagsToJpegFile(temp.absolutePath, emptyList()))
+        assertEquals(XmpMetadata(4, emptyList()), readXmpMetadataFromJpegFile(temp.absolutePath))
+        temp.delete()
+    }
+
     private fun readResource(name: String): ByteArray {
         val stream = javaClass.classLoader.getResourceAsStream(name)
             ?: error("Missing test resource $name")
