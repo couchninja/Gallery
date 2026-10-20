@@ -9,7 +9,7 @@ import org.fossify.commons.helpers.SORT_BY_SIZE
 import org.fossify.gallery.extensions.config
 import org.fossify.gallery.extensions.getFavoritePaths
 import org.fossify.gallery.helpers.DateTakenIndexer
-import org.fossify.gallery.helpers.ExifRatingIndexer
+import org.fossify.gallery.helpers.XmpMetadataIndexer
 import org.fossify.gallery.helpers.*
 import org.fossify.gallery.R
 import org.fossify.gallery.models.Medium
@@ -97,7 +97,7 @@ class GetMediaAsynctask(
             DateTakenIndexer.schedule(context)
         }
         if (context.config.showExifRatings) {
-            ExifRatingIndexer.schedule(context)
+            XmpMetadataIndexer.schedule(context)
         }
     }
 

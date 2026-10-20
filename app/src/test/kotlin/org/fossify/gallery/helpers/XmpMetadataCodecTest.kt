@@ -8,7 +8,7 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
-class XmpRatingCodecTest {
+class XmpMetadataCodecTest {
 
     @Test
     fun xmpPacketHasCanonicalRating_requiresCorrectNamespace() {
@@ -36,7 +36,7 @@ class XmpRatingCodecTest {
     @Test
     fun readCanonicalRatedSample() {
         val bytes = readResource("xmp_rating/canonical_rated_3.jpg")
-        assertEquals(3, readXmpRatingFromJpegBytes(bytes))
+        assertEquals(3, readXmpMetadataFromJpegBytes(bytes).rating)
         val packet = extractXmpPacketFromJpeg(bytes)
         assertTrue(packet != null)
         assertTrue(xmpPacketHasCanonicalRating(packet!!))
@@ -45,14 +45,14 @@ class XmpRatingCodecTest {
     @Test
     fun readFStopStyleSample() {
         val bytes = readResource("xmp_rating/fstop_rated_4.jpg")
-        assertEquals(4, readXmpRatingFromJpegBytes(bytes))
+        assertEquals(4, readXmpMetadataFromJpegBytes(bytes).rating)
     }
 
     @Test
     fun writeRatingRoundTripOnCanonicalSample() {
         val temp = copyResourceToTemp("xmp_rating/canonical_rated_3.jpg")
         assertTrue(writeXmpRatingToJpegFile(temp.absolutePath, 5))
-        assertEquals(5, readXmpRatingFromJpegFile(temp.absolutePath))
+        assertEquals(5, readXmpMetadataFromJpegFile(temp.absolutePath).rating)
         val packet = extractXmpPacketFromJpeg(temp.readBytes())!!
         assertTrue(xmpPacketHasCanonicalRating(packet))
         assertEquals(5, parseRatingFromXmpPacket(packet))
@@ -63,7 +63,7 @@ class XmpRatingCodecTest {
     fun writeRatingRoundTripOnFStopSample() {
         val temp = copyResourceToTemp("xmp_rating/fstop_rated_4.jpg")
         assertTrue(writeXmpRatingToJpegFile(temp.absolutePath, 2))
-        assertEquals(2, readXmpRatingFromJpegFile(temp.absolutePath))
+        assertEquals(2, readXmpMetadataFromJpegFile(temp.absolutePath).rating)
         val packet = extractXmpPacketFromJpeg(temp.readBytes())!!
         assertTrue(xmpPacketHasCanonicalRating(packet))
         temp.delete()
@@ -73,7 +73,51 @@ class XmpRatingCodecTest {
     fun clearRatingRemovesAttribute() {
         val temp = copyResourceToTemp("xmp_rating/canonical_rated_3.jpg")
         assertTrue(writeXmpRatingToJpegFile(temp.absolutePath, 0))
-        assertEquals(0, readXmpRatingFromJpegFile(temp.absolutePath))
+        assertEquals(0, readXmpMetadataFromJpegFile(temp.absolutePath).rating)
+        temp.delete()
+    }
+
+    @Test
+    fun readTaggedSample() {
+        val metadata = readXmpMetadataFromJpegBytes(readResource("xmp_metadata/tagged_rated_4.jpg"))
+        assertEquals(listOf("keep 2 months"), metadata.tags)
+        assertEquals(4, metadata.rating)
+    }
+
+    @Test
+    fun readTaggedSampleFromFileUsesHeaderOnly() {
+        val temp = copyResourceToTemp("xmp_metadata/tagged_rated_4.jpg")
+        val header = readJpegHeaderSegments(temp)!!
+        assertTrue(header.size < temp.length() / 10)
+        assertEquals(XmpMetadata(4, listOf("keep 2 months")), readXmpMetadataFromJpegFile(temp.absolutePath))
+        temp.delete()
+    }
+
+    @Test
+    fun untaggedSampleHasNoTags() {
+        assertEquals(emptyList<String>(), readXmpMetadataFromJpegBytes(readResource("xmp_rating/canonical_rated_3.jpg")).tags)
+    }
+
+    @Test
+    fun parseTagsFromBagSeqAndAttributeForms() {
+        val bag = """<rdf:Description><dc:subject><rdf:Bag><rdf:li>tag1</rdf:li><rdf:li>tag2</rdf:li> <rdf:li>tag3</rdf:li></rdf:Bag></dc:subject></rdf:Description>"""
+        assertEquals(listOf("tag1", "tag2", "tag3"), parseTagsFromXmpPacket(bag.toByteArray()))
+
+        val seq = """<dc:subject><rdf:Seq><rdf:li>a &amp; b</rdf:li><rdf:li>caf&#233;</rdf:li><rdf:li/></rdf:Seq></dc:subject>"""
+        assertEquals(listOf("a & b", "café"), parseTagsFromXmpPacket(seq.toByteArray()))
+
+        val attr = """<rdf:Description rdf:about="" dc:subject="single_tag"/>"""
+        assertEquals(listOf("single_tag"), parseTagsFromXmpPacket(attr.toByteArray()))
+
+        val none = """<rdf:Description xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmp:Rating="3"/>"""
+        assertEquals(emptyList<String>(), parseTagsFromXmpPacket(none.toByteArray()))
+    }
+
+    @Test
+    fun writeRatingKeepsTags() {
+        val temp = copyResourceToTemp("xmp_metadata/tagged_rated_4.jpg")
+        assertTrue(writeXmpRatingToJpegFile(temp.absolutePath, 2))
+        assertEquals(XmpMetadata(2, listOf("keep 2 months")), readXmpMetadataFromJpegFile(temp.absolutePath))
         temp.delete()
     }
 

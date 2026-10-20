@@ -145,9 +145,8 @@ import org.fossify.gallery.helpers.BOTTOM_ACTION_SLIDESHOW
 import org.fossify.gallery.helpers.BOTTOM_ACTION_TOGGLE_VISIBILITY
 import org.fossify.gallery.helpers.bindViewerExifRating
 import org.fossify.gallery.helpers.setupViewerExifRatingInput
-import org.fossify.gallery.helpers.cacheExifRating
+import org.fossify.gallery.helpers.loadXmpMetadata
 import org.fossify.gallery.helpers.isJpeg
-import org.fossify.gallery.helpers.readExifRatingFromPath
 import org.fossify.gallery.helpers.setExifRating
 import org.fossify.gallery.helpers.syncExifRatingOnGalleryMedia
 import org.fossify.gallery.helpers.ColorModeHelper
@@ -187,6 +186,7 @@ import org.fossify.gallery.helpers.getPermissionToRequest
 import org.fossify.gallery.models.Medium
 import org.fossify.gallery.models.ThumbnailItem
 import java.io.File
+import java.util.concurrent.Executors
 import kotlin.math.min
 
 @Suppress("UNCHECKED_CAST")
@@ -194,6 +194,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
     companion object {
         private const val REQUEST_VIEW_VIDEO = 1
         private const val SAVED_PATH = "current_path"
+        private const val XMP_METADATA_LOAD_DELAY_MS = 150L
     }
 
     private var mPath = ""
@@ -272,6 +273,8 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
 
     override fun onDestroy() {
         super.onDestroy()
+        binding.viewPager.removeCallbacks(mXmpMetadataLoadRunnable)
+        mXmpMetadataExecutor.shutdownNow()
         ColorModeHelper.resetColorMode(this)
 
         if (intent.extras?.containsKey(IS_VIEW_INTENT) == true) {
@@ -337,7 +340,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
             if (visibleBottomActions != 0) {
                 updateBottomActionIcons(currentMedium)
             }
-            updateExifRatingBar()
+            updateXmpMetadataViews()
         }
     }
 
@@ -565,6 +568,14 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
     }
 
     private var mExifRatingBarInitialized = false
+
+    @Volatile
+    private var mXmpMetadataGeneration = 0
+    private var mXmpMetadataLoadRunnable = Runnable {}
+    private var mViewerXmpTagsPath: String? = null
+    private val mXmpMetadataExecutor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "viewer-xmp-metadata").apply { priority = Thread.MIN_PRIORITY }
+    }
 
     private fun initBottomActions() {
         initBottomActionButtons()
@@ -1099,7 +1110,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
                 onCommit = { rating, fromTap -> onViewerRatingCommitted(rating, fromTap) },
             )
         }
-        updateExifRatingBar()
+        updateXmpMetadataViews()
     }
 
     private fun onViewerRatingCommitted(newRating: Int, fromTap: Boolean) {
@@ -1126,34 +1137,65 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
         }
     }
 
-    private fun updateExifRatingBar() {
+    private fun updateXmpMetadataViews() {
+        val generation = ++mXmpMetadataGeneration
+        binding.viewPager.removeCallbacks(mXmpMetadataLoadRunnable)
+
         val medium = getCurrentMedium()
-        val showBar = config.bottomActions && medium != null && medium.isJpeg() && !medium.getIsInRecycleBin()
+        val isJpeg = medium != null && medium.isJpeg() && !medium.getIsInRecycleBin()
+        val showBar = config.bottomActions && isJpeg
         getViewerExifRatingBar().beVisibleIf(showBar)
-        if (!showBar || medium == null) {
+        if (!isJpeg || medium == null) {
+            bindViewerXmpTags(emptyList())
             return
         }
 
-        bindViewerExifRating(getViewerExifRatingBar(), medium.exifRating)
-        ensureBackgroundThread {
-            syncExifRatingFromFile(medium)
+        if (showBar) {
+            bindViewerExifRating(getViewerExifRatingBar(), medium.exifRating)
+        }
+        if (mViewerXmpTagsPath != medium.path) {
+            bindViewerXmpTags(emptyList())
+        }
+        mXmpMetadataLoadRunnable = Runnable { loadXmpMetadataAsync(medium, generation) }
+        binding.viewPager.postDelayed(mXmpMetadataLoadRunnable, XMP_METADATA_LOAD_DELAY_MS)
+    }
+
+    private fun loadXmpMetadataAsync(medium: Medium, generation: Int) {
+        mXmpMetadataExecutor.execute {
+            if (generation != mXmpMetadataGeneration) {
+                return@execute
+            }
+            val metadata = loadXmpMetadata(medium.path)
+            medium.exifRating = metadata.rating
+            runOnUiThread {
+                if (generation != mXmpMetadataGeneration || isDestroyed) {
+                    return@runOnUiThread
+                }
+                if (config.bottomActions) {
+                    bindViewerExifRating(getViewerExifRatingBar(), metadata.rating)
+                }
+                bindViewerXmpTags(metadata.tags)
+                mViewerXmpTagsPath = medium.path
+            }
         }
     }
 
-    private fun syncExifRatingFromFile(medium: Medium) {
-        if (!medium.isJpeg()) {
-            return
-        }
-        val fromFile = readExifRatingFromPath(medium.path)
-        if (fromFile == medium.exifRating) {
-            return
-        }
-        medium.exifRating = fromFile
-        cacheExifRating(medium.path, fromFile)
-        runOnUiThread {
-            if (getCurrentMedium()?.path == medium.path) {
-                bindViewerExifRating(getViewerExifRatingBar(), fromFile)
+    // INVISIBLE rather than GONE, and no setText when unchanged, so swiping doesn't trigger a relayout.
+    private fun bindViewerXmpTags(tags: List<String>) {
+        val view = binding.viewerXmpTags
+        if (tags.isEmpty()) {
+            mViewerXmpTagsPath = null
+            if (view.visibility != View.INVISIBLE) {
+                view.visibility = View.INVISIBLE
             }
+            return
+        }
+        val text = tags.joinToString("\n")
+        if (view.text.toString() != text) {
+            view.text = text
+        }
+        if (view.visibility != View.VISIBLE) {
+            view.visibility = View.VISIBLE
         }
     }
 
@@ -1565,6 +1607,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
             (it as MyPagerAdapter).toggleFullscreen(mIsFullScreen)
             val newAlpha = if (mIsFullScreen) 0f else 1f
             binding.topShadow.animate().alpha(newAlpha).start()
+            binding.viewerXmpTags.animate().alpha(newAlpha).start()
             binding.bottomControls.animate().alpha(newAlpha).withStartAction {
                 binding.bottomControls.beVisible()
             }.withEndAction {
@@ -1607,7 +1650,6 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
             mPos = position
             updateActionbarTitle()
             refreshMenuItems()
-            updateExifRatingBar()
             scheduleSwipe()
         }
     }

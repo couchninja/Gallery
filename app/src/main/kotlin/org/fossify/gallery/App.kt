@@ -9,7 +9,8 @@ import org.fossify.commons.FossifyApp
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.gallery.extensions.config
 import org.fossify.gallery.helpers.DateTakenIndexer
-import org.fossify.gallery.helpers.ExifRatingIndexer
+import org.fossify.gallery.helpers.XmpMetadataIndexer
+import org.fossify.gallery.helpers.XmpTagIndex
 
 class App : FossifyApp() {
 
@@ -20,7 +21,9 @@ class App : FossifyApp() {
         ensureBackgroundThread {
             DateTakenIndexer.schedule(this)
             if (config.showExifRatings) {
-                ExifRatingIndexer.schedule(this)
+                XmpMetadataIndexer.schedule(this)
+            } else {
+                XmpTagIndex.loadFromDb(this)
             }
         }
         Reprint.initialize(this)

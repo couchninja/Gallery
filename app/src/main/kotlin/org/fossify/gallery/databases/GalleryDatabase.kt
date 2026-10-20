@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import org.fossify.gallery.interfaces.*
 import org.fossify.gallery.models.*
 
-@Database(entities = [Directory::class, Medium::class, Widget::class, DateTaken::class, Favorite::class, ExifRating::class], version = 11)
+@Database(entities = [Directory::class, Medium::class, Widget::class, DateTaken::class, Favorite::class, XmpMetadataEntry::class], version = 12)
 abstract class GalleryDatabase : RoomDatabase() {
 
     abstract fun DirectoryDao(): DirectoryDao
@@ -22,7 +22,7 @@ abstract class GalleryDatabase : RoomDatabase() {
 
     abstract fun FavoritesDao(): FavoritesDao
 
-    abstract fun ExifRatingsDao(): ExifRatingsDao
+    abstract fun XmpMetadataDao(): XmpMetadataDao
 
     companion object {
         private var db: GalleryDatabase? = null
@@ -40,6 +40,7 @@ abstract class GalleryDatabase : RoomDatabase() {
                             .addMigrations(MIGRATION_8_9)
                             .addMigrations(MIGRATION_9_10)
                             .addMigrations(MIGRATION_10_11)
+                            .addMigrations(MIGRATION_11_12)
                             .build()
                     }
                 }
@@ -107,6 +108,28 @@ abstract class GalleryDatabase : RoomDatabase() {
                         "`last_modified` INTEGER NOT NULL)"
                 )
                 database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_exif_ratings_full_path` ON `exif_ratings` (`full_path`)")
+            }
+        }
+
+        // last_modified = 0 forces the indexer to re-read every JPEG so tags get filled in.
+        private val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `xmp_metadata` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                        "`full_path` TEXT NOT NULL, " +
+                        "`filename` TEXT NOT NULL, " +
+                        "`parent_path` TEXT NOT NULL, " +
+                        "`rating` INTEGER NOT NULL, " +
+                        "`tags` TEXT NOT NULL, " +
+                        "`last_modified` INTEGER NOT NULL)"
+                )
+                database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_xmp_metadata_full_path` ON `xmp_metadata` (`full_path`)")
+                database.execSQL(
+                    "INSERT OR REPLACE INTO `xmp_metadata` (`full_path`, `filename`, `parent_path`, `rating`, `tags`, `last_modified`) " +
+                        "SELECT `full_path`, `filename`, `parent_path`, `rating`, '', 0 FROM `exif_ratings`"
+                )
+                database.execSQL("DROP TABLE IF EXISTS `exif_ratings`")
             }
         }
     }

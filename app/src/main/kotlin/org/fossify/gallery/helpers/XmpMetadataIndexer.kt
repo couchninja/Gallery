@@ -10,11 +10,11 @@ import org.fossify.commons.extensions.getParentPath
 import org.fossify.commons.extensions.getStringValue
 import org.fossify.commons.extensions.queryCursor
 import org.fossify.commons.helpers.ensureBackgroundThread
-import org.fossify.gallery.extensions.exifRatingsDB
-import org.fossify.gallery.models.ExifRating
+import org.fossify.gallery.extensions.xmpMetadataDB
+import org.fossify.gallery.models.XmpMetadataEntry
 import java.util.concurrent.atomic.AtomicBoolean
 
-object ExifRatingIndexer {
+object XmpMetadataIndexer {
     private val isRunning = AtomicBoolean(false)
 
     fun schedule(context: Context, force: Boolean = false) {
@@ -32,7 +32,9 @@ object ExifRatingIndexer {
     }
 
     private fun runIndex(context: Context, force: Boolean) {
-        val cached = context.exifRatingsDB.getAllRatings().associateBy { it.fullPath }
+        val all = context.xmpMetadataDB.getAll()
+        XmpTagIndex.replaceAll(all)
+        val cached = all.associateBy { it.fullPath }
         val pending = collectPending(context, force, cached)
         if (pending.isEmpty()) {
             return
@@ -47,12 +49,12 @@ object ExifRatingIndexer {
 
         if (updated) {
             context.sendBroadcast(
-                Intent(ACTION_EXIF_RATING_INDEX_UPDATED).setPackage(context.packageName)
+                Intent(ACTION_XMP_METADATA_INDEX_UPDATED).setPackage(context.packageName)
             )
         }
     }
 
-    private fun collectPending(context: Context, force: Boolean, cached: Map<String, ExifRating>): List<PendingItem> {
+    private fun collectPending(context: Context, force: Boolean, cached: Map<String, XmpMetadataEntry>): List<PendingItem> {
         val pending = ArrayList<PendingItem>()
         val projection = arrayOf(
             Images.Media.DATA,
@@ -85,29 +87,31 @@ object ExifRatingIndexer {
     }
 
     private fun indexBatch(context: Context, batch: List<PendingItem>): Boolean {
-        val ratings = ArrayList<ExifRating>()
+        val entries = ArrayList<XmpMetadataEntry>()
         for (item in batch) {
-            val rating = readExifRatingFromPath(item.path)
-            ratings.add(
-                ExifRating(
+            val metadata = readXmpMetadataFromPath(item.path)
+            entries.add(
+                XmpMetadataEntry(
                     null,
                     item.path,
                     item.filename,
                     item.path.getParentPath(),
-                    rating,
+                    metadata.rating,
+                    XmpMetadataEntry.encodeTags(metadata.tags),
                     item.lastModified
                 )
             )
         }
 
-        if (ratings.isEmpty()) {
+        if (entries.isEmpty()) {
             return false
         }
-        context.exifRatingsDB.insertAll(ratings)
+        context.xmpMetadataDB.insertAll(entries)
+        entries.forEach { XmpTagIndex.update(it.fullPath, it.tagList()) }
         return true
     }
 
-    private fun findCached(cached: Map<String, ExifRating>, path: String): ExifRating? {
+    private fun findCached(cached: Map<String, XmpMetadataEntry>, path: String): XmpMetadataEntry? {
         cached[path]?.let { return it }
         return cached.entries.firstOrNull { it.key.equals(path, ignoreCase = true) }?.value
     }

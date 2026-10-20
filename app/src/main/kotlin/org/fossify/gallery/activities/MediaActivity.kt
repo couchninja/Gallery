@@ -93,10 +93,10 @@ import org.fossify.gallery.extensions.showRestoreConfirmationDialog
 import org.fossify.gallery.extensions.tryDeleteFileDirItem
 import org.fossify.gallery.extensions.updateWidgets
 import org.fossify.gallery.helpers.ACTION_DATE_TAKEN_INDEX_UPDATED
-import org.fossify.gallery.helpers.ACTION_EXIF_RATING_INDEX_UPDATED
+import org.fossify.gallery.helpers.ACTION_XMP_METADATA_INDEX_UPDATED
 import org.fossify.gallery.helpers.ACTION_MEDIA_STORE_PATH_CHANGED
 import org.fossify.gallery.helpers.DateTakenIndexer
-import org.fossify.gallery.helpers.ExifRatingIndexer
+import org.fossify.gallery.helpers.XmpMetadataIndexer
 import org.fossify.gallery.helpers.GROUP_BY_DATE_TAKEN_DAILY
 import org.fossify.gallery.helpers.GROUP_BY_DATE_TAKEN_MONTHLY
 import org.fossify.gallery.helpers.syncMediaStoreItemsWithIdGreaterThan
@@ -629,7 +629,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
 
     private fun scheduleMetadataIndexers() {
         if (config.showExifRatings) {
-            ExifRatingIndexer.schedule(applicationContext)
+            XmpMetadataIndexer.schedule(applicationContext)
         }
 
         val pathToUse = mediaConfigPath()
@@ -872,7 +872,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             return
         }
 
-        val filter = IntentFilter(ACTION_EXIF_RATING_INDEX_UPDATED)
+        val filter = IntentFilter(ACTION_XMP_METADATA_INDEX_UPDATED)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(mExifRatingIndexReceiver, filter, RECEIVER_NOT_EXPORTED)
         } else {

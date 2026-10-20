@@ -667,9 +667,9 @@ class MediaFetcher(val context: Context) {
         val exifRatings = HashMap<String, Int>()
         val ratingValues = try {
             if (folder == FAVORITES) {
-                context.exifRatingsDB.getAllRatings()
+                context.xmpMetadataDB.getAll()
             } else {
-                context.exifRatingsDB.getRatingsFromPath(folder)
+                context.xmpMetadataDB.getFromPath(folder)
             }
         } catch (_: Exception) {
             return exifRatings
@@ -684,7 +684,7 @@ class MediaFetcher(val context: Context) {
     fun getExifRatings(): HashMap<String, Int> {
         val exifRatings = HashMap<String, Int>()
         try {
-            context.exifRatingsDB.getAllRatings().forEach {
+            context.xmpMetadataDB.getAll().forEach {
                 exifRatings[it.fullPath] = it.rating.coerceIn(0, 5)
             }
         } catch (_: Exception) {

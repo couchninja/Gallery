@@ -1,8 +1,15 @@
 package org.fossify.gallery.helpers
 
+import java.io.BufferedInputStream
+import java.io.ByteArrayOutputStream
+import java.io.DataInputStream
+import java.io.EOFException
 import java.io.File
+import java.io.FileInputStream
 import java.io.RandomAccessFile
 import java.nio.charset.Charset
+
+private const val HEADER_READ_BUFFER_SIZE = 64 * 1024
 
 /** Adobe XAP namespace for Basic `Rating` (canonical). */
 const val CANONICAL_XAP_NS = "http://ns.adobe.com/xap/1.0/"
@@ -15,6 +22,19 @@ private val XMP_APP1_HEADER = "http://ns.adobe.com/xap/1.0/\u0000".toByteArray(C
 
 private val RATING_ATTR = Regex("""(?i)(xmp|xap):Rating="(-?\d+)"""")
 private val RATING_ELEMENT = Regex("""(?i)<(xmp|xap):Rating>\s*(-?\d+)\s*</\1:Rating>""")
+
+private val SUBJECT_ELEMENT = Regex("""(?is)<dc:subject\b[^>]*>(.*?)</dc:subject>""")
+private val SUBJECT_ATTR = Regex("""(?i)\sdc:subject\s*=\s*(?:"([^"]*)"|'([^']*)')""")
+private val RDF_LI = Regex("""(?is)<rdf:li\b[^>]*>(.*?)</rdf:li>""")
+private val XML_ENTITY = Regex("""&(#x[0-9a-fA-F]+|#\d+|amp|lt|gt|quot|apos);""")
+private val LOOSE_XMPMETA = Regex("""(?s)<x:xmpmeta\b.*?</x:xmpmeta>""")
+
+/** Rating (0 = none) and `dc:subject` tags (exposed by ExifTool as `XMP:Subject`) of a JPEG. */
+data class XmpMetadata(val rating: Int = 0, val tags: List<String> = emptyList()) {
+    companion object {
+        val EMPTY = XmpMetadata()
+    }
+}
 
 /**
  * Whether raw XMP exposes Rating in the Adobe XAP namespace (see media_manage metadata tests).
@@ -52,28 +72,115 @@ fun parseRatingFromXmpPacket(xmp: ByteArray): Int? {
     return null
 }
 
-fun readXmpRatingFromJpegFile(path: String): Int {
+/** Tags in document order, trimmed, blank and duplicate entries dropped. */
+fun parseTagsFromXmpPacket(xmp: ByteArray): List<String> {
+    val text = xmp.toString(Charsets.UTF_8)
+    val tags = LinkedHashSet<String>()
+    SUBJECT_ELEMENT.findAll(text).forEach { subject ->
+        val body = subject.groupValues[1]
+        val items = RDF_LI.findAll(body).map { it.groupValues[1] }.toList()
+        if (items.isEmpty() && !body.contains('<')) {
+            tags.add(body)
+        } else {
+            tags.addAll(items)
+        }
+    }
+    SUBJECT_ATTR.findAll(text).forEach { match ->
+        tags.add(match.groupValues[1].ifEmpty { match.groupValues[2] })
+    }
+    return tags.map { unescapeXml(it).trim() }.filter { it.isNotEmpty() }.distinct()
+}
+
+fun parseMetadataFromXmpPacket(xmp: ByteArray): XmpMetadata {
+    return XmpMetadata(
+        rating = parseRatingFromXmpPacket(xmp) ?: 0,
+        tags = parseTagsFromXmpPacket(xmp)
+    )
+}
+
+fun readXmpMetadataFromJpegFile(path: String): XmpMetadata {
     if (!path.isJpegPath()) {
-        return 0
+        return XmpMetadata.EMPTY
     }
     return try {
-        val jpeg = File(path).readBytes()
-        readXmpRatingFromJpegBytes(jpeg)
+        val file = File(path)
+        readJpegHeaderSegments(file)?.let { extractXmpPacketFromJpeg(it) }?.let { return parseMetadataFromXmpPacket(it) }
+        scanLooseMetadataInJpeg(file.readBytes())
     } catch (_: Exception) {
-        0
+        XmpMetadata.EMPTY
     }
 }
 
-fun readXmpRatingFromJpegBytes(jpeg: ByteArray): Int {
-    val packet = extractXmpPacketFromJpeg(jpeg) ?: return scanLooseRatingInJpeg(jpeg)
-    return parseRatingFromXmpPacket(packet) ?: 0
+/** SOI plus every marker segment before SOS, so APP1 XMP can be found without reading the image data. */
+fun readJpegHeaderSegments(file: File): ByteArray? {
+    DataInputStream(BufferedInputStream(FileInputStream(file), HEADER_READ_BUFFER_SIZE)).use { input ->
+        if (input.readUnsignedShort() != 0xFFD8) {
+            return null
+        }
+        val out = ByteArrayOutputStream()
+        out.write(0xFF)
+        out.write(0xD8)
+        try {
+            while (true) {
+                if (input.read() != 0xFF) {
+                    break
+                }
+                val marker = input.read()
+                if (marker < 0 || marker == 0xDA || marker == 0xD9) {
+                    break
+                }
+                val segLen = input.readUnsignedShort()
+                if (segLen < 2) {
+                    break
+                }
+                val payload = ByteArray(segLen - 2)
+                input.readFully(payload)
+                out.write(0xFF)
+                out.write(marker)
+                out.write(segLen shr 8)
+                out.write(segLen and 0xFF)
+                out.write(payload)
+            }
+        } catch (_: EOFException) {
+        }
+        return out.toByteArray()
+    }
+}
+
+fun readXmpMetadataFromJpegBytes(jpeg: ByteArray): XmpMetadata {
+    val packet = extractXmpPacketFromJpeg(jpeg) ?: return scanLooseMetadataInJpeg(jpeg)
+    return parseMetadataFromXmpPacket(packet)
 }
 
 /** Fallback when XMP is not in a standard APP1 segment (some exports embed x:xmpmeta elsewhere). */
-private fun scanLooseRatingInJpeg(jpeg: ByteArray): Int {
+private fun scanLooseMetadataInJpeg(jpeg: ByteArray): XmpMetadata {
     val text = jpeg.toString(ISO_8859_1)
-    RATING_ATTR.find(text)?.groupValues?.getOrNull(2)?.toIntOrNull()?.coerceIn(0, 5)?.let { return it }
-    return 0
+    val rating = RATING_ATTR.find(text)?.groupValues?.getOrNull(2)?.toIntOrNull()?.coerceIn(0, 5) ?: 0
+    val tags = LOOSE_XMPMETA.find(text)?.value?.let { parseTagsFromXmpPacket(it.toByteArray(ISO_8859_1)) }.orEmpty()
+    return XmpMetadata(rating, tags)
+}
+
+private fun unescapeXml(value: String): String {
+    if (!value.contains('&')) {
+        return value
+    }
+    return XML_ENTITY.replace(value) { match ->
+        when (val entity = match.groupValues[1]) {
+            "amp" -> "&"
+            "lt" -> "<"
+            "gt" -> ">"
+            "quot" -> "\""
+            "apos" -> "'"
+            else -> {
+                val code = if (entity.startsWith("#x", ignoreCase = true)) {
+                    entity.substring(2).toIntOrNull(16)
+                } else {
+                    entity.substring(1).toIntOrNull()
+                }
+                code?.takeIf { Character.isValidCodePoint(it) }?.let { String(Character.toChars(it)) } ?: match.value
+            }
+        }
+    }
 }
 
 fun writeXmpRatingToJpegFile(path: String, rating: Int): Boolean {

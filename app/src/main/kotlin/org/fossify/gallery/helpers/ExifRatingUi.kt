@@ -47,6 +47,10 @@ fun bindViewerExifRating(bar: View, rating: Int) {
 }
 
 private fun setStarFilled(star: ImageView, filled: Boolean) {
+    if (star.getTag(R.id.viewer_exif_rating_bar) == filled) {
+        return
+    }
+    star.setTag(R.id.viewer_exif_rating_bar, filled)
     star.setImageResource(
         if (filled) {
             org.fossify.commons.R.drawable.ic_star_vector

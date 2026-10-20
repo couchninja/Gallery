@@ -81,6 +81,7 @@ import org.fossify.gallery.R
 import org.fossify.gallery.asynctasks.GetMediaAsynctask
 import org.fossify.gallery.databases.GalleryDatabase
 import org.fossify.gallery.helpers.Config
+import org.fossify.gallery.helpers.XmpTagIndex
 import org.fossify.gallery.helpers.GROUP_BY_DATE_TAKEN_DAILY
 import org.fossify.gallery.helpers.GROUP_BY_DATE_TAKEN_MONTHLY
 import org.fossify.gallery.helpers.GROUP_BY_LAST_MODIFIED_DAILY
@@ -108,7 +109,7 @@ import org.fossify.gallery.helpers.TYPE_RAWS
 import org.fossify.gallery.helpers.TYPE_SVGS
 import org.fossify.gallery.helpers.TYPE_VIDEOS
 import org.fossify.gallery.interfaces.DateTakensDao
-import org.fossify.gallery.interfaces.ExifRatingsDao
+import org.fossify.gallery.interfaces.XmpMetadataDao
 import org.fossify.gallery.interfaces.DirectoryDao
 import org.fossify.gallery.interfaces.FavoritesDao
 import org.fossify.gallery.interfaces.MediumDao
@@ -150,8 +151,8 @@ val Context.favoritesDB: FavoritesDao
 val Context.dateTakensDB: DateTakensDao
     get() = GalleryDatabase.getInstance(applicationContext).DateTakensDao()
 
-val Context.exifRatingsDB: ExifRatingsDao
-    get() = GalleryDatabase.getInstance(applicationContext).ExifRatingsDao()
+val Context.xmpMetadataDB: XmpMetadataDao
+    get() = GalleryDatabase.getInstance(applicationContext).XmpMetadataDao()
 
 val Context.recycleBin: File get() = filesDir
 
@@ -1205,7 +1206,8 @@ fun Context.deleteDBPath(path: String) {
 fun Context.deleteMediumWithPath(path: String) {
     try {
         mediaDB.deleteMediumPath(path)
-        exifRatingsDB.deleteRatingPath(path)
+        xmpMetadataDB.deletePath(path)
+        XmpTagIndex.remove(path)
     } catch (ignored: Exception) {
     }
 }
