@@ -28,13 +28,21 @@ class EditXmpTagsDialog(
             true
         }
 
+        var committed = false
         activity.getAlertDialogBuilder()
             .setPositiveButton(org.fossify.commons.R.string.ok) { _, _ ->
+                committed = true
                 callback(normalizeXmpTags(selectedTags.toList()))
             }
-            .setNegativeButton(org.fossify.commons.R.string.cancel, null)
             .apply {
-                activity.setupDialogStuff(binding.root, this, R.string.edit_xmp_tags)
+                activity.setupDialogStuff(binding.root, this, R.string.edit_xmp_tags) { alertDialog ->
+                    alertDialog.setOnDismissListener {
+                        if (!committed) {
+                            committed = true
+                            callback(normalizeXmpTags(selectedTags.toList()))
+                        }
+                    }
+                }
             }
     }
 
