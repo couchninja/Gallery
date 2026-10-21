@@ -118,6 +118,10 @@ import org.fossify.gallery.extensions.tryDeleteFileDirItem
 import org.fossify.gallery.extensions.updateDBDirectory
 import org.fossify.gallery.extensions.updateWidgets
 import org.fossify.gallery.helpers.ACTION_DATE_TAKEN_INDEX_UPDATED
+import org.fossify.gallery.helpers.applyTransparentSystemBarsForThumbnailGrid
+import org.fossify.gallery.helpers.setupThumbnailGridUnderChrome
+import org.fossify.gallery.helpers.updateThumbnailGridNavBarScrim
+import org.fossify.gallery.helpers.updateThumbnailGridSearchMenuColors
 import org.fossify.gallery.helpers.DIRECTORY
 import org.fossify.gallery.helpers.GET_ANY_INTENT
 import org.fossify.gallery.helpers.GET_IMAGE_INTENT
@@ -244,8 +248,14 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
         setupOptionsMenu()
         refreshMenuItems()
 
-        setupEdgeToEdge(
-            padBottomImeAndSystem = listOf(binding.directoriesGrid)
+        setupThumbnailGridUnderChrome(
+            contentRoot = binding.directoriesCoordinator,
+            searchMenu = binding.mainMenu,
+            grid = binding.directoriesGrid,
+            viewsBelowSearchBar = listOf(
+                binding.directoriesSwitchSearching,
+                binding.directoriesEmptyPlaceholder,
+            ),
         )
 
         binding.directoriesRefreshLayout.setOnRefreshListener { getDirectories() }
@@ -535,7 +545,9 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
     }
 
     private fun updateMenuColors() {
-        binding.mainMenu.updateColors()
+        applyTransparentSystemBarsForThumbnailGrid(binding.directoriesCoordinator)
+        updateThumbnailGridNavBarScrim(binding.directoriesCoordinator)
+        binding.mainMenu.updateThumbnailGridSearchMenuColors()
     }
 
     private fun getRecyclerAdapter() = binding.directoriesGrid.adapter as? DirectoryAdapter

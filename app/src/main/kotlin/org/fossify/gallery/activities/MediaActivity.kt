@@ -116,7 +116,11 @@ import org.fossify.gallery.helpers.SET_WALLPAPER_INTENT
 import org.fossify.gallery.helpers.SHOW_ALL
 import org.fossify.gallery.helpers.SHOW_FAVORITES
 import org.fossify.gallery.helpers.SHOW_RECYCLE_BIN
+import org.fossify.gallery.helpers.applyTransparentSystemBarsForThumbnailGrid
+import org.fossify.gallery.helpers.setupThumbnailGridUnderChrome
 import org.fossify.gallery.helpers.SHOW_TEMP_HIDDEN_DURATION
+import org.fossify.gallery.helpers.updateThumbnailGridNavBarScrim
+import org.fossify.gallery.helpers.updateThumbnailGridSearchMenuColors
 import org.fossify.gallery.helpers.SKIP_AUTHENTICATION
 import org.fossify.gallery.helpers.SLIDESHOW_START_ON_ENTER
 import org.fossify.gallery.helpers.VIDEO_PLAYER_APP
@@ -228,9 +232,14 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         setupOptionsMenu()
         refreshMenuItems()
         storeStateVariables()
-        setupEdgeToEdge(
-            padTopSystem = listOf(binding.mediaMenu),
-            padBottomImeAndSystem = listOf(binding.mediaGrid)
+        setupThumbnailGridUnderChrome(
+            contentRoot = binding.mediaCoordinator,
+            searchMenu = binding.mediaMenu,
+            grid = binding.mediaGrid,
+            viewsBelowSearchBar = listOf(
+                binding.mediaEmptyTextPlaceholder,
+                binding.mediaRefreshStatus,
+            ),
         )
 
         if (mShowAll) {
@@ -486,7 +495,9 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     }
 
     private fun updateMenuColors() {
-        binding.mediaMenu.updateColors()
+        applyTransparentSystemBarsForThumbnailGrid(binding.mediaCoordinator)
+        updateThumbnailGridNavBarScrim(binding.mediaCoordinator)
+        binding.mediaMenu.updateThumbnailGridSearchMenuColors()
     }
 
     private fun storeStateVariables() {
