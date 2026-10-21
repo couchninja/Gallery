@@ -39,9 +39,15 @@ enum class ThumbnailGridView(
         labelRes = R.string.thumbnail_grid_view_top_rated,
         iconRes = org.fossify.commons.R.drawable.ic_star_vector,
     ),
+    TAGS(
+        storageId = "tags",
+        menuItemId = R.id.thumbnail_view_tags,
+        labelRes = R.string.thumbnail_grid_view_tags,
+        iconRes = R.drawable.ic_xmp_tags_vector,
+    ),
     ;
 
-    fun matchesMedium(medium: Medium, stickyUnratedPaths: Set<String>?): Boolean {
+    fun matchesMedium(medium: Medium, stickyUnratedPaths: Set<String>?, selectedTag: String?): Boolean {
         return when (this) {
             ALL -> true
             UNRATED -> {
@@ -53,6 +59,10 @@ enum class ThumbnailGridView(
             }
             VIDEOS -> medium.isVideo()
             TOP_RATED -> medium.isJpeg() && medium.exifRating >= 4
+            TAGS -> {
+                val tag = selectedTag?.takeIf { it.isNotEmpty() } ?: return false
+                medium.path in XmpTagIndex.getPathsWithTag(tag)
+            }
         }
     }
 
@@ -91,7 +101,9 @@ object ThumbnailGridViewConfig {
     }
 
     fun getSelectedView(context: Context, folderKey: String): ThumbnailGridView {
-        return ThumbnailGridView.fromStorageId(context.config.getThumbnailGridView(folderKey))
+        val view = ThumbnailGridView.fromStorageId(context.config.getThumbnailGridView(folderKey))
+        // Tags view needs a session tag choice and is never restored from settings.
+        return if (view == ThumbnailGridView.TAGS) ThumbnailGridView.ALL else view
     }
 
     fun setSelectedView(context: Context, folderKey: String, view: ThumbnailGridView) {
@@ -103,9 +115,10 @@ fun filterMediaForThumbnailGridView(
     rawMedia: List<ThumbnailItem>,
     view: ThumbnailGridView,
     stickyUnratedPaths: Set<String>?,
+    selectedTag: String? = null,
 ): ArrayList<Medium> {
     return rawMedia.filterIsInstance<Medium>()
-        .filter { view.matchesMedium(it, stickyUnratedPaths) } as ArrayList
+        .filter { view.matchesMedium(it, stickyUnratedPaths, selectedTag) } as ArrayList
 }
 
 fun folderKeyForThumbnailGridViews(path: String, showAll: Boolean): String {

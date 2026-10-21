@@ -28,18 +28,21 @@ class ThumbnailGridViewsBar(
     private val bottomNavigation: BottomNavigationView,
     private val searchMenu: MySearchMenu?,
     private val onViewSelected: (ThumbnailGridView) -> Unit,
+    private val currentView: () -> ThumbnailGridView,
+    private val onViewReselected: ((ThumbnailGridView) -> Unit)? = null,
 ) {
     private var scrollOffset = 0
     private var barVisible = true
     private var onBottomInsetChanged: ((Int) -> Unit)? = null
     private val bottomChromeLayout = ThumbnailGridBottomChromeLayout.bind(container as ViewGroup)
 
-    init {
-        (container as ViewGroup).apply {
-            clipChildren = true
-            clipToPadding = true
+    private val itemReselectedListener = NavigationBarView.OnItemReselectedListener { item ->
+        when (item.itemId) {
+            R.id.thumbnail_view_more -> showMorePopup()
+            else -> ThumbnailGridView.fromMenuItemId(item.itemId)?.let { view ->
+                onViewReselected?.invoke(view)
+            }
         }
-        ViewCompat.setOnApplyWindowInsetsListener(bottomNavigation) { _, insets -> insets }
     }
 
     private val itemSelectedListener = NavigationBarView.OnItemSelectedListener { item ->
@@ -53,6 +56,15 @@ class ThumbnailGridViewsBar(
                 true
             }
         }
+    }
+
+    init {
+        (container as ViewGroup).apply {
+            clipChildren = true
+            clipToPadding = true
+        }
+        ViewCompat.setOnApplyWindowInsetsListener(bottomNavigation) { _, insets -> insets }
+        bottomNavigation.setOnItemReselectedListener(itemReselectedListener)
     }
 
     fun setOnBottomInsetChangedListener(listener: (Int) -> Unit) {
@@ -103,9 +115,14 @@ class ThumbnailGridViewsBar(
         } else {
             R.id.thumbnail_view_more
         }
+        if (bottomNavigation.selectedItemId == targetId) {
+            return
+        }
         bottomNavigation.setOnItemSelectedListener(null)
+        bottomNavigation.setOnItemReselectedListener(null)
         bottomNavigation.selectedItemId = targetId
         bottomNavigation.setOnItemSelectedListener(itemSelectedListener)
+        bottomNavigation.setOnItemReselectedListener(itemReselectedListener)
     }
 
     fun show() {
@@ -266,16 +283,28 @@ class ThumbnailGridViewsBar(
         val visibleViews = ThumbnailGridViewConfig.getVisibleViewsInOrder(activity)
         val maxPrimary = minOf(4, bottomNavigation.maxItemCount - 1)
         val overflowViews = visibleViews.drop(maxPrimary)
+        val onTagsView = currentView() == ThumbnailGridView.TAGS
 
         val labels = buildList {
+            if (onTagsView) {
+                add(activity.getString(R.string.thumbnail_grid_view_tags_pick))
+            }
             overflowViews.forEach { add(activity.getString(it.labelRes)) }
             add(activity.getString(R.string.thumbnail_grid_view_manage))
         }
 
         activity.getAlertDialogBuilder()
             .setItems(labels.toTypedArray()) { _, which ->
-                if (which < overflowViews.size) {
-                    onViewSelected(overflowViews[which])
+                var index = which
+                if (onTagsView) {
+                    if (index == 0) {
+                        onViewReselected?.invoke(ThumbnailGridView.TAGS)
+                        return@setItems
+                    }
+                    index -= 1
+                }
+                if (index < overflowViews.size) {
+                    onViewSelected(overflowViews[index])
                 } else {
                     ManageThumbnailGridViewsDialog(activity) {
                         buildMenu()

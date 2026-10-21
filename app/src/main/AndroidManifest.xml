@@ -102,6 +102,13 @@
             android:resizeableActivity="true" />
 
         <activity
+            android:name=".activities.ThumbnailGridTagsActivity"
+            android:configChanges="orientation"
+            android:exported="false"
+            android:label="@string/thumbnail_grid_view_tags"
+            android:parentActivityName=".activities.MediaActivity" />
+
+        <activity
             android:name=".activities.ViewPagerActivity"
             android:configChanges="orientation|keyboardHidden|screenSize"
             android:exported="true"

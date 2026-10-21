@@ -323,6 +323,10 @@
     <string name="thumbnail_grid_view_unrated">Unrated</string>
     <string name="thumbnail_grid_view_videos">Videos</string>
     <string name="thumbnail_grid_view_top_rated">4–5 stars</string>
+    <string name="thumbnail_grid_view_tags">Tags</string>
+    <string name="thumbnail_grid_view_tags_pick">Choose a tag</string>
+    <string name="thumbnail_grid_view_tags_loading">Loading tags…</string>
+    <string name="thumbnail_grid_view_tags_empty">No tags found</string>
     <string name="thumbnail_grid_view_more">More</string>
     <string name="thumbnail_grid_view_manage">Arrange views</string>
     <string name="thumbnail_grid_view_manage_hint">Choose which views appear on the bottom bar and their order.</string>

@@ -126,7 +126,9 @@ import org.fossify.gallery.helpers.folderKeyForThumbnailGridViews
 import org.fossify.gallery.helpers.setupThumbnailGridUnderChrome
 import org.fossify.gallery.helpers.isJpeg
 import org.fossify.gallery.helpers.setThumbnailGridBottomChromeVisible
+import org.fossify.gallery.helpers.REQUEST_THUMBNAIL_GRID_TAG
 import org.fossify.gallery.helpers.THUMBNAIL_GRID_NAV_SCRIM_TAG
+import org.fossify.gallery.helpers.THUMBNAIL_GRID_SELECTED_TAG
 import org.fossify.commons.extensions.updatePaddingWithBase
 import org.fossify.gallery.helpers.SHOW_TEMP_HIDDEN_DURATION
 import org.fossify.gallery.helpers.thumbnailGridBottomScrollPadding
@@ -211,6 +213,8 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     private var mStoredThumbnailSpacing = 0
     private var mRawMedia = ArrayList<ThumbnailItem>()
     private var mCurrentThumbnailGridView = ThumbnailGridView.ALL
+    private var mThumbnailGridTagFilter: String? = null
+    private var mThumbnailGridTagsScreenOpen = false
     private var mStickyUnratedPaths: LinkedHashSet<String>? = null
     private lateinit var mThumbnailGridViewsBar: ThumbnailGridViewsBar
 
@@ -257,6 +261,12 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             bottomNavigation = binding.mediaThumbnailViewsBar,
             searchMenu = binding.mediaMenu,
             onViewSelected = { view -> selectThumbnailGridView(view) },
+            currentView = { mCurrentThumbnailGridView },
+            onViewReselected = { view ->
+                if (view == ThumbnailGridView.TAGS) {
+                    openThumbnailGridTagsScreen()
+                }
+            },
         )
         mThumbnailGridViewsBar.setOnBottomInsetChangedListener {
             updateThumbnailGridBottomPadding()
@@ -443,6 +453,18 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                 mMedia.clear()
                 refreshItems()
             }
+        } else if (requestCode == REQUEST_THUMBNAIL_GRID_TAG) {
+            mThumbnailGridTagsScreenOpen = false
+            if (resultCode == RESULT_OK) {
+                val tag = resultData?.getStringExtra(THUMBNAIL_GRID_SELECTED_TAG)
+                if (!tag.isNullOrEmpty()) {
+                    applyThumbnailGridTagView(tag)
+                } else {
+                    handleThumbnailGridTagScreenCancel()
+                }
+            } else {
+                handleThumbnailGridTagScreenCancel()
+            }
         }
         super.onActivityResult(requestCode, resultCode, resultData)
     }
@@ -562,6 +584,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                     rawMedia = mRawMedia,
                     view = mCurrentThumbnailGridView,
                     stickyUnratedPaths = mStickyUnratedPaths,
+                    selectedTag = mThumbnailGridTagFilter,
                 )
                 val filtered = baseMedia
                     .filter { it.name.contains(text, true) } as ArrayList
@@ -1345,8 +1368,36 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     }
 
     private fun selectThumbnailGridView(view: ThumbnailGridView) {
+        if (view == ThumbnailGridView.TAGS) {
+            openThumbnailGridTagsScreen()
+            return
+        }
+        commitThumbnailGridView(view)
+    }
+
+    private fun openThumbnailGridTagsScreen() {
+        if (mThumbnailGridTagsScreenOpen) {
+            return
+        }
+        mThumbnailGridTagsScreenOpen = true
+        startActivityForResult(Intent(this, ThumbnailGridTagsActivity::class.java), REQUEST_THUMBNAIL_GRID_TAG)
+    }
+
+    private fun handleThumbnailGridTagScreenCancel() {
+        mThumbnailGridViewsBar.updateSelection(mCurrentThumbnailGridView)
+    }
+
+    private fun applyThumbnailGridTagView(tag: String) {
+        mThumbnailGridTagFilter = tag
+        commitThumbnailGridView(ThumbnailGridView.TAGS)
+    }
+
+    private fun commitThumbnailGridView(view: ThumbnailGridView) {
         mCurrentThumbnailGridView = view
-        ThumbnailGridViewConfig.setSelectedView(this, folderKeyForThumbnailGridViews(mPath, mShowAll), view)
+        if (view != ThumbnailGridView.TAGS) {
+            mThumbnailGridTagFilter = null
+            ThumbnailGridViewConfig.setSelectedView(this, folderKeyForThumbnailGridViews(mPath, mShowAll), view)
+        }
         mStickyUnratedPaths = if (view == ThumbnailGridView.UNRATED) {
             mRawMedia.filterIsInstance<Medium>()
                 .filter { it.isJpeg() && it.exifRating == 0 }
@@ -1382,6 +1433,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             rawMedia = mRawMedia,
             view = mCurrentThumbnailGridView,
             stickyUnratedPaths = mStickyUnratedPaths,
+            selectedTag = mThumbnailGridTagFilter,
         )
         return MediaFetcher(applicationContext).groupMedia(filtered, mPath) as ArrayList
     }
