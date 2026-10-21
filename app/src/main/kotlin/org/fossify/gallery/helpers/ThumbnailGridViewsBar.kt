@@ -129,9 +129,6 @@ class ThumbnailGridViewsBar(
         container.animate()
             .translationY(container.height.toFloat())
             .setDuration(150L)
-            .withEndAction {
-                onBottomInsetChanged?.invoke(0)
-            }
             .start()
     }
 

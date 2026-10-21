@@ -35,6 +35,31 @@ const val THUMBNAIL_GRID_NAV_BAR_ALPHA = 0.78f
 const val THUMBNAIL_GRID_NAV_SPACER_INSET_REDUCE_DP = 10f
 const val THUMBNAIL_GRID_NAV_SCRIM_TAG = "thumbnail_grid_nav_scrim"
 
+/** Bottom padding so the last row can scroll above system nav and the view bar slot. */
+fun thumbnailGridBottomScrollPadding(contentRoot: ViewGroup, bottomChrome: View?): Int {
+    if (bottomChrome != null && bottomChrome.isVisible) {
+        if (bottomChrome.height > 0) {
+            return bottomChrome.height
+        }
+        if (contentRoot.width > 0) {
+            bottomChrome.measure(
+                View.MeasureSpec.makeMeasureSpec(contentRoot.width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+            )
+            if (bottomChrome.measuredHeight > 0) {
+                return bottomChrome.measuredHeight
+            }
+        }
+    }
+
+    val scrim = contentRoot.findViewWithTag<View>(THUMBNAIL_GRID_NAV_SCRIM_TAG)
+    if (scrim != null && scrim.height > 0) {
+        return scrim.height
+    }
+    return ViewCompat.getRootWindowInsets(contentRoot)
+        ?.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars())?.bottom ?: 0
+}
+
 fun EdgeToEdgeActivity.applyTransparentSystemBarsForThumbnailGrid(contentRoot: View) {
     window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
     window.statusBarColor = Color.TRANSPARENT
@@ -93,13 +118,7 @@ fun EdgeToEdgeActivity.setupThumbnailGridUnderChrome(
     }
 
     fun syncBottomInset() {
-        val scrim = contentRoot.findViewWithTag<View>(THUMBNAIL_GRID_NAV_SCRIM_TAG)
-        val bottomInset = when {
-            bottomChrome?.isVisible == true -> bottomChrome.height
-            scrim?.isVisible == true -> scrim.height
-            else -> 0
-        }
-        grid.updatePaddingWithBase(bottom = bottomInset)
+        grid.updatePaddingWithBase(bottom = thumbnailGridBottomScrollPadding(contentRoot, bottomChrome))
     }
 
     searchMenu.onGlobalLayout { syncTopInset() }
@@ -148,22 +167,11 @@ private fun limitFastScrollerTrackToChrome(
     }
 
     fun reservedBottomChromeHeight(): Int {
-        if (bottomChrome != null) {
-            if (bottomChrome.isVisible && bottomChrome.height > 0) {
-                knownBottomChromeHeight = bottomChrome.height
-            } else if (knownBottomChromeHeight == 0 && contentRoot.width > 0) {
-                bottomChrome.measure(
-                    View.MeasureSpec.makeMeasureSpec(contentRoot.width, View.MeasureSpec.EXACTLY),
-                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
-                )
-                knownBottomChromeHeight = bottomChrome.measuredHeight
-            }
-            if (knownBottomChromeHeight > 0) {
-                return knownBottomChromeHeight
-            }
+        val padding = thumbnailGridBottomScrollPadding(contentRoot, bottomChrome)
+        if (padding > 0) {
+            knownBottomChromeHeight = padding
         }
-        return ViewCompat.getRootWindowInsets(contentRoot)
-            ?.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars())?.bottom ?: 0
+        return knownBottomChromeHeight.takeIf { it > 0 } ?: padding
     }
 
     fun syncTrackMargins() {

@@ -129,6 +129,7 @@ import org.fossify.gallery.helpers.setThumbnailGridBottomChromeVisible
 import org.fossify.gallery.helpers.THUMBNAIL_GRID_NAV_SCRIM_TAG
 import org.fossify.commons.extensions.updatePaddingWithBase
 import org.fossify.gallery.helpers.SHOW_TEMP_HIDDEN_DURATION
+import org.fossify.gallery.helpers.thumbnailGridBottomScrollPadding
 import org.fossify.gallery.helpers.updateThumbnailGridNavBarScrim
 import org.fossify.gallery.helpers.updateThumbnailGridSearchMenuColors
 import org.fossify.gallery.helpers.SKIP_AUTHENTICATION
@@ -256,8 +257,8 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             bottomNavigation = binding.mediaThumbnailViewsBar,
             onViewSelected = { view -> selectThumbnailGridView(view) },
         )
-        mThumbnailGridViewsBar.setOnBottomInsetChangedListener { chromeHeight ->
-            updateThumbnailGridBottomPadding(chromeHeight)
+        mThumbnailGridViewsBar.setOnBottomInsetChangedListener {
+            updateThumbnailGridBottomPadding()
         }
         setupThumbnailGridUnderChrome(
             contentRoot = binding.mediaCoordinator,
@@ -1317,7 +1318,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         setThumbnailGridBottomChromeVisible(binding.mediaCoordinator, binding.mediaThumbnailViewsContainer, show)
         mThumbnailGridViewsBar.setVisible(show)
         if (!show) {
-            updateThumbnailGridBottomPadding(0)
+            updateThumbnailGridBottomPadding()
             return
         }
 
@@ -1327,17 +1328,18 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         mThumbnailGridViewsBar.notifyLayoutChanged()
     }
 
-    private fun updateThumbnailGridBottomPadding(chromeHeight: Int) {
+    private fun updateThumbnailGridBottomPadding() {
         val scrim = binding.mediaCoordinator.findViewWithTag<View>(THUMBNAIL_GRID_NAV_SCRIM_TAG)
-        val bottomPadding = if (chromeHeight > 0) {
-            chromeHeight
-        } else {
-            scrim?.height ?: 0
-        }
+        val bottomPadding = thumbnailGridBottomScrollPadding(
+            binding.mediaCoordinator,
+            binding.mediaThumbnailViewsContainer,
+        )
         binding.mediaGrid.updatePaddingWithBase(bottom = bottomPadding)
-        if (chromeHeight == 0) {
-            val navHeight = scrim?.height ?: 0
-            scrim?.beVisibleIf(navHeight > 0)
+        val showViewsBar = shouldShowThumbnailGridViewsBar() && binding.mediaThumbnailViewsContainer.isVisible()
+        if (showViewsBar) {
+            scrim?.beGone()
+        } else {
+            scrim?.beVisibleIf((scrim.height) > 0)
         }
     }
 
