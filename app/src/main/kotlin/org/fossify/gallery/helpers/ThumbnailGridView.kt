@@ -45,7 +45,15 @@ enum class ThumbnailGridView(
         labelRes = R.string.thumbnail_grid_view_tags,
         iconRes = R.drawable.ic_xmp_tags_vector,
     ),
+    CARDS(
+        storageId = "cards",
+        menuItemId = R.id.thumbnail_view_cards,
+        labelRes = R.string.thumbnail_grid_view_cards,
+        iconRes = R.drawable.ic_cards_vector,
+    ),
     ;
+
+    private val cardTagNamesLowercase = setOf("klantenkaart", "card")
 
     fun matchesMedium(medium: Medium, stickyUnratedPaths: Set<String>?, selectedTag: String?): Boolean {
         return when (this) {
@@ -63,6 +71,13 @@ enum class ThumbnailGridView(
                 val tag = selectedTag?.takeIf { it.isNotEmpty() } ?: return false
                 medium.path in XmpTagIndex.getPathsWithTag(tag)
             }
+            CARDS -> mediumHasCardTag(medium)
+        }
+    }
+
+    private fun mediumHasCardTag(medium: Medium): Boolean {
+        return XmpTagIndex.getTags(medium.path).any { tag ->
+            tag.lowercase(Locale.getDefault()) in cardTagNamesLowercase
         }
     }
 
