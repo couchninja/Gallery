@@ -54,7 +54,18 @@ android {
                 storePassword = providers.environmentVariable("SIGNING_STORE_PASSWORD").get()
             }
         } else {
-            logger.warn("Warning: No signing config found. Build will be unsigned.")
+            val debugKeystore = file("${System.getProperty("user.home")}/.android/debug.keystore")
+            if (debugKeystore.isFile) {
+                register("release") {
+                    storeFile = debugKeystore
+                    storePassword = "android"
+                    keyAlias = "androiddebugkey"
+                    keyPassword = "android"
+                }
+                logger.lifecycle("Release signing: using local debug keystore (for adb install only).")
+            } else {
+                logger.warn("Warning: No signing config found. Build will be unsigned.")
+            }
         }
     }
 
@@ -74,9 +85,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            if (keystorePropertiesFile.exists() || hasSigningVars()) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+            signingConfigs.findByName("release")?.let { signingConfig = it }
         }
     }
 
