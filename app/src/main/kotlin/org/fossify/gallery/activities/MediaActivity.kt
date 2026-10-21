@@ -9,6 +9,7 @@ import android.graphics.Bitmap
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import android.view.View
 import android.view.ViewGroup
 import android.widget.RelativeLayout
 import androidx.core.net.toUri
@@ -116,8 +117,17 @@ import org.fossify.gallery.helpers.SET_WALLPAPER_INTENT
 import org.fossify.gallery.helpers.SHOW_ALL
 import org.fossify.gallery.helpers.SHOW_FAVORITES
 import org.fossify.gallery.helpers.SHOW_RECYCLE_BIN
+import org.fossify.gallery.helpers.ThumbnailGridView
+import org.fossify.gallery.helpers.ThumbnailGridViewConfig
+import org.fossify.gallery.helpers.ThumbnailGridViewsBar
 import org.fossify.gallery.helpers.applyTransparentSystemBarsForThumbnailGrid
+import org.fossify.gallery.helpers.filterMediaForThumbnailGridView
+import org.fossify.gallery.helpers.folderKeyForThumbnailGridViews
 import org.fossify.gallery.helpers.setupThumbnailGridUnderChrome
+import org.fossify.gallery.helpers.isJpeg
+import org.fossify.gallery.helpers.setThumbnailGridBottomChromeVisible
+import org.fossify.gallery.helpers.THUMBNAIL_GRID_NAV_SCRIM_TAG
+import org.fossify.commons.extensions.updatePaddingWithBase
 import org.fossify.gallery.helpers.SHOW_TEMP_HIDDEN_DURATION
 import org.fossify.gallery.helpers.updateThumbnailGridNavBarScrim
 import org.fossify.gallery.helpers.updateThumbnailGridSearchMenuColors
@@ -198,6 +208,10 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     private var mStoredTextColor = 0
     private var mStoredPrimaryColor = 0
     private var mStoredThumbnailSpacing = 0
+    private var mRawMedia = ArrayList<ThumbnailItem>()
+    private var mCurrentThumbnailGridView = ThumbnailGridView.ALL
+    private var mStickyUnratedPaths: LinkedHashSet<String>? = null
+    private lateinit var mThumbnailGridViewsBar: ThumbnailGridViewsBar
 
     private val binding by viewBinding(ActivityMediaBinding::inflate)
 
@@ -232,6 +246,19 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         setupOptionsMenu()
         refreshMenuItems()
         storeStateVariables()
+        mCurrentThumbnailGridView = ThumbnailGridViewConfig.getSelectedView(
+            this,
+            folderKeyForThumbnailGridViews(mPath, mShowAll),
+        )
+        mThumbnailGridViewsBar = ThumbnailGridViewsBar(
+            activity = this,
+            container = binding.mediaThumbnailViewsContainer,
+            bottomNavigation = binding.mediaThumbnailViewsBar,
+            onViewSelected = { view -> selectThumbnailGridView(view) },
+        )
+        mThumbnailGridViewsBar.setOnBottomInsetChangedListener { chromeHeight ->
+            updateThumbnailGridBottomPadding(chromeHeight)
+        }
         setupThumbnailGridUnderChrome(
             contentRoot = binding.mediaCoordinator,
             searchMenu = binding.mediaMenu,
@@ -240,7 +267,10 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                 binding.mediaEmptyTextPlaceholder,
                 binding.mediaRefreshStatus,
             ),
+            bottomChrome = binding.mediaThumbnailViewsContainer,
         )
+        mThumbnailGridViewsBar.attachScrollHideBehavior(binding.mediaGrid)
+        refreshThumbnailGridViewsBar()
 
         if (mShowAll) {
             registerFileUpdateListener()
@@ -273,6 +303,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             mLoadedInitialPhotos = false
             binding.mediaGrid.adapter = null
             getMedia()
+            refreshThumbnailGridViewsBar()
         }
 
         if (mStoredShowFileTypes != config.showThumbnailFileTypes) {
@@ -335,6 +366,9 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             mWasFullscreenViewOpen = false
             if (paths.isNotEmpty()) {
                 notifyGridExifRatingsChanged(paths)
+            }
+            if (::mThumbnailGridViewsBar.isInitialized && shouldShowThumbnailGridViewsBar()) {
+                mThumbnailGridViewsBar.revealAfterReturningToGrid()
             }
         }
 
@@ -498,6 +532,9 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         applyTransparentSystemBarsForThumbnailGrid(binding.mediaCoordinator)
         updateThumbnailGridNavBarScrim(binding.mediaCoordinator)
         binding.mediaMenu.updateThumbnailGridSearchMenuColors()
+        if (::mThumbnailGridViewsBar.isInitialized) {
+            mThumbnailGridViewsBar.updateColors()
+        }
     }
 
     private fun storeStateVariables() {
@@ -518,9 +555,14 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     private fun searchQueryChanged(text: String) {
         ensureBackgroundThread {
             try {
-                val filtered = mMedia
-                    .filter { it is Medium && it.name.contains(text, true) } as ArrayList
-                filtered.sortBy { it is Medium && !it.name.startsWith(text, true) }
+                val baseMedia = filterMediaForThumbnailGridView(
+                    rawMedia = mRawMedia,
+                    view = mCurrentThumbnailGridView,
+                    stickyUnratedPaths = mStickyUnratedPaths,
+                )
+                val filtered = baseMedia
+                    .filter { it.name.contains(text, true) } as ArrayList
+                filtered.sortBy { !it.name.startsWith(text, true) }
                 val grouped = MediaFetcher(applicationContext).groupMedia(
                     media = filtered as ArrayList<Medium>, path = mPath
                 )
@@ -765,6 +807,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     private fun changeViewType() {
         ChangeViewTypeDialog(this, false, mPath) {
             refreshMenuItems()
+            refreshThumbnailGridViewsBar()
             setupLayoutManager()
             binding.mediaGrid.adapter = null
             setupAdapter()
@@ -933,13 +976,21 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
 
     private fun refreshDisplayedExifRatings() {
         mergeExifRatingsIntoMediaAsync(
-            media = mMedia.filterIsInstance<Medium>(),
+            media = mRawMedia.filterIsInstance<Medium>(),
             folderPath = mPath,
             treatAsShowAll = mShowAll,
         ) { changedPaths ->
             runOnUiThread {
+                syncRawRatingsToDisplayedMedia()
                 notifyGridExifRatingsChanged(changedPaths)
             }
+        }
+    }
+
+    private fun syncRawRatingsToDisplayedMedia() {
+        val ratingByPath = mRawMedia.filterIsInstance<Medium>().associateBy { it.path }
+        mMedia.filterIsInstance<Medium>().forEach { medium ->
+            ratingByPath[medium.path]?.let { medium.exifRating = it.exifRating }
         }
     }
 
@@ -1243,6 +1294,94 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         }
     }
 
+    private fun shouldShowThumbnailGridViewsBar(): Boolean {
+        if (mIsGetImageIntent || mIsGetVideoIntent || mIsGetAnyIntent) {
+            return false
+        }
+
+        if (config.scrollHorizontally) {
+            return false
+        }
+
+        val viewType = config.getFolderViewType(if (mShowAll) SHOW_ALL else mPath)
+        return viewType == VIEW_TYPE_GRID
+    }
+
+    private fun refreshThumbnailGridViewsBar() {
+        if (!::mThumbnailGridViewsBar.isInitialized) {
+            return
+        }
+
+        val show = shouldShowThumbnailGridViewsBar()
+        setThumbnailGridBottomChromeVisible(binding.mediaCoordinator, binding.mediaThumbnailViewsContainer, show)
+        mThumbnailGridViewsBar.setVisible(show)
+        if (!show) {
+            updateThumbnailGridBottomPadding(0)
+            return
+        }
+
+        mThumbnailGridViewsBar.updateColors()
+        mThumbnailGridViewsBar.buildMenu()
+        mThumbnailGridViewsBar.updateSelection(mCurrentThumbnailGridView)
+        mThumbnailGridViewsBar.notifyLayoutChanged()
+    }
+
+    private fun updateThumbnailGridBottomPadding(chromeHeight: Int) {
+        val scrim = binding.mediaCoordinator.findViewWithTag<View>(THUMBNAIL_GRID_NAV_SCRIM_TAG)
+        val bottomPadding = if (chromeHeight > 0) {
+            chromeHeight
+        } else {
+            scrim?.height ?: 0
+        }
+        binding.mediaGrid.updatePaddingWithBase(bottom = bottomPadding)
+        if (chromeHeight == 0) {
+            val navHeight = scrim?.height ?: 0
+            scrim?.beVisibleIf(navHeight > 0)
+        }
+    }
+
+    private fun selectThumbnailGridView(view: ThumbnailGridView) {
+        mCurrentThumbnailGridView = view
+        ThumbnailGridViewConfig.setSelectedView(this, folderKeyForThumbnailGridViews(mPath, mShowAll), view)
+        mStickyUnratedPaths = if (view == ThumbnailGridView.UNRATED) {
+            mRawMedia.filterIsInstance<Medium>()
+                .filter { it.isJpeg() && it.exifRating == 0 }
+                .map { it.path }
+                .toCollection(LinkedHashSet())
+        } else {
+            null
+        }
+        applyCurrentThumbnailGridView()
+    }
+
+    private fun applyCurrentThumbnailGridView() {
+        if (mRawMedia.isEmpty()) {
+            return
+        }
+
+        mMedia = buildGroupedMediaForCurrentView()
+        mThumbnailGridViewsBar.updateSelection(mCurrentThumbnailGridView)
+        if (mLastSearchedText.isEmpty()) {
+            if (getMediaAdapter() == null) {
+                setupAdapter()
+            } else {
+                getMediaAdapter()?.updateMedia(mMedia)
+                handleGridSpacing()
+            }
+        } else {
+            searchQueryChanged(mLastSearchedText)
+        }
+    }
+
+    private fun buildGroupedMediaForCurrentView(): ArrayList<ThumbnailItem> {
+        val filtered = filterMediaForThumbnailGridView(
+            rawMedia = mRawMedia,
+            view = mCurrentThumbnailGridView,
+            stickyUnratedPaths = mStickyUnratedPaths,
+        )
+        return MediaFetcher(applicationContext).groupMedia(filtered, mPath) as ArrayList
+    }
+
     private fun openInViewPager(path: String) {
         Intent(this, ViewPagerActivity::class.java).apply {
             putExtra(SKIP_AUTHENTICATION, shouldSkipAuthentication())
@@ -1269,7 +1408,8 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     private fun gotMedia(media: ArrayList<ThumbnailItem>, isFromCache: Boolean) {
         mIsGettingMedia = false
         checkLastMediaChanged()
-        mMedia = media
+        mRawMedia = media
+        mMedia = buildGroupedMediaForCurrentView()
 
         runOnUiThread {
             hideLoadingStatus()
@@ -1290,7 +1430,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         mLatestMediaId = getLatestMediaId()
         mLatestMediaDateId = getLatestMediaByDateId()
         if (!isFromCache) {
-            val mediaToInsert = mMedia
+            val mediaToInsert = mRawMedia
                 .filter { it is Medium && it.deletedTS == 0L }.map { it as Medium }
             Thread {
                 try {

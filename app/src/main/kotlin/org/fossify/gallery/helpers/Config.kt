@@ -615,4 +615,23 @@ class Config(context: Context) : BaseConfig(context) {
     var showPermissionRationale: Boolean
         get() = prefs.getBoolean(SHOW_PERMISSION_RATIONALE, false)
         set(showPermissionRationale) = prefs.edit().putBoolean(SHOW_PERMISSION_RATIONALE, showPermissionRationale).apply()
+
+    var thumbnailGridViewOrder: String
+        get() = prefs.getString(
+            THUMBNAIL_GRID_VIEW_ORDER,
+            ThumbnailGridView.defaultOrder.joinToString("|") { it.storageId },
+        )!!
+        set(order) = prefs.edit().putString(THUMBNAIL_GRID_VIEW_ORDER, order).apply()
+
+    var hiddenThumbnailGridViews: String
+        get() = prefs.getString(HIDDEN_THUMBNAIL_GRID_VIEWS, "")!!
+        set(hidden) = prefs.edit().putString(HIDDEN_THUMBNAIL_GRID_VIEWS, hidden).apply()
+
+    fun getThumbnailGridView(folderKey: String): String {
+        return prefs.getString(THUMBNAIL_GRID_VIEW_PREFIX + folderKey.lowercase(Locale.getDefault()), ThumbnailGridView.ALL.storageId)!!
+    }
+
+    fun setThumbnailGridView(folderKey: String, viewId: String) {
+        prefs.edit().putString(THUMBNAIL_GRID_VIEW_PREFIX + folderKey.lowercase(Locale.getDefault()), viewId).apply()
+    }
 }

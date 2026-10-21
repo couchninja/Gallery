@@ -107,6 +107,9 @@ const val AVOID_SHOWING_ALL_FILES_PROMPT = "avoid_showing_all_files_prompt"
 const val SEARCH_ALL_FILES_BY_DEFAULT = "search_all_files_by_default"
 const val LAST_EXPORTED_FAVORITES_FOLDER = "last_exported_favorites_folder"
 const val SHOW_PERMISSION_RATIONALE = "show_permission_rationale"
+const val THUMBNAIL_GRID_VIEW_ORDER = "thumbnail_grid_view_order"
+const val HIDDEN_THUMBNAIL_GRID_VIEWS = "hidden_thumbnail_grid_views"
+const val THUMBNAIL_GRID_VIEW_PREFIX = "thumbnail_grid_view_"
 
 // slideshow
 const val SLIDESHOW_INTERVAL = "slideshow_interval"

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="thumbnail_view_all" type="id" />
+    <item name="thumbnail_view_unrated" type="id" />
+    <item name="thumbnail_view_videos" type="id" />
+    <item name="thumbnail_view_top_rated" type="id" />
+    <item name="thumbnail_view_more" type="id" />
+    <item name="thumbnail_view_customize" type="id" />
+</resources>
