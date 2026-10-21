@@ -33,6 +33,8 @@ import com.qtalk.recyclerviewfastscroller.R as FastScrollerR
 const val THUMBNAIL_GRID_APP_BAR_ALPHA = 0.72f
 const val THUMBNAIL_GRID_NAV_BAR_ALPHA = 0.78f
 const val THUMBNAIL_GRID_NAV_SPACER_INSET_REDUCE_DP = 10f
+/** Background strip kept above the system nav area when the view bar is scroll-collapsed. */
+const val THUMBNAIL_GRID_NAV_COLLAPSED_PADDING_DP = 10f
 const val THUMBNAIL_GRID_NAV_SCRIM_TAG = "thumbnail_grid_nav_scrim"
 
 /** Bottom padding so the last row can scroll above system nav and the view bar slot. */
@@ -127,6 +129,11 @@ fun EdgeToEdgeActivity.setupThumbnailGridUnderChrome(
     bottomChrome?.let { chrome ->
         chrome.tag = THUMBNAIL_GRID_BOTTOM_CHROME_TAG
         val navSpacer = chrome.findViewById<View>(org.fossify.gallery.R.id.media_thumbnail_views_nav_spacer)
+        val collapsePadding = chrome.findViewById<View>(org.fossify.gallery.R.id.media_thumbnail_views_nav_collapse_padding)
+        val collapsePaddingPx = (THUMBNAIL_GRID_NAV_COLLAPSED_PADDING_DP * chrome.resources.displayMetrics.density).toInt()
+        collapsePadding?.updateLayoutParams<LinearLayout.LayoutParams> {
+            height = collapsePaddingPx
+        }
         chrome.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> syncBottomInset() }
         ViewCompat.setOnApplyWindowInsetsListener(chrome) { view, insets ->
             val bottom = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars()).bottom

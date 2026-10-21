@@ -3,6 +3,7 @@ package org.fossify.gallery.helpers
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.view.View
+import android.view.ViewGroup
 import androidx.core.view.ViewCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
@@ -30,6 +31,10 @@ class ThumbnailGridViewsBar(
     private var onBottomInsetChanged: ((Int) -> Unit)? = null
 
     init {
+        (container as? ViewGroup)?.apply {
+            clipChildren = true
+            clipToPadding = true
+        }
         ViewCompat.setOnApplyWindowInsetsListener(bottomNavigation) { _, insets -> insets }
     }
 
@@ -106,7 +111,8 @@ class ThumbnailGridViewsBar(
         }
         if (!barVisible) {
             barVisible = true
-            container.animate().translationY(0f).setDuration(150L).start()
+            animateNavItemsVisible(visible = true)
+            container.animate().translationY(0f).setDuration(SCROLL_ANIM_DURATION_MS).start()
         }
     }
 
@@ -114,7 +120,9 @@ class ThumbnailGridViewsBar(
     fun revealAfterReturningToGrid() {
         scrollOffset = 0
         container.animate().cancel()
+        bottomNavigation.animate().cancel()
         barVisible = true
+        animateNavItemsVisible(visible = true, animate = false)
         container.translationY = 0f
         if (container.isVisible) {
             onBottomInsetChanged?.invoke(container.height)
@@ -126,9 +134,57 @@ class ThumbnailGridViewsBar(
             return
         }
         barVisible = false
+        animateNavItemsVisible(visible = false)
         container.animate()
-            .translationY(container.height.toFloat())
-            .setDuration(150L)
+            .translationY(scrollHideTranslationY())
+            .setDuration(SCROLL_ANIM_DURATION_MS)
+            .start()
+    }
+
+    /** Slide the view bar down, leaving collapse padding + system-nav spacer above the OS buttons. */
+    private fun scrollHideTranslationY(): Float {
+        val reservedBottom = collapsedReservedBottomHeight()
+        if (container.height > reservedBottom) {
+            return (container.height - reservedBottom).toFloat()
+        }
+        if (bottomNavigation.height > 0) {
+            return bottomNavigation.height.toFloat()
+        }
+        return container.height.toFloat()
+    }
+
+    private fun collapsedReservedBottomHeight(): Int {
+        val navSpacer = container.findViewById<View>(R.id.media_thumbnail_views_nav_spacer)
+        val collapsePadding = container.findViewById<View>(R.id.media_thumbnail_views_nav_collapse_padding)
+        val spacerHeight = navSpacer?.height ?: 0
+        val paddingHeight = collapsePadding?.height?.takeIf { it > 0 }
+            ?: (THUMBNAIL_GRID_NAV_COLLAPSED_PADDING_DP * activity.resources.displayMetrics.density).toInt()
+        return spacerHeight + paddingHeight
+    }
+
+    private fun animateNavItemsVisible(visible: Boolean, animate: Boolean = true) {
+        val targetAlpha = if (visible) 1f else 0f
+        bottomNavigation.animate().cancel()
+        if (!animate) {
+            bottomNavigation.alpha = targetAlpha
+            bottomNavigation.isEnabled = visible
+            return
+        }
+        if (visible) {
+            bottomNavigation.isEnabled = true
+        }
+        if (bottomNavigation.alpha == targetAlpha) {
+            bottomNavigation.isEnabled = visible
+            return
+        }
+        bottomNavigation.animate()
+            .alpha(targetAlpha)
+            .setDuration(SCROLL_ANIM_DURATION_MS)
+            .withEndAction {
+                if (!visible) {
+                    bottomNavigation.isEnabled = false
+                }
+            }
             .start()
     }
 
@@ -197,5 +253,6 @@ class ThumbnailGridViewsBar(
 
     companion object {
         private const val SCROLL_HIDE_THRESHOLD = 12
+        private const val SCROLL_ANIM_DURATION_MS = 150L
     }
 }

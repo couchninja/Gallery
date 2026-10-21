@@ -136,6 +136,11 @@
             app:paddingTopSystemWindowInsets="false" />
 
         <View
+            android:id="@+id/media_thumbnail_views_nav_collapse_padding"
+            android:layout_width="match_parent"
+            android:layout_height="0dp" />
+
+        <View
             android:id="@+id/media_thumbnail_views_nav_spacer"
             android:layout_width="match_parent"
             android:layout_height="0dp" />
