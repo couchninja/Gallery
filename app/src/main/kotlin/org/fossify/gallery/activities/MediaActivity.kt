@@ -268,6 +268,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                 binding.mediaRefreshStatus,
             ),
             bottomChrome = binding.mediaThumbnailViewsContainer,
+            fastScroller = binding.mediaFastscroller,
         )
         mThumbnailGridViewsBar.attachScrollHideBehavior(binding.mediaGrid)
         refreshThumbnailGridViewsBar()

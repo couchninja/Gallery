@@ -14,6 +14,7 @@ import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.recyclerview.widget.RecyclerView
+import com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller
 import org.fossify.commons.activities.EdgeToEdgeActivity
 import org.fossify.commons.extensions.adjustAlpha
 import org.fossify.commons.extensions.applyColorFilter
@@ -27,6 +28,7 @@ import org.fossify.commons.extensions.updateMarginWithBase
 import org.fossify.commons.extensions.updatePaddingWithBase
 import org.fossify.commons.helpers.LOWER_ALPHA
 import org.fossify.commons.views.MySearchMenu
+import com.qtalk.recyclerviewfastscroller.R as FastScrollerR
 
 const val THUMBNAIL_GRID_APP_BAR_ALPHA = 0.72f
 const val THUMBNAIL_GRID_NAV_BAR_ALPHA = 0.78f
@@ -72,6 +74,7 @@ fun EdgeToEdgeActivity.setupThumbnailGridUnderChrome(
     grid: RecyclerView,
     viewsBelowSearchBar: List<View> = emptyList(),
     bottomChrome: View? = null,
+    fastScroller: RecyclerViewFastScroller? = null,
 ) {
     applyTransparentSystemBarsForThumbnailGrid(contentRoot)
     attachThumbnailGridNavBarScrim(contentRoot, bottomChrome)
@@ -117,9 +120,100 @@ fun EdgeToEdgeActivity.setupThumbnailGridUnderChrome(
         ViewCompat.requestApplyInsets(chrome)
     }
     syncBottomInset()
+
+    fastScroller?.let { limitFastScrollerTrackToChrome(contentRoot, searchMenu, bottomChrome, it) }
 }
 
 private const val THUMBNAIL_GRID_BOTTOM_CHROME_TAG = "thumbnail_grid_bottom_chrome"
+
+/**
+ * Keeps the fast scroller track between the bottom of the search bar and the top of the bottom
+ * view bar. The bar's slot is reserved even while it is scrolled away or hidden, so the track
+ * does not jump around.
+ */
+private fun limitFastScrollerTrackToChrome(
+    contentRoot: ViewGroup,
+    searchMenu: View,
+    bottomChrome: View?,
+    fastScroller: RecyclerViewFastScroller,
+) {
+    val trackView = fastScroller.findViewById<View>(FastScrollerR.id.trackView)
+    val handleView = fastScroller.findViewById<View>(FastScrollerR.id.thumbIV)
+    val location = IntArray(2)
+    var knownBottomChromeHeight = 0
+
+    fun windowTop(view: View): Int {
+        view.getLocationInWindow(location)
+        return location[1]
+    }
+
+    fun reservedBottomChromeHeight(): Int {
+        if (bottomChrome != null) {
+            if (bottomChrome.isVisible && bottomChrome.height > 0) {
+                knownBottomChromeHeight = bottomChrome.height
+            } else if (knownBottomChromeHeight == 0 && contentRoot.width > 0) {
+                bottomChrome.measure(
+                    View.MeasureSpec.makeMeasureSpec(contentRoot.width, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                )
+                knownBottomChromeHeight = bottomChrome.measuredHeight
+            }
+            if (knownBottomChromeHeight > 0) {
+                return knownBottomChromeHeight
+            }
+        }
+        return ViewCompat.getRootWindowInsets(contentRoot)
+            ?.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars())?.bottom ?: 0
+    }
+
+    fun syncTrackMargins() {
+        if (fastScroller.height == 0 || searchMenu.height == 0) {
+            return
+        }
+
+        val isVertical = fastScroller.fastScrollDirection == RecyclerViewFastScroller.FastScrollDirection.VERTICAL
+        val scrollerTop = windowTop(fastScroller)
+        val top = if (isVertical) {
+            (windowTop(searchMenu) + searchMenu.height - scrollerTop).coerceAtLeast(0)
+        } else {
+            0
+        }
+        val bottom = if (isVertical) {
+            val barTop = windowTop(contentRoot) + contentRoot.height - reservedBottomChromeHeight()
+            (scrollerTop + fastScroller.height - barTop).coerceAtLeast(0)
+        } else {
+            0
+        }
+
+        if (fastScroller.trackMarginStart != top || fastScroller.trackMarginEnd != bottom) {
+            fastScroller.trackMarginStart = top
+            fastScroller.trackMarginEnd = bottom
+            fastScroller.post { fastScroller.requestLayout() }
+        }
+    }
+
+    // The library positions the popup in scroller coordinates, ignoring the track margin.
+    fun alignPopupWithHandle() {
+        val popup = fastScroller.popupTextView
+        if (trackView == null || handleView == null || popup.height == 0 ||
+            fastScroller.fastScrollDirection != RecyclerViewFastScroller.FastScrollDirection.VERTICAL
+        ) {
+            return
+        }
+
+        val maxOffset = (trackView.height - popup.height).toFloat().coerceAtLeast(0f)
+        val desiredY = trackView.top + (handleView.y - popup.height).coerceIn(0f, maxOffset)
+        if (popup.y != desiredY) {
+            popup.y = desiredY
+        }
+    }
+
+    fastScroller.viewTreeObserver.addOnPreDrawListener {
+        syncTrackMargins()
+        alignPopupWithHandle()
+        true
+    }
+}
 
 private fun EdgeToEdgeActivity.attachThumbnailGridNavBarScrim(contentRoot: ViewGroup, bottomChrome: View?) {
     val scrim = contentRoot.findViewWithTag<View>(THUMBNAIL_GRID_NAV_SCRIM_TAG) ?: run {

@@ -256,6 +256,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
                 binding.directoriesSwitchSearching,
                 binding.directoriesEmptyPlaceholder,
             ),
+            fastScroller = binding.directoriesFastscroller,
         )
 
         binding.directoriesRefreshLayout.setOnRefreshListener { getDirectories() }
