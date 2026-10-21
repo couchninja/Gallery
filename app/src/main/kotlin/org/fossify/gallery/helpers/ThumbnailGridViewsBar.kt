@@ -2,19 +2,24 @@ package org.fossify.gallery.helpers
 
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.view.ContextThemeWrapper
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import androidx.appcompat.view.menu.MenuBuilder
+import androidx.appcompat.widget.PopupMenu
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.navigation.NavigationBarMenuView
 import com.google.android.material.navigation.NavigationBarView
 import org.fossify.commons.activities.BaseSimpleActivity
 import org.fossify.commons.extensions.adjustAlpha
 import org.fossify.commons.extensions.beGone
 import org.fossify.commons.extensions.beVisible
-import org.fossify.commons.extensions.getAlertDialogBuilder
+import org.fossify.commons.extensions.getPopupMenuTheme
 import org.fossify.commons.extensions.getProperBackgroundColor
 import org.fossify.commons.extensions.getProperPrimaryColor
 import org.fossify.commons.extensions.getProperTextColor
@@ -92,7 +97,7 @@ class ThumbnailGridViewsBar(
         val menu = bottomNavigation.menu
         menu.clear()
 
-        val maxPrimary = minOf(4, bottomNavigation.maxItemCount - 1)
+        val maxPrimary = maxPrimaryNavItems()
         visibleViews.take(maxPrimary).forEach { view ->
             menu.add(0, view.menuItemId, 0, activity.getString(view.labelRes)).apply {
                 setIcon(view.iconRes)
@@ -280,39 +285,48 @@ class ThumbnailGridViewsBar(
     }
 
     private fun showMorePopup() {
+        val anchor = findMoreMenuAnchor()
+        val theme = activity.getPopupMenuTheme()
+        val contextTheme = ContextThemeWrapper(activity, theme)
         val visibleViews = ThumbnailGridViewConfig.getVisibleViewsInOrder(activity)
-        val maxPrimary = minOf(4, bottomNavigation.maxItemCount - 1)
+        val maxPrimary = maxPrimaryNavItems()
         val overflowViews = visibleViews.drop(maxPrimary)
         val onTagsView = currentView() == ThumbnailGridView.TAGS
 
-        val labels = buildList {
+        PopupMenu(contextTheme, anchor, Gravity.END).apply {
+            var order = 0
             if (onTagsView) {
-                add(activity.getString(R.string.thumbnail_grid_view_tags_pick))
+                menu.add(0, R.id.thumbnail_view_tags_pick, order++, activity.getString(R.string.thumbnail_grid_view_tags_pick))
+                    .setIcon(R.drawable.ic_xmp_tags_vector)
             }
-            overflowViews.forEach { add(activity.getString(it.labelRes)) }
-            add(activity.getString(R.string.thumbnail_grid_view_manage))
-        }
+            overflowViews.forEach { view ->
+                menu.add(0, view.menuItemId, order++, activity.getString(view.labelRes))
+                    .setIcon(view.iconRes)
+            }
+            menu.add(0, R.id.thumbnail_view_customize, order, activity.getString(R.string.thumbnail_grid_view_manage))
+                .setIcon(org.fossify.commons.R.drawable.ic_settings_cog_vector)
 
-        activity.getAlertDialogBuilder()
-            .setItems(labels.toTypedArray()) { _, which ->
-                var index = which
-                if (onTagsView) {
-                    if (index == 0) {
-                        onViewReselected?.invoke(ThumbnailGridView.TAGS)
-                        return@setItems
-                    }
-                    index -= 1
+            (menu as? MenuBuilder)?.setOptionalIconsVisible(true)
+
+            setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    R.id.thumbnail_view_tags_pick -> onViewReselected?.invoke(ThumbnailGridView.TAGS)
+                    R.id.thumbnail_view_customize -> ManageThumbnailGridViewsDialog(activity) { buildMenu() }
+                    else -> ThumbnailGridView.fromMenuItemId(item.itemId)?.let(onViewSelected)
                 }
-                if (index < overflowViews.size) {
-                    onViewSelected(overflowViews[index])
-                } else {
-                    ManageThumbnailGridViewsDialog(activity) {
-                        buildMenu()
-                    }
-                }
+                true
             }
-            .show()
+            show()
+        }
     }
+
+    private fun findMoreMenuAnchor(): View {
+        val menuView = bottomNavigation.getChildAt(0) as? NavigationBarMenuView
+        return menuView?.findItemView(R.id.thumbnail_view_more) ?: bottomNavigation
+    }
+
+    /** One bar slot is reserved for the overflow ("More") action. */
+    private fun maxPrimaryNavItems(): Int = bottomNavigation.maxItemCount - 1
 
     fun setVisible(visible: Boolean) {
         if (visible) {
