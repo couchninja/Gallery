@@ -12,6 +12,7 @@ import org.fossify.commons.extensions.beVisibleIf
 import org.fossify.commons.extensions.getProperTextColor
 import org.fossify.commons.extensions.viewBinding
 import org.fossify.commons.helpers.NavigationIcon
+import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.gallery.R
 import org.fossify.gallery.adapters.ThumbnailGridTagsAdapter
 import org.fossify.gallery.databinding.ActivityThumbnailGridTagsBinding
@@ -45,6 +46,8 @@ class ThumbnailGridTagsActivity : SimpleActivity() {
         binding.thumbnailGridTagsPlaceholder.setTextColor(getProperTextColor())
         adapter = ThumbnailGridTagsAdapter(this, emptyList()) { tag -> finishWithTag(tag) }
         binding.thumbnailGridTagsList.adapter = adapter
+        registerIndexReceiver()
+        warmTagIndexFromDb()
         XmpMetadataIndexer.schedule(applicationContext)
         refreshTags()
         binding.root.postDelayed({
@@ -55,14 +58,9 @@ class ThumbnailGridTagsActivity : SimpleActivity() {
         }, LOADING_EMPTY_FALLBACK_MS)
     }
 
-    override fun onStart() {
-        super.onStart()
-        registerIndexReceiver()
-    }
-
-    override fun onStop() {
-        super.onStop()
+    override fun onDestroy() {
         unregisterIndexReceiver()
+        super.onDestroy()
     }
 
     override fun onResume() {
@@ -89,6 +87,13 @@ class ThumbnailGridTagsActivity : SimpleActivity() {
         }
         unregisterReceiver(indexReceiver)
         receiverRegistered = false
+    }
+
+    private fun warmTagIndexFromDb() {
+        ensureBackgroundThread {
+            XmpTagIndex.loadFromDb(applicationContext)
+            runOnUiThread { refreshTags() }
+        }
     }
 
     private fun refreshTags() {

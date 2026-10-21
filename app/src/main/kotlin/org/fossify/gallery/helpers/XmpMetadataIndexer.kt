@@ -34,6 +34,7 @@ object XmpMetadataIndexer {
     private fun runIndex(context: Context, force: Boolean) {
         val all = context.xmpMetadataDB.getAll()
         XmpTagIndex.replaceAll(all)
+        notifyIndexUpdated(context)
         val cached = all.associateBy { it.fullPath }
         val pending = collectPending(context, force, cached)
         if (pending.isEmpty()) {
@@ -48,10 +49,14 @@ object XmpMetadataIndexer {
         }
 
         if (updated) {
-            context.sendBroadcast(
-                Intent(ACTION_XMP_METADATA_INDEX_UPDATED).setPackage(context.packageName)
-            )
+            notifyIndexUpdated(context)
         }
+    }
+
+    private fun notifyIndexUpdated(context: Context) {
+        context.sendBroadcast(
+            Intent(ACTION_XMP_METADATA_INDEX_UPDATED).setPackage(context.packageName)
+        )
     }
 
     private fun collectPending(context: Context, force: Boolean, cached: Map<String, XmpMetadataEntry>): List<PendingItem> {

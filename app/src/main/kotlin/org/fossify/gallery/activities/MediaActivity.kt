@@ -188,8 +188,14 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
 
     private val mExifRatingIndexReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (mLoadedInitialPhotos) {
-                refreshDisplayedExifRatings()
+            if (!mLoadedInitialPhotos) {
+                return
+            }
+            refreshDisplayedExifRatings()
+            if (mCurrentThumbnailGridView == ThumbnailGridView.TAGS
+                || mCurrentThumbnailGridView == ThumbnailGridView.CARDS
+            ) {
+                applyCurrentThumbnailGridView()
             }
         }
     }

@@ -20,10 +20,9 @@ class App : FossifyApp() {
         super.onCreate()
         ensureBackgroundThread {
             DateTakenIndexer.schedule(this)
+            XmpTagIndex.loadFromDb(this)
             if (config.showExifRatings) {
                 XmpMetadataIndexer.schedule(this)
-            } else {
-                XmpTagIndex.loadFromDb(this)
             }
         }
         Reprint.initialize(this)
