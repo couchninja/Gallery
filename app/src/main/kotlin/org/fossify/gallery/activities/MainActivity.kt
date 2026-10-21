@@ -138,7 +138,9 @@ import org.fossify.gallery.helpers.MediaFetcher
 import org.fossify.gallery.helpers.PICKED_PATHS
 import org.fossify.gallery.helpers.RECYCLE_BIN
 import org.fossify.gallery.helpers.SET_WALLPAPER_INTENT
+import org.fossify.gallery.helpers.ACTION_THUMBNAIL_GRID_VIEW_SHORTCUT
 import org.fossify.gallery.helpers.SHOW_ALL
+import org.fossify.gallery.helpers.THUMBNAIL_GRID_VIEW_SHORTCUT_ID
 import org.fossify.gallery.helpers.SHOW_TEMP_HIDDEN_DURATION
 import org.fossify.gallery.helpers.SKIP_AUTHENTICATION
 import org.fossify.gallery.helpers.TYPE_GIFS
@@ -199,6 +201,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
     private var mDirs = ArrayList<Directory>()
     private var mDirsIgnoringSearch = ArrayList<Directory>()
     private var mDateTakenIndexReceiverRegistered = false
+    private var mPendingThumbnailGridViewShortcutId: String? = null
 
     private val mDateTakenIndexReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -238,6 +241,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
         mIsGetAnyContentIntent = isGetAnyContentIntent(intent)
         mIsSetWallpaperIntent = isSetWallpaperIntent(intent)
         mAllowPickingMultiple = intent.getBooleanExtra(Intent.EXTRA_ALLOW_MULTIPLE, false)
+        consumeThumbnailGridViewShortcut(intent)
         mIsThirdPartyIntent = mIsPickImageIntent
                 || mIsPickVideoIntent
                 || mIsGetImageContentIntent
@@ -725,10 +729,35 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        consumeThumbnailGridViewShortcut(intent)
+        if (mPendingThumbnailGridViewShortcutId != null) {
+            showAllMedia()
+        }
+    }
+
+    private fun consumeThumbnailGridViewShortcut(intent: Intent?) {
+        if (intent?.action != ACTION_THUMBNAIL_GRID_VIEW_SHORTCUT) {
+            return
+        }
+
+        mPendingThumbnailGridViewShortcutId =
+            intent.getStringExtra(THUMBNAIL_GRID_VIEW_SHORTCUT_ID) ?: return
+        config.showAll = true
+        mWasDefaultFolderChecked = true
+        intent.action = Intent.ACTION_MAIN
+    }
+
     private fun showAllMedia() {
         config.showAll = true
         Intent(this, MediaActivity::class.java).apply {
             putExtra(DIRECTORY, "")
+            mPendingThumbnailGridViewShortcutId?.let { viewId ->
+                putExtra(THUMBNAIL_GRID_VIEW_SHORTCUT_ID, viewId)
+                mPendingThumbnailGridViewShortcutId = null
+            }
 
             if (mIsThirdPartyIntent) {
                 handleMediaIntent(this)

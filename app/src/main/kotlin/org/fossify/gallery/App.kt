@@ -9,6 +9,7 @@ import org.fossify.commons.FossifyApp
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.gallery.extensions.config
 import org.fossify.gallery.helpers.DateTakenIndexer
+import org.fossify.gallery.helpers.ThumbnailGridViewShortcuts
 import org.fossify.gallery.helpers.XmpMetadataIndexer
 import org.fossify.gallery.helpers.XmpTagIndex
 
@@ -18,6 +19,7 @@ class App : FossifyApp() {
 
     override fun onCreate() {
         super.onCreate()
+        ThumbnailGridViewShortcuts.refresh(this)
         ensureBackgroundThread {
             DateTakenIndexer.schedule(this)
             XmpTagIndex.loadFromDb(this)

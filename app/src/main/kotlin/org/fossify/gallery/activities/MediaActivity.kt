@@ -128,6 +128,7 @@ import org.fossify.gallery.helpers.isJpeg
 import org.fossify.gallery.helpers.setThumbnailGridBottomChromeVisible
 import org.fossify.gallery.helpers.REQUEST_THUMBNAIL_GRID_TAG
 import org.fossify.gallery.helpers.THUMBNAIL_GRID_NAV_SCRIM_TAG
+import org.fossify.gallery.helpers.THUMBNAIL_GRID_VIEW_SHORTCUT_ID
 import org.fossify.gallery.helpers.THUMBNAIL_GRID_SELECTED_TAG
 import org.fossify.commons.extensions.updatePaddingWithBase
 import org.fossify.gallery.helpers.SHOW_TEMP_HIDDEN_DURATION
@@ -222,6 +223,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     private var mThumbnailGridTagFilter: String? = null
     private var mThumbnailGridTagsScreenOpen = false
     private var mStickyUnratedPaths: LinkedHashSet<String>? = null
+    private var mThumbnailGridViewFromShortcut: ThumbnailGridView? = null
     private lateinit var mThumbnailGridViewsBar: ThumbnailGridViewsBar
 
     private val binding by viewBinding(ActivityMediaBinding::inflate)
@@ -261,6 +263,13 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             this,
             folderKeyForThumbnailGridViews(mPath, mShowAll),
         )
+        intent.getStringExtra(THUMBNAIL_GRID_VIEW_SHORTCUT_ID)?.let { viewId ->
+            mThumbnailGridViewFromShortcut = ThumbnailGridView.fromStorageId(viewId)
+            intent.removeExtra(THUMBNAIL_GRID_VIEW_SHORTCUT_ID)
+            if (mThumbnailGridViewFromShortcut != ThumbnailGridView.TAGS) {
+                mCurrentThumbnailGridView = mThumbnailGridViewFromShortcut!!
+            }
+        }
         mThumbnailGridViewsBar = ThumbnailGridViewsBar(
             activity = this,
             container = binding.mediaThumbnailViewsContainer,
@@ -1381,6 +1390,20 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         commitThumbnailGridView(view)
     }
 
+    private fun applyThumbnailGridViewShortcutAfterMediaLoaded() {
+        val view = mThumbnailGridViewFromShortcut ?: return
+        mThumbnailGridViewFromShortcut = null
+        if (!shouldShowThumbnailGridViewsBar()) {
+            return
+        }
+
+        if (view == ThumbnailGridView.TAGS) {
+            selectThumbnailGridView(ThumbnailGridView.TAGS)
+        } else {
+            commitThumbnailGridView(view)
+        }
+    }
+
     private fun openThumbnailGridTagsScreen() {
         if (mThumbnailGridTagsScreenOpen) {
             return
@@ -1487,6 +1510,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             if (isFromCache && config.showExifRatings) {
                 refreshDisplayedExifRatings()
             }
+            applyThumbnailGridViewShortcutAfterMediaLoaded()
         }
 
         mLatestMediaId = getLatestMediaId()

@@ -110,6 +110,8 @@ const val SHOW_PERMISSION_RATIONALE = "show_permission_rationale"
 const val THUMBNAIL_GRID_VIEW_ORDER = "thumbnail_grid_view_order"
 const val HIDDEN_THUMBNAIL_GRID_VIEWS = "hidden_thumbnail_grid_views"
 const val THUMBNAIL_GRID_VIEW_PREFIX = "thumbnail_grid_view_"
+const val ACTION_THUMBNAIL_GRID_VIEW_SHORTCUT = "org.fossify.gallery.action.THUMBNAIL_GRID_VIEW"
+const val THUMBNAIL_GRID_VIEW_SHORTCUT_ID = "thumbnail_grid_view_shortcut_id"
 
 // slideshow
 const val SLIDESHOW_INTERVAL = "slideshow_interval"
