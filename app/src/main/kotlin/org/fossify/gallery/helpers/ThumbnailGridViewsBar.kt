@@ -29,9 +29,10 @@ class ThumbnailGridViewsBar(
     private var scrollOffset = 0
     private var barVisible = true
     private var onBottomInsetChanged: ((Int) -> Unit)? = null
+    private val bottomChromeLayout = ThumbnailGridBottomChromeLayout.bind(container as ViewGroup)
 
     init {
-        (container as? ViewGroup)?.apply {
+        (container as ViewGroup).apply {
             clipChildren = true
             clipToPadding = true
         }
@@ -141,9 +142,9 @@ class ThumbnailGridViewsBar(
             .start()
     }
 
-    /** Slide the view bar down, leaving collapse padding + system-nav spacer above the OS buttons. */
+    /** Slide the view bar down, leaving [ThumbnailGridBottomChromeLayout.scrollCollapsedVisibleHeightPx]. */
     private fun scrollHideTranslationY(): Float {
-        val reservedBottom = collapsedReservedBottomHeight()
+        val reservedBottom = bottomChromeLayout.scrollCollapsedVisibleHeightPx(activity.resources)
         if (container.height > reservedBottom) {
             return (container.height - reservedBottom).toFloat()
         }
@@ -151,15 +152,6 @@ class ThumbnailGridViewsBar(
             return bottomNavigation.height.toFloat()
         }
         return container.height.toFloat()
-    }
-
-    private fun collapsedReservedBottomHeight(): Int {
-        val navSpacer = container.findViewById<View>(R.id.media_thumbnail_views_nav_spacer)
-        val collapsePadding = container.findViewById<View>(R.id.media_thumbnail_views_nav_collapse_padding)
-        val spacerHeight = navSpacer?.height ?: 0
-        val paddingHeight = collapsePadding?.height?.takeIf { it > 0 }
-            ?: (THUMBNAIL_GRID_NAV_COLLAPSED_PADDING_DP * activity.resources.displayMetrics.density).toInt()
-        return spacerHeight + paddingHeight
     }
 
     private fun animateNavItemsVisible(visible: Boolean, animate: Boolean = true) {

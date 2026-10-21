@@ -16,4 +16,19 @@
     </style>
 
     <style name="FullScreenTheme" parent="FullScreenTheme.Base" />
+
+    <style name="Widget.Gallery.ThumbnailGridBottomNav" parent="Widget.Design.BottomNavigationView">
+        <item name="itemIconSize">@dimen/thumbnail_grid_bottom_nav_icon_size</item>
+        <item name="itemPaddingTop">@dimen/thumbnail_grid_bottom_nav_item_padding_top</item>
+        <item name="itemPaddingBottom">@dimen/thumbnail_grid_bottom_nav_item_padding_bottom</item>
+        <item name="android:paddingTop">@dimen/thumbnail_grid_bottom_3_nav_top_padding</item>
+        <item name="android:paddingBottom">0dp</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="itemTextAppearanceActive">@style/TextAppearance.Gallery.ThumbnailGridBottomNav</item>
+        <item name="itemTextAppearanceInactive">@style/TextAppearance.Gallery.ThumbnailGridBottomNav</item>
+    </style>
+
+    <style name="TextAppearance.Gallery.ThumbnailGridBottomNav" parent="TextAppearance.AppCompat.Caption">
+        <item name="android:textSize">@dimen/thumbnail_grid_bottom_nav_label_text_size</item>
+    </style>
 </resources>

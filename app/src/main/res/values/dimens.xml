@@ -31,4 +31,16 @@
     <dimen name="sample_thumbnail_size">180dp</dimen>
     <dimen name="directory_picker_dialog_min_height">180dp</dimen>
     <dimen name="smaller_icon_size">36dp</dimen>
+    <dimen name="thumbnail_grid_bottom_nav_icon_size">22dp</dimen>
+    <dimen name="thumbnail_grid_bottom_nav_item_padding_top">2dp</dimen>
+    <dimen name="thumbnail_grid_bottom_nav_item_padding_bottom">0dp</dimen>
+    <dimen name="thumbnail_grid_bottom_nav_label_text_size">10sp</dimen>
+
+    <!-- Thumbnail grid bottom bar — stack diagram in ThumbnailGridBottomChromeLayout.kt -->
+    <!-- (1) Height of the background strip when scroll-collapsed (above the OS nav inset). -->
+    <dimen name="thumbnail_grid_bottom_1_collapsed_background_height">0dp</dimen>
+    <!-- (2) Gap between the bottom of nav items and the top of (1). -->
+    <dimen name="thumbnail_grid_bottom_2_nav_to_background_gap">0dp</dimen>
+    <!-- (3) Padding above nav icons/labels (BottomNavigationView paddingTop). -->
+    <dimen name="thumbnail_grid_bottom_3_nav_top_padding">5dp</dimen>
 </resources>

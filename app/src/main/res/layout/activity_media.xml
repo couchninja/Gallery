@@ -127,22 +127,30 @@
 
         <com.google.android.material.bottomnavigation.BottomNavigationView
             android:id="@+id/media_thumbnail_views_bar"
+            style="@style/Widget.Gallery.ThumbnailGridBottomNav"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@android:color/transparent"
-            app:itemPaddingBottom="0dp"
             app:labelVisibilityMode="labeled"
             app:paddingBottomSystemWindowInsets="false"
             app:paddingTopSystemWindowInsets="false" />
 
         <View
-            android:id="@+id/media_thumbnail_views_nav_collapse_padding"
+            android:id="@+id/media_thumbnail_views_nav_to_background_gap"
             android:layout_width="match_parent"
-            android:layout_height="0dp" />
+            android:layout_height="0dp"
+            tools:layout_height="5dp" />
 
         <View
-            android:id="@+id/media_thumbnail_views_nav_spacer"
+            android:id="@+id/media_thumbnail_views_collapsed_background"
             android:layout_width="match_parent"
-            android:layout_height="0dp" />
+            android:layout_height="0dp"
+            tools:layout_height="10dp" />
+
+        <View
+            android:id="@+id/media_thumbnail_views_os_nav_inset_spacer"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            tools:layout_height="24dp" />
     </LinearLayout>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
