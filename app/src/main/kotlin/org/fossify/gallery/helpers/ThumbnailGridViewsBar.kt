@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -17,6 +18,7 @@ import org.fossify.commons.extensions.getAlertDialogBuilder
 import org.fossify.commons.extensions.getProperBackgroundColor
 import org.fossify.commons.extensions.getProperPrimaryColor
 import org.fossify.commons.extensions.getProperTextColor
+import org.fossify.commons.views.MySearchMenu
 import org.fossify.gallery.R
 import org.fossify.gallery.dialogs.ManageThumbnailGridViewsDialog
 
@@ -24,6 +26,7 @@ class ThumbnailGridViewsBar(
     private val activity: BaseSimpleActivity,
     private val container: View,
     private val bottomNavigation: BottomNavigationView,
+    private val searchMenu: MySearchMenu?,
     private val onViewSelected: (ThumbnailGridView) -> Unit,
 ) {
     private var scrollOffset = 0
@@ -113,7 +116,9 @@ class ThumbnailGridViewsBar(
         if (!barVisible) {
             barVisible = true
             animateNavItemsVisible(visible = true)
+            animateSearchChromeVisible(visible = true)
             container.animate().translationY(0f).setDuration(SCROLL_ANIM_DURATION_MS).start()
+            searchMenu?.animate()?.translationY(0f)?.setDuration(SCROLL_ANIM_DURATION_MS)?.start()
         }
     }
 
@@ -122,9 +127,13 @@ class ThumbnailGridViewsBar(
         scrollOffset = 0
         container.animate().cancel()
         bottomNavigation.animate().cancel()
+        searchMenu?.animate()?.cancel()
+        searchMenu?.binding?.toolbarContainer?.animate()?.cancel()
         barVisible = true
         animateNavItemsVisible(visible = true, animate = false)
+        animateSearchChromeVisible(visible = true, animate = false)
         container.translationY = 0f
+        searchMenu?.translationY = 0f
         if (container.isVisible) {
             onBottomInsetChanged?.invoke(container.height)
         }
@@ -136,10 +145,15 @@ class ThumbnailGridViewsBar(
         }
         barVisible = false
         animateNavItemsVisible(visible = false)
+        animateSearchChromeVisible(visible = false)
         container.animate()
             .translationY(scrollHideTranslationY())
             .setDuration(SCROLL_ANIM_DURATION_MS)
             .start()
+        searchMenu?.animate()
+            ?.translationY(-scrollHideSearchTranslationY())
+            ?.setDuration(SCROLL_ANIM_DURATION_MS)
+            ?.start()
     }
 
     /** Slide the view bar down, leaving [ThumbnailGridBottomChromeLayout.scrollCollapsedVisibleHeightPx]. */
@@ -152,6 +166,17 @@ class ThumbnailGridViewsBar(
             return bottomNavigation.height.toFloat()
         }
         return container.height.toFloat()
+    }
+
+    /** Slide the search bar up, leaving the status-bar inset strip on screen (mirrors bottom chrome). */
+    private fun scrollHideSearchTranslationY(): Float {
+        val menu = searchMenu ?: return 0f
+        val reservedTop = ViewCompat.getRootWindowInsets(menu)
+            ?.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.statusBars())?.top ?: 0
+        if (menu.height > reservedTop) {
+            return (menu.height - reservedTop).toFloat()
+        }
+        return menu.height.toFloat()
     }
 
     private fun animateNavItemsVisible(visible: Boolean, animate: Boolean = true) {
@@ -175,6 +200,33 @@ class ThumbnailGridViewsBar(
             .withEndAction {
                 if (!visible) {
                     bottomNavigation.isEnabled = false
+                }
+            }
+            .start()
+    }
+
+    private fun animateSearchChromeVisible(visible: Boolean, animate: Boolean = true) {
+        val toolbarContainer = searchMenu?.binding?.toolbarContainer ?: return
+        val targetAlpha = if (visible) 1f else 0f
+        toolbarContainer.animate().cancel()
+        if (!animate) {
+            toolbarContainer.alpha = targetAlpha
+            toolbarContainer.isEnabled = visible
+            return
+        }
+        if (visible) {
+            toolbarContainer.isEnabled = true
+        }
+        if (toolbarContainer.alpha == targetAlpha) {
+            toolbarContainer.isEnabled = visible
+            return
+        }
+        toolbarContainer.animate()
+            .alpha(targetAlpha)
+            .setDuration(SCROLL_ANIM_DURATION_MS)
+            .withEndAction {
+                if (!visible) {
+                    toolbarContainer.isEnabled = false
                 }
             }
             .start()
@@ -240,6 +292,7 @@ class ThumbnailGridViewsBar(
         } else {
             container.beGone()
             onBottomInsetChanged?.invoke(0)
+            revealAfterReturningToGrid()
         }
     }
 

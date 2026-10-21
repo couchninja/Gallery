@@ -255,6 +255,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             activity = this,
             container = binding.mediaThumbnailViewsContainer,
             bottomNavigation = binding.mediaThumbnailViewsBar,
+            searchMenu = binding.mediaMenu,
             onViewSelected = { view -> selectThumbnailGridView(view) },
         )
         mThumbnailGridViewsBar.setOnBottomInsetChangedListener {

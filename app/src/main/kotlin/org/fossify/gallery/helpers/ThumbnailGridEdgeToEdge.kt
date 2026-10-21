@@ -29,8 +29,8 @@ import org.fossify.commons.helpers.LOWER_ALPHA
 import org.fossify.commons.views.MySearchMenu
 import com.qtalk.recyclerviewfastscroller.R as FastScrollerR
 
-const val THUMBNAIL_GRID_APP_BAR_ALPHA = 0.72f
-const val THUMBNAIL_GRID_NAV_BAR_ALPHA = 0.78f
+const val THUMBNAIL_GRID_APP_BAR_ALPHA = 0.85f
+const val THUMBNAIL_GRID_NAV_BAR_ALPHA = 0.85f
 const val THUMBNAIL_GRID_NAV_SCRIM_TAG = "thumbnail_grid_nav_scrim"
 
 /** Bottom padding so the last row can scroll above system nav and the view bar slot. */
@@ -156,6 +156,16 @@ private fun limitFastScrollerTrackToChrome(
         return location[1]
     }
 
+    /** Window Y of [view]'s bottom edge as if [View.getTranslationY] were zero (scroll-hide safe). */
+    fun restingBottomInWindow(view: View): Int {
+        return windowTop(view) + view.height - view.translationY.toInt()
+    }
+
+    /** Window Y of [view]'s top edge as if [View.getTranslationY] were zero (scroll-hide safe). */
+    fun restingTopInWindow(view: View): Int {
+        return windowTop(view) - view.translationY.toInt()
+    }
+
     fun reservedBottomChromeHeight(): Int {
         val padding = thumbnailGridBottomScrollPadding(contentRoot, bottomChrome)
         if (padding > 0) {
@@ -172,12 +182,15 @@ private fun limitFastScrollerTrackToChrome(
         val isVertical = fastScroller.fastScrollDirection == RecyclerViewFastScroller.FastScrollDirection.VERTICAL
         val scrollerTop = windowTop(fastScroller)
         val top = if (isVertical) {
-            (windowTop(searchMenu) + searchMenu.height - scrollerTop).coerceAtLeast(0)
+            (restingBottomInWindow(searchMenu) - scrollerTop).coerceAtLeast(0)
         } else {
             0
         }
         val bottom = if (isVertical) {
-            val barTop = windowTop(contentRoot) + contentRoot.height - reservedBottomChromeHeight()
+            val barTop = when {
+                bottomChrome != null && bottomChrome.height > 0 -> restingTopInWindow(bottomChrome)
+                else -> windowTop(contentRoot) + contentRoot.height - reservedBottomChromeHeight()
+            }
             (scrollerTop + fastScroller.height - barTop).coerceAtLeast(0)
         } else {
             0
