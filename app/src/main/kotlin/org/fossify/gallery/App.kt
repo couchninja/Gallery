@@ -9,6 +9,9 @@ import org.fossify.commons.FossifyApp
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.gallery.extensions.config
 import org.fossify.gallery.helpers.DateTakenIndexer
+import org.fossify.gallery.helpers.SHOW_ALL
+import org.fossify.gallery.helpers.ThumbnailGridView
+import org.fossify.gallery.helpers.ThumbnailGridViewConfig
 import org.fossify.gallery.helpers.ThumbnailGridViewShortcuts
 import org.fossify.gallery.helpers.XmpMetadataIndexer
 import org.fossify.gallery.helpers.XmpTagIndex
@@ -19,6 +22,7 @@ class App : FossifyApp() {
 
     override fun onCreate() {
         super.onCreate()
+        ThumbnailGridViewConfig.setSelectedView(this, SHOW_ALL, ThumbnailGridView.ALL)
         ThumbnailGridViewShortcuts.refresh(this)
         ensureBackgroundThread {
             DateTakenIndexer.schedule(this)
