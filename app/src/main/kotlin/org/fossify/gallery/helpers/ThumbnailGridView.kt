@@ -135,8 +135,9 @@ fun filterMediaForThumbnailGridView(
     view: ThumbnailGridView,
     stickyUnratedPaths: Set<String>?,
     selectedTag: String? = null,
+    showPrivateTagged: Boolean = false,
 ): ArrayList<Medium> {
-    return rawMedia.filterIsInstance<Medium>()
+    return PrivateTaggedMedia.filter(rawMedia, showPrivateTagged).filterIsInstance<Medium>()
         .filter { view.matchesMedium(it, stickyUnratedPaths, selectedTag) } as ArrayList
 }
 

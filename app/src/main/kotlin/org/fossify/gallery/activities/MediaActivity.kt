@@ -197,11 +197,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             }
             if (intent?.getBooleanExtra(EXTRA_METADATA_XMP_CHANGED, false) == true) {
                 refreshDisplayedExifRatings()
-                if (mCurrentThumbnailGridView == ThumbnailGridView.TAGS
-                    || mCurrentThumbnailGridView == ThumbnailGridView.CARDS
-                ) {
-                    applyCurrentThumbnailGridView()
-                }
+                applyCurrentThumbnailGridView()
             }
         }
     }
@@ -220,6 +216,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     private var mStoredShowFileTypes = true
     private var mStoredRoundedCorners = false
     private var mStoredShowExifRatings = true
+    private var mStoredShouldShowHidden = false
     private var mStoredTextColor = 0
     private var mStoredPrimaryColor = 0
     private var mStoredThumbnailSpacing = 0
@@ -374,6 +371,11 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         }
 
         refreshMenuItems()
+
+        if (mStoredShouldShowHidden != config.shouldShowHidden) {
+            mStoredShouldShowHidden = config.shouldShowHidden
+            applyCurrentThumbnailGridView()
+        }
 
         binding.mediaFastscroller.updateColors(primaryColor)
         binding.mediaRefreshLayout.isEnabled = config.enablePullToRefresh
@@ -615,6 +617,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             mStoredShowExifRatings = showExifRatings
             mStoredThumbnailSpacing = thumbnailSpacing
             mStoredRoundedCorners = fileRoundedCorners
+            mStoredShouldShowHidden = shouldShowHidden
             // Non-empty DIRECTORY always means a single folder/album, even when config.showAll is on
             // (e.g. "Open folder" from the viewer while browsing all photos).
             mShowAll = showAll && mPath.isEmpty() && mPath != RECYCLE_BIN
@@ -629,6 +632,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                     view = mCurrentThumbnailGridView,
                     stickyUnratedPaths = mStickyUnratedPaths,
                     selectedTag = mThumbnailGridTagFilter,
+                    showPrivateTagged = config.shouldShowHidden,
                 )
                 val filtered = baseMedia
                     .filter { it.name.contains(text, true) } as ArrayList
@@ -1135,6 +1139,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     private fun toggleTemporarilyShowHidden(show: Boolean) {
         mLoadedInitialPhotos = false
         config.temporarilyShowHidden = show
+        mStoredShouldShowHidden = config.shouldShowHidden
         getMedia()
         refreshMenuItems()
     }
@@ -1467,6 +1472,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             view = mCurrentThumbnailGridView,
             stickyUnratedPaths = mStickyUnratedPaths,
             selectedTag = mThumbnailGridTagFilter,
+            showPrivateTagged = config.shouldShowHidden,
         )
         return MediaFetcher(applicationContext).groupMedia(filtered, mPath)
             .withFolderPathHeader(
@@ -1508,8 +1514,9 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         runOnUiThread {
             hideLoadingStatus()
             binding.mediaRefreshLayout.isRefreshing = false
-            binding.mediaEmptyTextPlaceholder.beVisibleIf(media.isEmpty() && !isFromCache)
-            binding.mediaEmptyTextPlaceholder2.beVisibleIf(media.isEmpty() && !isFromCache)
+            val visibleMedia = mMedia.filterIsInstance<Medium>()
+            binding.mediaEmptyTextPlaceholder.beVisibleIf(visibleMedia.isEmpty() && !isFromCache)
+            binding.mediaEmptyTextPlaceholder2.beVisibleIf(visibleMedia.isEmpty() && !isFromCache)
 
             if (binding.mediaEmptyTextPlaceholder.isVisible()) {
                 binding.mediaEmptyTextPlaceholder.text = getString(R.string.no_media_with_filters)
