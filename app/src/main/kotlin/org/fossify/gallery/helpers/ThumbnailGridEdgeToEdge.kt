@@ -98,14 +98,17 @@ fun EdgeToEdgeActivity.setupThumbnailGridUnderChrome(
     viewsBelowSearchBar: List<View> = emptyList(),
     bottomChrome: View? = null,
     fastScroller: RecyclerViewFastScroller? = null,
+    topChrome: View? = null,
 ) {
     applyTransparentSystemBarsForThumbnailGrid(contentRoot)
     attachThumbnailGridNavBarScrim(contentRoot, bottomChrome)
     setupEdgeToEdge(padBottomImeAndSystem = listOf(grid))
     grid.clipToPadding = false
 
+    val topInsetAnchor = topChrome ?: searchMenu
+
     fun syncTopInset() {
-        val topInset = searchMenu.height
+        val topInset = topInsetAnchor.height
         if (topInset <= 0) {
             return
         }
@@ -119,8 +122,11 @@ fun EdgeToEdgeActivity.setupThumbnailGridUnderChrome(
         grid.updatePaddingWithBase(bottom = thumbnailGridBottomScrollPadding(contentRoot, bottomChrome))
     }
 
-    searchMenu.onGlobalLayout { syncTopInset() }
-    searchMenu.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> syncTopInset() }
+    topInsetAnchor.onGlobalLayout { syncTopInset() }
+    topInsetAnchor.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> syncTopInset() }
+    if (topChrome != null) {
+        searchMenu.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> syncTopInset() }
+    }
 
     bottomChrome?.let { chrome ->
         chrome.tag = THUMBNAIL_GRID_BOTTOM_CHROME_TAG
@@ -130,7 +136,7 @@ fun EdgeToEdgeActivity.setupThumbnailGridUnderChrome(
     }
     syncBottomInset()
 
-    fastScroller?.let { limitFastScrollerTrackToChrome(contentRoot, searchMenu, bottomChrome, it) }
+    fastScroller?.let { limitFastScrollerTrackToChrome(contentRoot, topInsetAnchor, bottomChrome, it) }
 }
 
 private const val THUMBNAIL_GRID_BOTTOM_CHROME_TAG = "thumbnail_grid_bottom_chrome"
@@ -142,7 +148,7 @@ private const val THUMBNAIL_GRID_BOTTOM_CHROME_TAG = "thumbnail_grid_bottom_chro
  */
 private fun limitFastScrollerTrackToChrome(
     contentRoot: ViewGroup,
-    searchMenu: View,
+    topChrome: View,
     bottomChrome: View?,
     fastScroller: RecyclerViewFastScroller,
 ) {
@@ -175,14 +181,14 @@ private fun limitFastScrollerTrackToChrome(
     }
 
     fun syncTrackMargins() {
-        if (fastScroller.height == 0 || searchMenu.height == 0) {
+        if (fastScroller.height == 0 || topChrome.height == 0) {
             return
         }
 
         val isVertical = fastScroller.fastScrollDirection == RecyclerViewFastScroller.FastScrollDirection.VERTICAL
         val scrollerTop = windowTop(fastScroller)
         val top = if (isVertical) {
-            (restingBottomInWindow(searchMenu) - scrollerTop).coerceAtLeast(0)
+            (restingBottomInWindow(topChrome) - scrollerTop).coerceAtLeast(0)
         } else {
             0
         }

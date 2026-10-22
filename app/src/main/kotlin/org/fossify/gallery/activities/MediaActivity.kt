@@ -32,8 +32,11 @@ import org.fossify.commons.extensions.getFilenameFromPath
 import org.fossify.commons.extensions.getIsPathDirectory
 import org.fossify.commons.extensions.getLatestMediaByDateId
 import org.fossify.commons.extensions.getLatestMediaId
+import org.fossify.commons.extensions.adjustAlpha
+import org.fossify.commons.extensions.getProperBackgroundColor
 import org.fossify.commons.extensions.getProperPrimaryColor
 import org.fossify.commons.extensions.getProperTextColor
+import org.fossify.commons.extensions.humanizePath
 import org.fossify.commons.extensions.getTimeFormat
 import org.fossify.commons.extensions.handleHiddenFolderPasswordProtection
 import org.fossify.commons.extensions.handleLockedFolderOpening
@@ -120,6 +123,7 @@ import org.fossify.gallery.helpers.SHOW_RECYCLE_BIN
 import org.fossify.gallery.helpers.ThumbnailGridView
 import org.fossify.gallery.helpers.ThumbnailGridViewConfig
 import org.fossify.gallery.helpers.ThumbnailGridViewsBar
+import org.fossify.gallery.helpers.THUMBNAIL_GRID_APP_BAR_ALPHA
 import org.fossify.gallery.helpers.applyTransparentSystemBarsForThumbnailGrid
 import org.fossify.gallery.helpers.filterMediaForThumbnailGridView
 import org.fossify.gallery.helpers.folderKeyForThumbnailGridViews
@@ -282,6 +286,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                     openThumbnailGridTagsScreen()
                 }
             },
+            topChrome = binding.mediaTopChrome,
         )
         mThumbnailGridViewsBar.setOnBottomInsetChangedListener {
             updateThumbnailGridBottomPadding()
@@ -296,6 +301,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             ),
             bottomChrome = binding.mediaThumbnailViewsContainer,
             fastScroller = binding.mediaFastscroller,
+            topChrome = binding.mediaTopChrome,
         )
         mThumbnailGridViewsBar.attachScrollHideBehavior(binding.mediaGrid)
         refreshThumbnailGridViewsBar()
@@ -572,8 +578,29 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         applyTransparentSystemBarsForThumbnailGrid(binding.mediaCoordinator)
         updateThumbnailGridNavBarScrim(binding.mediaCoordinator)
         binding.mediaMenu.updateThumbnailGridSearchMenuColors()
+        updateFolderPathHeaderColors()
         if (::mThumbnailGridViewsBar.isInitialized) {
             mThumbnailGridViewsBar.updateColors()
+        }
+    }
+
+    private fun updateFolderPathHeader() {
+        val showPath = !mShowAll && mPath.isNotEmpty() && mPath != FAVORITES && mPath != RECYCLE_BIN
+        if (!showPath) {
+            binding.mediaFolderPath.beGone()
+        } else {
+            binding.mediaFolderPath.text = humanizePath(mPath).trimEnd('/')
+            binding.mediaFolderPath.beVisible()
+        }
+        binding.mediaTopChrome.requestLayout()
+    }
+
+    private fun updateFolderPathHeaderColors() {
+        if (binding.mediaFolderPath.isVisible()) {
+            binding.mediaFolderPath.setTextColor(getProperTextColor().adjustAlpha(0.85f))
+            binding.mediaFolderPath.setBackgroundColor(
+                getProperBackgroundColor().adjustAlpha(THUMBNAIL_GRID_APP_BAR_ALPHA),
+            )
         }
     }
 
@@ -642,6 +669,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             }
 
             binding.mediaMenu.updateHintText(searchHint)
+            updateFolderPathHeader()
             if (!mShowAll) {
                 binding.mediaMenu.toggleForceArrowBackIcon(true)
                 binding.mediaMenu.onNavigateBackClickListener = {

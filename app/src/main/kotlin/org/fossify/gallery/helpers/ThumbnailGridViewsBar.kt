@@ -35,11 +35,14 @@ class ThumbnailGridViewsBar(
     private val onViewSelected: (ThumbnailGridView) -> Unit,
     private val currentView: () -> ThumbnailGridView,
     private val onViewReselected: ((ThumbnailGridView) -> Unit)? = null,
+    private val topChrome: View? = null,
 ) {
     private var scrollOffset = 0
     private var barVisible = true
     private var onBottomInsetChanged: ((Int) -> Unit)? = null
     private val bottomChromeLayout = ThumbnailGridBottomChromeLayout.bind(container as ViewGroup)
+    private val scrollHideTopChrome: View?
+        get() = topChrome ?: searchMenu
 
     private val itemReselectedListener = NavigationBarView.OnItemReselectedListener { item ->
         when (item.itemId) {
@@ -140,7 +143,7 @@ class ThumbnailGridViewsBar(
             animateNavItemsVisible(visible = true)
             animateSearchChromeVisible(visible = true)
             container.animate().translationY(0f).setDuration(SCROLL_ANIM_DURATION_MS).start()
-            searchMenu?.animate()?.translationY(0f)?.setDuration(SCROLL_ANIM_DURATION_MS)?.start()
+            scrollHideTopChrome?.animate()?.translationY(0f)?.setDuration(SCROLL_ANIM_DURATION_MS)?.start()
         }
     }
 
@@ -149,13 +152,13 @@ class ThumbnailGridViewsBar(
         scrollOffset = 0
         container.animate().cancel()
         bottomNavigation.animate().cancel()
-        searchMenu?.animate()?.cancel()
+        scrollHideTopChrome?.animate()?.cancel()
         searchMenu?.binding?.toolbarContainer?.animate()?.cancel()
         barVisible = true
         animateNavItemsVisible(visible = true, animate = false)
         animateSearchChromeVisible(visible = true, animate = false)
         container.translationY = 0f
-        searchMenu?.translationY = 0f
+        scrollHideTopChrome?.translationY = 0f
         if (container.isVisible) {
             onBottomInsetChanged?.invoke(container.height)
         }
@@ -172,7 +175,7 @@ class ThumbnailGridViewsBar(
             .translationY(scrollHideTranslationY())
             .setDuration(SCROLL_ANIM_DURATION_MS)
             .start()
-        searchMenu?.animate()
+        scrollHideTopChrome?.animate()
             ?.translationY(-scrollHideSearchTranslationY())
             ?.setDuration(SCROLL_ANIM_DURATION_MS)
             ?.start()
@@ -190,15 +193,15 @@ class ThumbnailGridViewsBar(
         return container.height.toFloat()
     }
 
-    /** Slide the search bar up, leaving the status-bar inset strip on screen (mirrors bottom chrome). */
+    /** Slide the top chrome up, leaving the status-bar inset strip on screen (mirrors bottom chrome). */
     private fun scrollHideSearchTranslationY(): Float {
-        val menu = searchMenu ?: return 0f
-        val reservedTop = ViewCompat.getRootWindowInsets(menu)
+        val chrome = scrollHideTopChrome ?: return 0f
+        val reservedTop = ViewCompat.getRootWindowInsets(chrome)
             ?.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.statusBars())?.top ?: 0
-        if (menu.height > reservedTop) {
-            return (menu.height - reservedTop).toFloat()
+        if (chrome.height > reservedTop) {
+            return (chrome.height - reservedTop).toFloat()
         }
-        return menu.height.toFloat()
+        return chrome.height.toFloat()
     }
 
     private fun animateNavItemsVisible(visible: Boolean, animate: Boolean = true) {
