@@ -911,21 +911,6 @@
             </RelativeLayout>
 
             <RelativeLayout
-                android:id="@+id/settings_keep_last_modified_holder"
-                style="@style/SettingsHolderSwitchStyle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <org.fossify.commons.views.MyMaterialSwitch
-                    android:id="@+id/settings_keep_last_modified"
-                    style="@style/SettingsSwitchStyle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/keep_last_modified" />
-
-            </RelativeLayout>
-
-            <RelativeLayout
                 android:id="@+id/settings_skip_delete_confirmation_holder"
                 style="@style/SettingsHolderSwitchStyle"
                 android:layout_width="match_parent"

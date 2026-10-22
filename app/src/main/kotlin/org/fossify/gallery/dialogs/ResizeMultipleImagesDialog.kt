@@ -8,9 +8,8 @@ import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.gallery.R
 import org.fossify.gallery.databinding.DialogResizeMultipleImagesBinding
 import org.fossify.gallery.extensions.ensureWriteAccess
-import org.fossify.gallery.extensions.rescanPathsAndUpdateLastModified
+import org.fossify.gallery.extensions.rescanPathsAfterEdit
 import org.fossify.gallery.extensions.resizeImage
-import java.io.File
 import kotlin.math.roundToInt
 
 private const val DEFAULT_RESIZE_FACTOR = "75"
@@ -75,20 +74,17 @@ class ResizeMultipleImagesDialog(
 
             val parentPath = imagePaths.first().getParentPath()
             val pathsToRescan = arrayListOf<String>()
-            val pathLastModifiedMap = mutableMapOf<String, Long>()
 
             ensureWriteAccess(parentPath) {
                 ensureBackgroundThread {
                     for (i in imagePaths.indices) {
                         val path = imagePaths[i]
                         val size = newSizes[i]
-                        val lastModified = File(path).lastModified()
 
                         try {
                             resizeImage(path, path, size) {
                                 if (it) {
                                     pathsToRescan.add(path)
-                                    pathLastModifiedMap[path] = lastModified
                                     runOnUiThread {
                                         progressView.progress = i + 1
                                     }
@@ -108,7 +104,7 @@ class ResizeMultipleImagesDialog(
                         toast(R.string.images_resized_successfully)
                     }
 
-                    rescanPathsAndUpdateLastModified(pathsToRescan, pathLastModifiedMap) {
+                    rescanPathsAfterEdit(pathsToRescan) {
                         activity.runOnUiThread {
                             dialog?.dismiss()
                             callback.invoke()

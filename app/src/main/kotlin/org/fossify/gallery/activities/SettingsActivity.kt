@@ -118,7 +118,6 @@ class SettingsActivity : SimpleActivity() {
         setupBottomActions()
         setupFileThumbnailStyle()
         setupFolderThumbnailStyle()
-        setupKeepLastModified()
         setupEnablePullToRefresh()
         setupAllowZoomingImages()
         setupShowHighestQuality()
@@ -668,16 +667,6 @@ class SettingsActivity : SimpleActivity() {
         }
     )
 
-    private fun setupKeepLastModified() {
-        binding.settingsKeepLastModified.isChecked = config.keepLastModified
-        binding.settingsKeepLastModifiedHolder.setOnClickListener {
-            handleMediaManagementPrompt {
-                binding.settingsKeepLastModified.toggle()
-                config.keepLastModified = binding.settingsKeepLastModified.isChecked
-            }
-        }
-    }
-
     private fun setupEnablePullToRefresh() {
         binding.settingsEnablePullToRefresh.isChecked = config.enablePullToRefresh
         binding.settingsEnablePullToRefreshHolder.setOnClickListener {
@@ -1060,7 +1049,6 @@ class SettingsActivity : SimpleActivity() {
                 put(HIDE_EXTENDED_DETAILS, config.hideExtendedDetails)
                 put(EXTENDED_DETAILS, config.extendedDetails)
                 put(DELETE_EMPTY_FOLDERS, config.deleteEmptyFolders)
-                put(KEEP_LAST_MODIFIED, config.keepLastModified)
                 put(SKIP_DELETE_CONFIRMATION, config.skipDeleteConfirmation)
                 put(BOTTOM_ACTIONS, config.bottomActions)
                 put(VISIBLE_BOTTOM_ACTIONS, config.visibleBottomActions)
@@ -1208,7 +1196,6 @@ class SettingsActivity : SimpleActivity() {
                 HIDE_EXTENDED_DETAILS -> config.hideExtendedDetails = value.toBoolean()
                 EXTENDED_DETAILS -> config.extendedDetails = value.toInt()
                 DELETE_EMPTY_FOLDERS -> config.deleteEmptyFolders = value.toBoolean()
-                KEEP_LAST_MODIFIED -> config.keepLastModified = value.toBoolean()
                 SKIP_DELETE_CONFIRMATION -> config.skipDeleteConfirmation = value.toBoolean()
                 BOTTOM_ACTIONS -> config.bottomActions = value.toBoolean()
                 VISIBLE_BOTTOM_ACTIONS -> config.visibleBottomActions = value.toInt()

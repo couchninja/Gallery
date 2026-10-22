@@ -386,15 +386,10 @@ fun BaseSimpleActivity.movePathsInRecycleBin(paths: ArrayList<String>, callback:
             } else {
                 val file = File(source)
                 val internalFile = File(recycleBinPath, source)
-                val lastModified = file.lastModified()
                 try {
                     if (file.copyRecursively(internalFile, true)) {
                         mediaDB.updateDeleted("$RECYCLE_BIN$source", System.currentTimeMillis(), source)
                         pathsCnt--
-
-                        if (config.keepLastModified && lastModified != 0L) {
-                            internalFile.setLastModified(lastModified)
-                        }
                     }
                 } catch (e: Exception) {
                     showErrorToast(e)
@@ -427,8 +422,6 @@ fun BaseSimpleActivity.restoreRecycleBinPaths(paths: ArrayList<String>, callback
                     shownRestoringToPictures = true
                 }
             }
-
-            val lastModified = File(source).lastModified()
 
             val isShowingSAF = handleSAFDialog(destination) {}
             if (isShowingSAF) {
@@ -466,10 +459,6 @@ fun BaseSimpleActivity.restoreRecycleBinPaths(paths: ArrayList<String>, callback
                     mediaDB.updateDeleted(destination.removePrefix(recycleBinPath), 0, "$RECYCLE_BIN${source.removePrefix(recycleBinPath)}")
                 }
                 newPaths.add(destination)
-
-                if (config.keepLastModified && lastModified != 0L) {
-                    File(destination).setLastModified(lastModified)
-                }
             } catch (e: Exception) {
                 showErrorToast(e)
             } finally {
@@ -720,7 +709,6 @@ fun BaseSimpleActivity.saveRotatedImageToFile(oldPath: String, newPath: String, 
                 return@getFileOutputStream
             }
 
-            val oldLastModified = File(oldPath).lastModified()
             if (oldPath.isJpg()) {
                 copyFile(oldPath, tmpPath)
                 saveExifRotation(ExifInterface(tmpPath), newDegrees)
@@ -732,7 +720,7 @@ fun BaseSimpleActivity.saveRotatedImageToFile(oldPath: String, newPath: String, 
 
             copyFile(tmpPath, newPath)
             rescanPaths(arrayListOf(newPath))
-            fileRotatedSuccessfully(newPath, oldLastModified)
+            fileRotatedSuccessfully(newPath)
 
             it.flush()
             it.close()
@@ -754,9 +742,8 @@ fun BaseSimpleActivity.saveRotatedImageToFile(oldPath: String, newPath: String, 
 fun Activity.tryRotateByExif(path: String, degrees: Int, showToasts: Boolean, callback: () -> Unit): Boolean {
     return try {
         val file = File(path)
-        val oldLastModified = file.lastModified()
         if (saveImageRotation(path, degrees)) {
-            fileRotatedSuccessfully(path, oldLastModified)
+            fileRotatedSuccessfully(path)
             callback.invoke()
             if (showToasts) {
                 toast(org.fossify.commons.R.string.file_saved)
@@ -774,12 +761,8 @@ fun Activity.tryRotateByExif(path: String, degrees: Int, showToasts: Boolean, ca
     }
 }
 
-fun Activity.fileRotatedSuccessfully(path: String, lastModified: Long) {
-    if (config.keepLastModified && lastModified != 0L) {
-        File(path).setLastModified(lastModified)
-        updateLastModified(path, lastModified)
-    }
-
+fun Activity.fileRotatedSuccessfully(path: String) {
+    val lastModified = File(path).lastModified()
     Picasso.get().invalidate(path.getFileKey(lastModified))
     // we cannot refresh a specific image in Glide Cache, so just clear it all
     val glide = Glide.get(applicationContext)
@@ -864,14 +847,13 @@ fun BaseSimpleActivity.launchResizeImageDialog(path: String, callback: (() -> Un
     ResizeWithPathDialog(this, originalSize, path) { newSize, newPath ->
         ensureBackgroundThread {
             val file = File(newPath)
-            val pathLastModifiedMap = mapOf(file.absolutePath to file.lastModified())
             try {
                 resizeImage(path, newPath, newSize) { success ->
                     if (success) {
                         toast(org.fossify.commons.R.string.file_saved)
 
                         val paths = arrayListOf(file.absolutePath)
-                        rescanPathsAndUpdateLastModified(paths, pathLastModifiedMap) {
+                        rescanPathsAfterEdit(paths) {
                             runOnUiThread {
                                 callback?.invoke()
                             }
@@ -917,16 +899,8 @@ fun BaseSimpleActivity.resizeImage(oldPath: String, newPath: String, size: Point
     }
 }
 
-fun BaseSimpleActivity.rescanPathsAndUpdateLastModified(paths: ArrayList<String>, pathLastModifiedMap: Map<String, Long>, callback: () -> Unit) {
+fun BaseSimpleActivity.rescanPathsAfterEdit(paths: ArrayList<String>, callback: () -> Unit) {
     fixDateTaken(paths, false)
-    for (path in paths) {
-        val file = File(path)
-        val lastModified = pathLastModifiedMap[path]
-        if (config.keepLastModified && lastModified != null && lastModified != 0L) {
-            File(file.absolutePath).setLastModified(lastModified)
-            updateLastModified(file.absolutePath, lastModified)
-        }
-    }
     rescanPaths(paths, callback)
 }
 
