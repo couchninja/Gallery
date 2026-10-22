@@ -13,6 +13,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller
 import com.google.android.material.navigation.NavigationBarMenuView
 import com.google.android.material.navigation.NavigationBarView
 import org.fossify.commons.activities.BaseSimpleActivity
@@ -273,12 +274,38 @@ class ThumbnailGridViewsBar(
             }
 
             override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
-                if (newState == RecyclerView.SCROLL_STATE_IDLE && !recyclerView.canScrollVertically(-1)) {
-                    scrollOffset = 0
-                    show()
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    revealChromeIfAtScrollStart(recyclerView)
                 }
             }
         })
+    }
+
+    /**
+     * Fast-scroll drags move the list without [RecyclerView.SCROLL_STATE_IDLE], so scroll-hide
+     * may not undo when the user scrubs back to the top.
+     */
+    fun attachFastScrollerRevealBehavior(recyclerView: RecyclerView, fastScroller: RecyclerViewFastScroller) {
+        fastScroller.setHandleStateListener(object : RecyclerViewFastScroller.HandleStateListener {
+            override fun onEngaged() = Unit
+
+            override fun onDragged(offset: Float, position: Int) {
+                if (position == 0) {
+                    recyclerView.post { revealChromeIfAtScrollStart(recyclerView) }
+                }
+            }
+
+            override fun onReleased() {
+                recyclerView.post { revealChromeIfAtScrollStart(recyclerView) }
+            }
+        })
+    }
+
+    private fun revealChromeIfAtScrollStart(recyclerView: RecyclerView) {
+        if (!recyclerView.canScrollVertically(-1)) {
+            scrollOffset = 0
+            show()
+        }
     }
 
     fun notifyLayoutChanged() {

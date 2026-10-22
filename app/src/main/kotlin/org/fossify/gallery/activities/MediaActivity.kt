@@ -317,6 +317,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             topChrome = binding.mediaTopChrome,
         )
         mThumbnailGridViewsBar.attachScrollHideBehavior(binding.mediaGrid)
+        mThumbnailGridViewsBar.attachFastScrollerRevealBehavior(binding.mediaGrid, binding.mediaFastscroller)
         refreshThumbnailGridViewsBar()
 
         if (mShowAll) {
