@@ -287,7 +287,9 @@ class ThumbnailGridViewsBar(
      */
     fun attachFastScrollerRevealBehavior(recyclerView: RecyclerView, fastScroller: RecyclerViewFastScroller) {
         fastScroller.setHandleStateListener(object : RecyclerViewFastScroller.HandleStateListener {
-            override fun onEngaged() = Unit
+            override fun onEngaged() {
+                recyclerView.stopScroll()
+            }
 
             override fun onDragged(offset: Float, position: Int) {
                 if (position == 0) {
