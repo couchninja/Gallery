@@ -83,6 +83,7 @@ import org.fossify.gallery.databases.GalleryDatabase
 import org.fossify.gallery.helpers.Config
 import org.fossify.gallery.helpers.XmpTagIndex
 import org.fossify.gallery.helpers.LoadTimer
+import org.fossify.gallery.helpers.mediaMissingOnDisk
 import org.fossify.gallery.helpers.GROUP_BY_DATE_TAKEN_DAILY
 import org.fossify.gallery.helpers.GROUP_BY_DATE_TAKEN_MONTHLY
 import org.fossify.gallery.helpers.GROUP_BY_LAST_MODIFIED_DAILY
@@ -1050,7 +1051,7 @@ private fun Context.applyDbCaptureTimesForSort(media: ArrayList<Medium>, path: S
  */
 private fun Context.pruneMissingCachedMedia(media: List<Medium>) {
     val OTGPath = config.OTGPath
-    val missing = media.filter { !getDoesFilePathExist(it.path, OTGPath) }
+    val missing = mediaMissingOnDisk(media) { getDoesFilePathExist(it, OTGPath) }
     if (missing.isEmpty()) {
         return
     }

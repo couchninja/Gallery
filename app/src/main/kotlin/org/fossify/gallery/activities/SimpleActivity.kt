@@ -19,6 +19,7 @@ import org.fossify.gallery.extensions.config
 import org.fossify.gallery.extensions.deleteMediumWithPath
 import org.fossify.gallery.extensions.updateDirectoryPath
 import org.fossify.gallery.helpers.ACTION_MEDIA_STORE_PATH_CHANGED
+import org.fossify.gallery.helpers.shouldRemoveCachedMediaForPath
 import org.fossify.gallery.helpers.getPermissionsToRequest
 
 open class SimpleActivity : BaseSimpleActivity() {
@@ -33,10 +34,10 @@ open class SimpleActivity : BaseSimpleActivity() {
                     val path = getRealPathFromURI(uri)
                     if (path != null) {
                         updateDirectoryPath(path.getParentPath())
-                        if (getDoesFilePathExist(path)) {
-                            addPathToDB(path)
-                        } else {
+                        if (shouldRemoveCachedMediaForPath(path) { getDoesFilePathExist(it) }) {
                             deleteMediumWithPath(path)
+                        } else {
+                            addPathToDB(path)
                         }
                     }
                 }
