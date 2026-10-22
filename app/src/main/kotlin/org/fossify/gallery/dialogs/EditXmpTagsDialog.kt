@@ -95,6 +95,7 @@ class EditXmpTagsDialog(
         tagsOnAll.forEach { merged.add(it) }
         tagsOnSome.forEach { merged.add(it) }
         selectedTags.forEach { merged.add(it) }
+        tagStates.keys.forEach { merged.add(it) }
         return merged.sortedBy { it.lowercase() }
     }
 
