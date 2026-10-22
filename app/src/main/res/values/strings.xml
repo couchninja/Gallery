@@ -241,6 +241,7 @@
     <string name="mark_favorite_items">Mark favorite items</string>
     <string name="show_exif_ratings">Show EXIF star ratings on JPEG thumbnails</string>
     <string name="go_to_next_after_exif_rating">After rating a photo, go to the next item</string>
+    <string name="show_swipe_fps_overlay">Show FPS overlay and log frame timing while swiping</string>
     <string name="set_exif_rating">Set rating</string>
     <string name="set_xmp_tags">Set tags</string>
     <string name="edit_xmp_tags">Edit tags</string>

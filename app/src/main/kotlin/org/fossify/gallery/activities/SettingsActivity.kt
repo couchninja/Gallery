@@ -92,6 +92,7 @@ class SettingsActivity : SimpleActivity() {
         setupCropThumbnails()
         setupShowExifRatings()
         setupGoToNextAfterExifRating()
+        setupShowSwipeFpsOverlay()
         setupAnimateGifs()
         setupDarkBackground()
         setupScrollHorizontally()
@@ -475,6 +476,14 @@ class SettingsActivity : SimpleActivity() {
         binding.settingsGoToNextAfterExifRatingHolder.setOnClickListener {
             binding.settingsGoToNextAfterExifRating.toggle()
             config.goToNextAfterExifRating = binding.settingsGoToNextAfterExifRating.isChecked
+        }
+    }
+
+    private fun setupShowSwipeFpsOverlay() {
+        binding.settingsShowSwipeFpsOverlay.isChecked = config.showSwipeFpsOverlay
+        binding.settingsShowSwipeFpsOverlayHolder.setOnClickListener {
+            binding.settingsShowSwipeFpsOverlay.toggle()
+            config.showSwipeFpsOverlay = binding.settingsShowSwipeFpsOverlay.isChecked
         }
     }
 

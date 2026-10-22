@@ -454,6 +454,21 @@
             </RelativeLayout>
 
             <RelativeLayout
+                android:id="@+id/settings_show_swipe_fps_overlay_holder"
+                style="@style/SettingsHolderSwitchStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyMaterialSwitch
+                    android:id="@+id/settings_show_swipe_fps_overlay"
+                    style="@style/SettingsSwitchStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/show_swipe_fps_overlay" />
+
+            </RelativeLayout>
+
+            <RelativeLayout
                 android:id="@+id/settings_file_thumbnail_style_holder"
                 style="@style/SettingsHolderTextViewOneLinerStyle"
                 android:layout_width="match_parent"

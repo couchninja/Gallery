@@ -24,6 +24,7 @@ object ColorModeHelper {
     }
 
     fun setColorMode(activity: Activity, colorMode: Int) {
+        SwipeFrameMonitor.mark("colorMode ${activity.window.colorMode} -> $colorMode")
         activity.window.setColorMode(colorMode)
     }
 
@@ -39,6 +40,7 @@ object ColorModeHelper {
     }
 
     fun resetColorMode(activity: Activity?) {
+        SwipeFrameMonitor.mark("colorMode ${activity?.window?.colorMode} -> reset")
         activity?.window?.setColorMode(ActivityInfo.COLOR_MODE_DEFAULT)
     }
 }

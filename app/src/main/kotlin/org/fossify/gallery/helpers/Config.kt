@@ -218,6 +218,10 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getBoolean(GO_TO_NEXT_AFTER_EXIF_RATING, true)
         set(goToNextAfterExifRating) = prefs.edit().putBoolean(GO_TO_NEXT_AFTER_EXIF_RATING, goToNextAfterExifRating).apply()
 
+    var showSwipeFpsOverlay: Boolean
+        get() = prefs.getBoolean(SHOW_SWIPE_FPS_OVERLAY, false)
+        set(showSwipeFpsOverlay) = prefs.edit().putBoolean(SHOW_SWIPE_FPS_OVERLAY, showSwipeFpsOverlay).apply()
+
     var screenRotation: Int
         get() = prefs.getInt(SCREEN_ROTATION, ROTATE_BY_SYSTEM_SETTING)
         set(screenRotation) = prefs.edit().putInt(SCREEN_ROTATION, screenRotation).apply()

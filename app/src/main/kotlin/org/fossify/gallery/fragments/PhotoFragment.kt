@@ -91,6 +91,7 @@ import org.fossify.gallery.helpers.MEDIUM
 import org.fossify.gallery.helpers.MyGlideImageDecoder
 import org.fossify.gallery.helpers.NORMAL_TILE_DPI
 import org.fossify.gallery.helpers.PicassoRegionDecoder
+import org.fossify.gallery.helpers.SwipeFrameMonitor
 import org.fossify.gallery.helpers.SHOULD_INIT_FRAGMENT
 import org.fossify.gallery.helpers.WEIRD_TILE_DPI
 import org.fossify.gallery.models.Medium
@@ -154,6 +155,7 @@ class PhotoFragment : ViewPagerFragment() {
 
         mMedium = arguments.getSerializable(MEDIUM) as Medium
         mOriginalPath = mMedium.path
+        SwipeFrameMonitor.mark("photo fragment created ${mMedium.name}")
 
         binding.apply {
             subsamplingView.setOnClickListener { photoClicked() }
@@ -539,6 +541,7 @@ class PhotoFragment : ViewPagerFragment() {
                     dataSource: DataSource,
                     isFirstResource: Boolean
                 ): Boolean {
+                    SwipeFrameMonitor.mark("glide ready ${mMedium.name} $dataSource ${resource.intrinsicWidth}x${resource.intrinsicHeight}")
                     applyProperColorMode(resource)
                     val allowZoomingImages = context?.config?.allowZoomingImages ?: true
                     binding.gesturesView.controller.settings.isZoomEnabled = mMedium.isRaw() || mCurrentRotationDegrees != 0 || allowZoomingImages == false
@@ -733,12 +736,17 @@ class PhotoFragment : ViewPagerFragment() {
         mLoadZoomableViewHandler.removeCallbacksAndMessages(null)
         mLoadZoomableViewHandler.postDelayed({
             if (mIsFragmentVisible && context?.config?.allowZoomingImages == true && (mMedium.isImage() || mMedium.isPortrait()) && !mIsSubsamplingVisible) {
-                addZoomableView()
+                if (listener?.isPagerIdle() == false) {
+                    scheduleZoomableView()
+                } else {
+                    addZoomableView()
+                }
             }
         }, ZOOMABLE_VIEW_LOAD_DELAY)
     }
 
     private fun addZoomableView() {
+        SwipeFrameMonitor.mark("add zoomable view ${mMedium.name}")
         val rotation = degreesForRotation(mImageOrientation)
         mIsSubsamplingVisible = true
         val config = requireContext().config
@@ -746,7 +754,7 @@ class PhotoFragment : ViewPagerFragment() {
         val minTileDpi = if (showHighestQuality) -1 else getMinTileDpi()
 
         val bitmapDecoder = object : DecoderFactory<ImageDecoder> {
-            override fun make() = MyGlideImageDecoder(rotation, mMedium.getKey())
+            override fun make() = MyGlideImageDecoder(rotation, mMedium.getKey(), mImageOrientation)
         }
 
         val regionDecoder = object : DecoderFactory<ImageRegionDecoder> {

@@ -181,6 +181,7 @@ import org.fossify.gallery.helpers.SLIDESHOW_DEFAULT_INTERVAL
 import org.fossify.gallery.helpers.SLIDESHOW_FADE_DURATION
 import org.fossify.gallery.helpers.SLIDESHOW_SLIDE_DURATION
 import org.fossify.gallery.helpers.SLIDESHOW_START_ON_ENTER
+import org.fossify.gallery.helpers.SwipeFrameMonitor
 import org.fossify.gallery.helpers.TYPE_GIFS
 import org.fossify.gallery.helpers.TYPE_IMAGES
 import org.fossify.gallery.helpers.TYPE_PORTRAITS
@@ -269,11 +270,13 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
 
         val filename = getCurrentMedium()?.name ?: mPath.getFilenameFromPath()
         binding.mediumViewerToolbar.title = filename
+        SwipeFrameMonitor.attach(this)
     }
 
     override fun onPause() {
         super.onPause()
         stopSlideshow()
+        SwipeFrameMonitor.detach()
     }
 
     override fun onDestroy() {
@@ -577,6 +580,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
     }
 
     private var mExifRatingBarInitialized = false
+    private var mPagerScrollState = ViewPager.SCROLL_STATE_IDLE
 
     @Volatile
     private var mXmpMetadataGeneration = 0
@@ -1710,6 +1714,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
     override fun onPageScrolled(position: Int, positionOffset: Float, positionOffsetPixels: Int) {}
 
     override fun onPageSelected(position: Int) {
+        SwipeFrameMonitor.mark("pageSelected $position")
         if (mPos != position) {
             mPos = position
             updateActionbarTitle()
@@ -1718,7 +1723,15 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
         }
     }
 
+    override fun isPagerIdle() = mPagerScrollState == ViewPager.SCROLL_STATE_IDLE
+
     override fun onPageScrollStateChanged(state: Int) {
+        mPagerScrollState = state
+        if (state == ViewPager.SCROLL_STATE_IDLE) {
+            SwipeFrameMonitor.stopSwipe()
+        } else {
+            SwipeFrameMonitor.startSwipe()
+        }
         if (state == ViewPager.SCROLL_STATE_IDLE && getCurrentMedium() != null) {
             checkOrientation()
         }

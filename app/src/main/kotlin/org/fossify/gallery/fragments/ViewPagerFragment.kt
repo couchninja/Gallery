@@ -39,6 +39,8 @@ abstract class ViewPagerFragment : Fragment() {
         fun isSlideShowActive(): Boolean
 
         fun isFullScreen(): Boolean
+
+        fun isPagerIdle(): Boolean = true
     }
 
     fun getMediumExtendedDetails(medium: Medium): String {
