@@ -55,17 +55,22 @@ object XmpTagIndex {
         if (tags.isEmpty()) {
             return
         }
-        tagsByPath[path] = tags
-        tags.forEach { tag -> pathsByTag.getOrPut(tag) { LinkedHashSet() }.add(path) }
+        val key = pathKey(path)
+        tagsByPath[key] = tags
+        tags.forEach { tag -> pathsByTag.getOrPut(tag) { LinkedHashSet() }.add(key) }
     }
 
     private fun removeLocked(path: String) {
-        tagsByPath.remove(path)?.forEach { tag ->
+        val key = tagsByPath.keys.firstOrNull { it.equals(path, ignoreCase = true) } ?: return
+        tagsByPath.remove(key)?.forEach { tag ->
             val paths = pathsByTag[tag] ?: return@forEach
-            paths.remove(path)
+            paths.remove(key)
             if (paths.isEmpty()) {
                 pathsByTag.remove(tag)
             }
         }
     }
+
+    private fun pathKey(path: String): String =
+        tagsByPath.keys.firstOrNull { it.equals(path, ignoreCase = true) } ?: path
 }

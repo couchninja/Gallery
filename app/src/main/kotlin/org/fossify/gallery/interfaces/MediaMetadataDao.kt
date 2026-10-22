@@ -29,6 +29,9 @@ interface MediaMetadataDao {
     @Query("DELETE FROM media_metadata WHERE full_path = :path COLLATE NOCASE")
     fun deletePath(path: String)
 
+    @Query("DELETE FROM media_metadata WHERE LOWER(full_path) = LOWER(:path) AND full_path != :path")
+    fun deletePathCaseAliases(path: String)
+
     /**
      * SET expressions see the old row, so the CASE compares the stored mtime with [previousModified]: when they differ the file
      * changed outside this write and a non-manual capture date is marked pending.
@@ -67,6 +70,7 @@ interface MediaMetadataDao {
         lastModified: Long,
         previousModified: Long
     ) {
+        deletePathCaseAliases(path)
         val updated = updateXmpFields(
             path, rating, tags, lastModified, previousModified, DATE_TAKEN_SOURCE_MANUAL, DATE_TAKEN_SOURCE_PENDING
         )

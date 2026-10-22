@@ -519,7 +519,9 @@ class MediaAdapter(
                             ensureBackgroundThread {
                                 jpegs.forEach { medium ->
                                     val current = normalizeXmpTags(activity.loadXmpMetadata(medium.path).tags).toMutableList()
-                                    removeFromAll.forEach { tag -> current.remove(tag) }
+                                    removeFromAll.forEach { tag ->
+                                        current.removeAll { it.equals(tag, ignoreCase = true) }
+                                    }
                                     val merged = normalizeXmpTags(current + addToAll)
                                     activity.setXmpTags(medium.path, merged)
                                 }

@@ -14,6 +14,7 @@ import org.fossify.commons.extensions.queryCursor
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.gallery.extensions.mediaMetadataDB
 import org.fossify.gallery.models.MediaMetadata
+import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
 data class MetadataIndexProgress(
@@ -92,6 +93,27 @@ object MediaMetadataIndexer {
                 notifyIndexUpdated(context, result.datesChanged, result.xmpChanged)
             }
         }
+
+        if (pruneMetadataForMissingFiles(context, cached.all)) {
+            XmpTagIndex.replaceAll(context.mediaMetadataDB.getAll())
+            notifyIndexUpdated(context, datesChanged = false, xmpChanged = true)
+        }
+    }
+
+    /** Drops cached rows whose files are gone (e.g. after move/delete), so tag lists stay accurate. */
+    private fun pruneMetadataForMissingFiles(context: Context, entries: List<MediaMetadata>): Boolean {
+        var pruned = false
+        for (entry in entries) {
+            if (File(entry.fullPath).exists()) {
+                continue
+            }
+            try {
+                context.mediaMetadataDB.deletePath(entry.fullPath)
+                pruned = true
+            } catch (_: Exception) {
+            }
+        }
+        return pruned
     }
 
     private fun collectPending(context: Context, force: Boolean, cached: CachedRows): List<PendingItem> {

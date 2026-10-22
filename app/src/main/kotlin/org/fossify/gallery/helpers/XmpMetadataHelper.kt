@@ -1,6 +1,7 @@
 package org.fossify.gallery.helpers
 
 import android.content.Context
+import android.content.Intent
 import org.fossify.commons.extensions.getFilenameFromPath
 import org.fossify.commons.extensions.getParentPath
 import org.fossify.commons.helpers.ensureBackgroundThread
@@ -96,19 +97,32 @@ fun applyExifRatingsToMedia(media: List<Medium>, exifRatings: HashMap<String, In
  * mtime change since the last index marks the cached capture date as pending.
  */
 fun Context.cacheXmpMetadata(path: String, metadata: XmpMetadata, lastModified: Long? = null, previousModified: Long? = null) {
+    val previousTags = try {
+        mediaMetadataDB.getByPath(path)?.tagList()
+    } catch (_: Exception) {
+        null
+    }
     val modified = lastModified?.takeIf { it > 0L }
         ?: CaptureTimeReader.fileLastModifiedMillis(path).takeIf { it > 0L }
         ?: File(path).lastModified()
+    val encodedTags = MediaMetadata.encodeTags(metadata.tags)
     mediaMetadataDB.upsertXmp(
         path = path,
         filename = path.getFilenameFromPath(),
         parentPath = path.getParentPath(),
         rating = metadata.rating.coerceIn(0, 5),
-        tags = MediaMetadata.encodeTags(metadata.tags),
+        tags = encodedTags,
         lastModified = modified,
         previousModified = previousModified ?: modified
     )
     XmpTagIndex.update(path, metadata.tags)
+    if (previousTags != metadata.tags) {
+        sendBroadcast(
+            Intent(ACTION_MEDIA_METADATA_INDEX_UPDATED)
+                .setPackage(packageName)
+                .putExtra(EXTRA_METADATA_XMP_CHANGED, true),
+        )
+    }
 }
 
 /** Cached metadata when the file is unchanged since it was indexed, otherwise read from disk and re-cached. */
