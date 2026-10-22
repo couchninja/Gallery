@@ -4,6 +4,9 @@ import android.content.Intent
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.text.TextUtils
 import android.view.Menu
 import android.view.View
 import android.view.ViewGroup
@@ -97,6 +100,7 @@ import org.fossify.gallery.helpers.TYPE_RAWS
 import org.fossify.gallery.interfaces.MediaOperationsListener
 import org.fossify.gallery.models.Medium
 import org.fossify.gallery.models.ThumbnailItem
+import org.fossify.gallery.models.ThumbnailFolderPath
 import org.fossify.gallery.models.ThumbnailSection
 
 class MediaAdapter(
@@ -114,6 +118,7 @@ class MediaAdapter(
     private val ITEM_SECTION = 0
     private val ITEM_MEDIUM_VIDEO_PORTRAIT = 1
     private val ITEM_MEDIUM_PHOTO = 2
+    private val ITEM_FOLDER_PATH = 3
 
     companion object {
         private const val PAYLOAD_EXIF_RATING = "exif_rating"
@@ -145,9 +150,9 @@ class MediaAdapter(
     override fun getActionMenuId() = R.menu.cab_media
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val binding = if (viewType == ITEM_SECTION) {
-            ThumbnailSectionBinding.inflate(layoutInflater, parent, false)
-        } else {
+        val binding = when (viewType) {
+            ITEM_SECTION, ITEM_FOLDER_PATH -> ThumbnailSectionBinding.inflate(layoutInflater, parent, false)
+            else -> {
             if (isListViewType) {
                 if (viewType == ITEM_MEDIUM_PHOTO) {
                     PhotoItemListBinding.inflate(layoutInflater, parent, false)
@@ -160,6 +165,7 @@ class MediaAdapter(
                 } else {
                     VideoItemGridBinding.inflate(layoutInflater, parent, false)
                 }
+            }
             }
         }
         return createViewHolder(binding.root)
@@ -183,13 +189,16 @@ class MediaAdapter(
         val tmbItem = media.getOrNull(position) ?: return
         val allowLongPress = (!isAGetIntent || allowMultiplePicks) && tmbItem is Medium
         holder.bindView(tmbItem, tmbItem is Medium, allowLongPress) { itemView, adapterPosition ->
-            if (tmbItem is Medium) {
-                setupThumbnail(itemView, tmbItem)
-            } else {
-                setupSection(itemView, tmbItem as ThumbnailSection)
+            when (tmbItem) {
+                is Medium -> setupThumbnail(itemView, tmbItem)
+                is ThumbnailFolderPath -> setupFolderPath(itemView, tmbItem)
+                is ThumbnailSection -> setupSection(itemView, tmbItem)
             }
         }
         bindViewHolder(holder)
+        if (tmbItem is ThumbnailFolderPath) {
+            attachFolderPathCopyOnLongPress(holder.itemView, tmbItem)
+        }
     }
 
     fun syncExifRatingsFrom(source: Iterable<Medium>): List<String> {
@@ -239,9 +248,14 @@ class MediaAdapter(
 
     override fun getItemViewType(position: Int): Int {
         val tmbItem = media[position]
-        return when {
-            tmbItem is ThumbnailSection -> ITEM_SECTION
-            (tmbItem as Medium).isVideo() || tmbItem.isPortrait() -> ITEM_MEDIUM_VIDEO_PORTRAIT
+        return when (tmbItem) {
+            is ThumbnailSection -> ITEM_SECTION
+            is ThumbnailFolderPath -> ITEM_FOLDER_PATH
+            is Medium -> if (tmbItem.isVideo() || tmbItem.isPortrait()) {
+                ITEM_MEDIUM_VIDEO_PORTRAIT
+            } else {
+                ITEM_MEDIUM_PHOTO
+            }
             else -> ITEM_MEDIUM_PHOTO
         }
     }
@@ -330,7 +344,10 @@ class MediaAdapter(
         }
     }
 
-    fun isASectionTitle(position: Int) = media.getOrNull(position) is ThumbnailSection
+    fun isASectionTitle(position: Int) = when (media.getOrNull(position)) {
+        is ThumbnailSection, is ThumbnailFolderPath -> true
+        else -> false
+    }
 
     private fun checkHideBtnVisibility(menu: Menu, selectedItems: ArrayList<Medium>) {
         val isInRecycleBin = selectedItems.firstOrNull()?.getIsInRecycleBin() == true
@@ -869,6 +886,27 @@ class MediaAdapter(
         ThumbnailSectionBinding.bind(view).apply {
             thumbnailSection.text = section.title
             thumbnailSection.setTextColor(textColor)
+        }
+    }
+
+    private fun setupFolderPath(view: View, folderPath: ThumbnailFolderPath) {
+        ThumbnailSectionBinding.bind(view).apply {
+            thumbnailSection.text = folderPath.title
+            thumbnailSection.setTextColor(textColor)
+            thumbnailSection.maxLines = 1
+            thumbnailSection.ellipsize = TextUtils.TruncateAt.START
+        }
+    }
+
+    private fun attachFolderPathCopyOnLongPress(view: View, folderPath: ThumbnailFolderPath) {
+        ThumbnailSectionBinding.bind(view).thumbnailSection.apply {
+            isLongClickable = true
+            setOnLongClickListener {
+                val clipboard = activity.getSystemService(ClipboardManager::class.java)
+                clipboard.setPrimaryClip(ClipData.newPlainText("path", folderPath.path))
+                activity.toast(org.fossify.commons.R.string.value_copied_to_clipboard)
+                true
+            }
         }
     }
 

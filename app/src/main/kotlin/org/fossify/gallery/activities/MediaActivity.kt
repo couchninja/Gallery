@@ -123,7 +123,6 @@ import org.fossify.gallery.helpers.SHOW_RECYCLE_BIN
 import org.fossify.gallery.helpers.ThumbnailGridView
 import org.fossify.gallery.helpers.ThumbnailGridViewConfig
 import org.fossify.gallery.helpers.ThumbnailGridViewsBar
-import org.fossify.gallery.helpers.THUMBNAIL_GRID_APP_BAR_ALPHA
 import org.fossify.gallery.helpers.applyTransparentSystemBarsForThumbnailGrid
 import org.fossify.gallery.helpers.filterMediaForThumbnailGridView
 import org.fossify.gallery.helpers.folderKeyForThumbnailGridViews
@@ -139,6 +138,7 @@ import org.fossify.gallery.helpers.SHOW_TEMP_HIDDEN_DURATION
 import org.fossify.gallery.helpers.thumbnailGridBottomScrollPadding
 import org.fossify.gallery.helpers.updateThumbnailGridNavBarScrim
 import org.fossify.gallery.helpers.updateThumbnailGridSearchMenuColors
+import org.fossify.gallery.helpers.withFolderPathHeader
 import org.fossify.gallery.helpers.SKIP_AUTHENTICATION
 import org.fossify.gallery.helpers.SLIDESHOW_START_ON_ENTER
 import org.fossify.gallery.helpers.VIDEO_PLAYER_APP
@@ -578,29 +578,8 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         applyTransparentSystemBarsForThumbnailGrid(binding.mediaCoordinator)
         updateThumbnailGridNavBarScrim(binding.mediaCoordinator)
         binding.mediaMenu.updateThumbnailGridSearchMenuColors()
-        updateFolderPathHeaderColors()
         if (::mThumbnailGridViewsBar.isInitialized) {
             mThumbnailGridViewsBar.updateColors()
-        }
-    }
-
-    private fun updateFolderPathHeader() {
-        val showPath = !mShowAll && mPath.isNotEmpty() && mPath != FAVORITES && mPath != RECYCLE_BIN
-        if (!showPath) {
-            binding.mediaFolderPath.beGone()
-        } else {
-            binding.mediaFolderPath.text = humanizePath(mPath).trimEnd('/')
-            binding.mediaFolderPath.beVisible()
-        }
-        binding.mediaTopChrome.requestLayout()
-    }
-
-    private fun updateFolderPathHeaderColors() {
-        if (binding.mediaFolderPath.isVisible()) {
-            binding.mediaFolderPath.setTextColor(getProperTextColor().adjustAlpha(0.85f))
-            binding.mediaFolderPath.setBackgroundColor(
-                getProperBackgroundColor().adjustAlpha(THUMBNAIL_GRID_APP_BAR_ALPHA),
-            )
         }
     }
 
@@ -635,6 +614,10 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                 filtered.sortBy { !it.name.startsWith(text, true) }
                 val grouped = MediaFetcher(applicationContext).groupMedia(
                     media = filtered as ArrayList<Medium>, path = mPath
+                ).withFolderPathHeader(
+                    showAll = mShowAll,
+                    path = mPath,
+                    humanizedPath = humanizePath(mPath).trimEnd('/'),
                 )
                 runOnUiThread {
                     if (grouped.isEmpty()) {
@@ -671,7 +654,6 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             }
 
             binding.mediaMenu.updateHintText(searchHint)
-            updateFolderPathHeader()
             if (!mShowAll) {
                 binding.mediaMenu.toggleForceArrowBackIcon(true)
                 binding.mediaMenu.onNavigateBackClickListener = {
@@ -1219,7 +1201,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         if (viewType == VIEW_TYPE_GRID) {
             val spanCount = config.mediaColumnCnt
             val spacing = config.thumbnailSpacing
-            val useGridPosition = media.firstOrNull() is ThumbnailSection
+            val useGridPosition = media.any { it is ThumbnailSection }
 
             var currentGridDecoration: GridSpacingItemDecoration? = null
             if (binding.mediaGrid.itemDecorationCount > 0) {
@@ -1494,7 +1476,12 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             stickyUnratedPaths = mStickyUnratedPaths,
             selectedTag = mThumbnailGridTagFilter,
         )
-        return MediaFetcher(applicationContext).groupMedia(filtered, mPath) as ArrayList
+        return MediaFetcher(applicationContext).groupMedia(filtered, mPath)
+            .withFolderPathHeader(
+                showAll = mShowAll,
+                path = mPath,
+                humanizedPath = humanizePath(mPath).trimEnd('/'),
+            )
     }
 
     private fun openInViewPager(path: String) {
@@ -1616,7 +1603,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                 }
             }
 
-            if (mMedia.isEmpty()) {
+            if (mMedia.none { it is Medium }) {
                 deleteDirectoryIfEmpty()
                 deleteDBDirectory()
                 finish()
