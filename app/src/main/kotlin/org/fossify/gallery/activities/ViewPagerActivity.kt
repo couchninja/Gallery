@@ -153,6 +153,7 @@ import org.fossify.gallery.helpers.setExifRating
 import org.fossify.gallery.helpers.setXmpTags
 import org.fossify.gallery.helpers.syncExifRatingOnGalleryMedia
 import org.fossify.gallery.helpers.XmpTagIndex
+import org.fossify.gallery.helpers.DIRECTORY
 import org.fossify.gallery.helpers.ColorModeHelper
 import org.fossify.gallery.helpers.DefaultPageTransformer
 import org.fossify.gallery.helpers.FadePageTransformer
@@ -331,6 +332,8 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
 
                 findItem(R.id.menu_restore_file).isVisible = currentMedium.path.startsWith(recycleBinPath)
                 findItem(R.id.menu_create_shortcut).isVisible = true
+                val folderPath = currentMedium.parentPath.ifEmpty { currentMedium.path.getParentPath() }
+                findItem(R.id.menu_open_folder).isVisible = folderPath.isNotEmpty()
                 findItem(R.id.menu_change_orientation).isVisible = rotationDegrees == 0 && visibleBottomActions and BOTTOM_ACTION_CHANGE_ORIENTATION == 0
                 findItem(R.id.menu_rotate).setShowAsAction(
                     if (rotationDegrees != 0) {
@@ -368,6 +371,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
                 R.id.menu_copy_to -> checkMediaManagementAndCopy(true)
                 R.id.menu_move_to -> moveFileTo()
                 R.id.menu_open_with -> openPath(getCurrentPath(), true)
+                R.id.menu_open_folder -> openContainingFolder()
                 R.id.menu_hide -> toggleFileVisibility(true)
                 R.id.menu_unhide -> toggleFileVisibility(false)
                 R.id.menu_share -> shareMediumPath(getCurrentPath())
@@ -896,6 +900,23 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
                         getCurrentPhotoFragment()?.mCurrentRotationDegrees = 0
                         refreshMenuItems()
                     }
+                }
+            }
+        }
+    }
+
+    private fun openContainingFolder() {
+        val medium = getCurrentMedium() ?: return
+        val folderPath = medium.parentPath.ifEmpty { medium.path.getParentPath() }
+        if (folderPath.isEmpty()) {
+            return
+        }
+        handleLockedFolderOpening(folderPath) { success ->
+            if (success) {
+                Intent(this, MediaActivity::class.java).apply {
+                    putExtra(SKIP_AUTHENTICATION, true)
+                    putExtra(DIRECTORY, folderPath)
+                    startActivity(this)
                 }
             }
         }

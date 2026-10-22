@@ -615,7 +615,9 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             mStoredShowExifRatings = showExifRatings
             mStoredThumbnailSpacing = thumbnailSpacing
             mStoredRoundedCorners = fileRoundedCorners
-            mShowAll = showAll && mPath != RECYCLE_BIN
+            // Non-empty DIRECTORY always means a single folder/album, even when config.showAll is on
+            // (e.g. "Open folder" from the viewer while browsing all photos).
+            mShowAll = showAll && mPath.isEmpty() && mPath != RECYCLE_BIN
         }
     }
 
