@@ -1161,7 +1161,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
         }
         val initialTags = XmpTagIndex.getTags(medium.path)
             .ifEmpty { readXmpMetadataFromPath(medium.path).tags }
-        EditXmpTagsDialog(this, initialTags) { tags ->
+        EditXmpTagsDialog(this, initialTags, onTags = { tags ->
             handleMediaManagementPrompt {
                 ensureBackgroundThread {
                     if (setXmpTags(medium.path, tags)) {
@@ -1171,7 +1171,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
                     }
                 }
             }
-        }
+        })
     }
 
     private fun onViewerRatingCommitted(newRating: Int, fromTap: Boolean) {

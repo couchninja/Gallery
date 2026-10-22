@@ -87,7 +87,11 @@ import org.fossify.gallery.helpers.applyExifRatingsToMedia
 import org.fossify.gallery.helpers.bindThumbnailExifRating
 import org.fossify.gallery.helpers.isJpeg
 import org.fossify.gallery.helpers.setExifRating
+import org.fossify.gallery.dialogs.EditXmpTagsDialog
 import org.fossify.gallery.dialogs.SetExifRatingDialog
+import org.fossify.gallery.helpers.loadXmpMetadata
+import org.fossify.gallery.helpers.normalizeXmpTags
+import org.fossify.gallery.helpers.setXmpTags
 import org.fossify.gallery.helpers.RECYCLE_BIN
 import org.fossify.gallery.helpers.ROUNDED_CORNERS_BIG
 import org.fossify.gallery.helpers.ROUNDED_CORNERS_NONE
@@ -283,6 +287,7 @@ class MediaAdapter(
             findItem(R.id.cab_create_shortcut).isVisible = isOneItemSelected
 
             findItem(R.id.cab_set_rating).isVisible = selectedItems.none { it.getIsInRecycleBin() } && selectedItems.any { it.isJpeg() }
+            findItem(R.id.cab_set_tags).isVisible = selectedItems.none { it.getIsInRecycleBin() } && selectedItems.any { it.isJpeg() }
 
             checkHideBtnVisibility(this, selectedItems)
             checkFavoriteBtnVisibility(this, selectedItems)
@@ -315,6 +320,7 @@ class MediaAdapter(
             R.id.cab_open_with -> openPath()
             R.id.cab_fix_date_taken -> fixDateTaken()
             R.id.cab_set_rating -> setExifRatingForSelection()
+            R.id.cab_set_tags -> setXmpTagsForSelection()
             R.id.cab_set_as -> setAs()
             R.id.cab_resize -> resize()
             R.id.cab_delete -> checkDeleteConfirmation()
@@ -483,6 +489,48 @@ class MediaAdapter(
                         finishActMode()
                     }
                 }
+            }
+        }
+    }
+
+    private fun setXmpTagsForSelection() {
+        val jpegs = getSelectedItems().filter { it.isJpeg() }
+        if (jpegs.isEmpty()) {
+            return
+        }
+
+        ensureBackgroundThread {
+            val tagSets = jpegs.map { normalizeXmpTags(activity.loadXmpMetadata(it.path).tags).toSet() }
+            val onAll = tagSets.reduceOrNull { acc, tags -> acc.intersect(tags) }.orEmpty()
+            val onAny = tagSets.flatten().toSet()
+            val onSome = onAny - onAll
+
+            activity.runOnUiThread {
+                EditXmpTagsDialog(
+                    activity = activity,
+                    initialTags = onAll.toList(),
+                    partialTags = onSome.toList(),
+                    onTags = {},
+                    onBulkTags = { addToAll, removeFromAll ->
+                        if (addToAll.isEmpty() && removeFromAll.isEmpty()) {
+                            return@EditXmpTagsDialog
+                        }
+                        activity.handleMediaManagementPrompt {
+                            ensureBackgroundThread {
+                                jpegs.forEach { medium ->
+                                    val current = normalizeXmpTags(activity.loadXmpMetadata(medium.path).tags).toMutableList()
+                                    removeFromAll.forEach { tag -> current.remove(tag) }
+                                    val merged = normalizeXmpTags(current + addToAll)
+                                    activity.setXmpTags(medium.path, merged)
+                                }
+                                activity.runOnUiThread {
+                                    listener?.refreshItems()
+                                    finishActMode()
+                                }
+                            }
+                        }
+                    },
+                )
             }
         }
     }

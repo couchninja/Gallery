@@ -242,6 +242,7 @@
     <string name="show_exif_ratings">Show EXIF star ratings on JPEG thumbnails</string>
     <string name="go_to_next_after_exif_rating">After rating a photo, go to the next item</string>
     <string name="set_exif_rating">Set rating</string>
+    <string name="set_xmp_tags">Set tags</string>
     <string name="edit_xmp_tags">Edit tags</string>
     <string name="edit_xmp_tags_known">Tags found in your library</string>
     <string name="edit_xmp_tags_add">Add a new tag</string>
