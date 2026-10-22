@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.os.Build
 import android.os.Bundle
@@ -418,6 +419,14 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
 
         registerMetadataIndexReceiver()
         registerMediaStorePathReceiver()
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        setupLayoutManager()
+        handleGridSpacing()
+        setupScrollDirection()
+        updateThumbnailGridBottomPadding()
     }
 
     override fun onPause() {

@@ -60,7 +60,7 @@
 
         <activity
             android:name=".activities.MainActivity"
-            android:configChanges="orientation"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout"
             android:exported="true"
             android:resizeableActivity="true">
 
@@ -89,13 +89,13 @@
 
         <activity
             android:name=".activities.MediaActivity"
-            android:configChanges="orientation"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout"
             android:exported="false"
             android:parentActivityName=".activities.MainActivity" />
 
         <activity
             android:name=".activities.SearchActivity"
-            android:configChanges="orientation"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout"
             android:exported="false"
             android:label="@string/search"
             android:parentActivityName=".activities.MainActivity"
@@ -103,7 +103,7 @@
 
         <activity
             android:name=".activities.ThumbnailGridTagsActivity"
-            android:configChanges="orientation"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout"
             android:exported="false"
             android:label="@string/thumbnail_grid_view_tags"
             android:parentActivityName=".activities.MediaActivity" />

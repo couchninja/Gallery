@@ -5,6 +5,7 @@ import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -402,6 +403,12 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
         }
 
         registerDateTakenIndexReceiver()
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        setupLayoutManager()
+        columnCountChanged()
     }
 
     override fun onPause() {
