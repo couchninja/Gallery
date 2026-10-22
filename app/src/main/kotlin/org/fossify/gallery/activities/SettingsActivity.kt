@@ -41,15 +41,7 @@ class SettingsActivity : SimpleActivity() {
 
     private val mCaptureTimeIndexProgressReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent == null) {
-                return
-            }
-
-            updateCaptureTimeIndexProgress(
-                running = intent.getBooleanExtra(DateTakenIndexer.EXTRA_INDEX_RUNNING, false),
-                processed = intent.getIntExtra(DateTakenIndexer.EXTRA_INDEX_PROCESSED, 0),
-                total = intent.getIntExtra(DateTakenIndexer.EXTRA_INDEX_TOTAL, 0)
-            )
+            updateCaptureTimeIndexProgress()
         }
     }
 
@@ -69,7 +61,7 @@ class SettingsActivity : SimpleActivity() {
         setupTopAppBar(binding.settingsAppbar, NavigationIcon.Arrow)
         setupSettingItems()
         registerCaptureTimeIndexProgressReceiver()
-        updateCaptureTimeIndexProgressFromStore()
+        updateCaptureTimeIndexProgress()
     }
 
     override fun onPause() {
@@ -84,6 +76,7 @@ class SettingsActivity : SimpleActivity() {
         setupChangeDateTimeFormat()
         setupFileLoadingPriority()
         setupCaptureTimeIndexing()
+        setupGuessCaptureDateFromFilename()
         setupManageIncludedFolders()
         setupManageExcludedFolders()
         setupManageHiddenFolders()
@@ -206,9 +199,19 @@ class SettingsActivity : SimpleActivity() {
         binding.settingsCaptureTimeIndexProgress.setIndicatorColor(getProperPrimaryColor())
         binding.settingsCaptureTimeIndexProgress.trackColor = getProperPrimaryColor().adjustAlpha(0.25f)
         binding.settingsCaptureTimeIndexHolder.setOnClickListener {
-            if (!DateTakenIndexer.getProgress().isRunning) {
+            val progress = DateTakenIndexer.getProgress()
+            if (!(progress.isRunning && progress.isFullRescan)) {
                 DateTakenIndexer.schedule(this, force = true)
             }
+        }
+    }
+
+    private fun setupGuessCaptureDateFromFilename() {
+        binding.settingsGuessCaptureDateFromFilename.isChecked = config.guessCaptureDateFromFilename
+        binding.settingsGuessCaptureDateFromFilenameHolder.setOnClickListener {
+            binding.settingsGuessCaptureDateFromFilename.toggle()
+            config.guessCaptureDateFromFilename = binding.settingsGuessCaptureDateFromFilename.isChecked
+            DateTakenIndexer.schedule(this, force = true)
         }
     }
 
@@ -235,37 +238,51 @@ class SettingsActivity : SimpleActivity() {
         mCaptureTimeIndexReceiverRegistered = false
     }
 
-    private fun updateCaptureTimeIndexProgressFromStore() {
-        with(DateTakenIndexer.getProgress()) {
-            updateCaptureTimeIndexProgress(isRunning, processed, total)
-        }
-    }
-
-    private fun updateCaptureTimeIndexProgress(running: Boolean, processed: Int, total: Int) {
+    private fun updateCaptureTimeIndexProgress() {
+        val progress = DateTakenIndexer.getProgress()
         binding.settingsCaptureTimeIndexProgress.apply {
-            isIndeterminate = running && total <= 0
-            if (total > 0) {
+            isIndeterminate = progress.isRunning && !progress.isListed
+            if (progress.isListed) {
                 max = 100
-                val percent = (processed.coerceAtMost(total) * 100 / total).coerceIn(0, 100)
-                setProgressCompat(percent, true)
+                setProgressCompat(progress.percent, true)
             }
-            beVisibleIf(running)
+            beVisibleIf(progress.isRunning)
         }
 
-        binding.settingsCaptureTimeIndexStatus.text = when {
-            running && total > 0 -> {
-                val percent = (processed.coerceAtMost(total) * 100 / total).coerceIn(0, 100)
-                getString(R.string.capture_time_index_running, percent, processed, total)
-            }
+        val status = when {
+            progress.isRunning && !progress.isListed -> getString(
+                if (progress.isFullRescan) R.string.capture_time_index_listing_full else R.string.capture_time_index_listing
+            )
 
-            running -> getString(R.string.fixing)
+            progress.isRunning -> getString(
+                if (progress.isFullRescan) R.string.capture_time_index_running_full else R.string.capture_time_index_running,
+                progress.percent,
+                progress.processed,
+                progress.total
+            )
 
-            !DateTakenIndexer.hasCompletedRun() -> getString(R.string.capture_time_index_idle)
+            progress.finishedAt == 0L -> null
 
-            processed == 0 && total == 0 -> getString(R.string.capture_time_index_nothing_to_do)
+            progress.total == 0 -> getString(
+                if (progress.isFullRescan) R.string.capture_time_index_up_to_date_full else R.string.capture_time_index_up_to_date,
+                progress.finishedAt.formatDate(this)
+            )
 
-            else -> getString(R.string.capture_time_index_complete, processed)
+            else -> getString(
+                R.string.capture_time_index_result,
+                progress.finishedAt.formatDate(this),
+                progress.found,
+                progress.total
+            )
         }
+
+        val hint = when {
+            DateTakenIndexer.isFullRescanQueued() -> getString(R.string.capture_time_index_queued)
+            progress.isRunning -> null
+            else -> getString(R.string.capture_time_index_schedule)
+        }
+
+        binding.settingsCaptureTimeIndexStatus.text = listOfNotNull(status, hint).joinToString("\n")
     }
 
     private fun setupFileLoadingPriority() {
@@ -1027,6 +1044,7 @@ class SettingsActivity : SimpleActivity() {
                 put(SHOW_THUMBNAIL_VIDEO_DURATION, config.showThumbnailVideoDuration)
                 put(SHOW_THUMBNAIL_FILE_TYPES, config.showThumbnailFileTypes)
                 put(SHOW_EXIF_RATINGS, config.showExifRatings)
+                put(GUESS_CAPTURE_DATE_FROM_FILENAME, config.guessCaptureDateFromFilename)
                 put(GO_TO_NEXT_AFTER_EXIF_RATING, config.goToNextAfterExifRating)
                 put(MARK_FAVORITE_ITEMS, config.markFavoriteItems)
                 put(SCROLL_HORIZONTALLY, config.scrollHorizontally)
@@ -1174,6 +1192,7 @@ class SettingsActivity : SimpleActivity() {
                 SHOW_THUMBNAIL_VIDEO_DURATION -> config.showThumbnailVideoDuration = value.toBoolean()
                 SHOW_THUMBNAIL_FILE_TYPES -> config.showThumbnailFileTypes = value.toBoolean()
                 SHOW_EXIF_RATINGS -> config.showExifRatings = value.toBoolean()
+                GUESS_CAPTURE_DATE_FROM_FILENAME -> config.guessCaptureDateFromFilename = value.toBoolean()
                 GO_TO_NEXT_AFTER_EXIF_RATING -> config.goToNextAfterExifRating = value.toBoolean()
                 MARK_FAVORITE_ITEMS -> config.markFavoriteItems = value.toBoolean()
                 SCROLL_HORIZONTALLY -> config.scrollHorizontally = value.toBoolean()

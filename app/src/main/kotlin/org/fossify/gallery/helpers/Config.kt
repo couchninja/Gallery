@@ -210,6 +210,10 @@ class Config(context: Context) : BaseConfig(context) {
         }
         set(showExifRatings) = prefs.edit().putBoolean(SHOW_EXIF_RATINGS, showExifRatings).apply()
 
+    var guessCaptureDateFromFilename: Boolean
+        get() = prefs.getBoolean(GUESS_CAPTURE_DATE_FROM_FILENAME, false)
+        set(guessCaptureDateFromFilename) = prefs.edit().putBoolean(GUESS_CAPTURE_DATE_FROM_FILENAME, guessCaptureDateFromFilename).apply()
+
     var goToNextAfterExifRating: Boolean
         get() = prefs.getBoolean(GO_TO_NEXT_AFTER_EXIF_RATING, true)
         set(goToNextAfterExifRating) = prefs.edit().putBoolean(GO_TO_NEXT_AFTER_EXIF_RATING, goToNextAfterExifRating).apply()

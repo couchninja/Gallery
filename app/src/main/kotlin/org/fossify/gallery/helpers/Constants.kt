@@ -92,6 +92,7 @@ const val SPAM_FOLDERS_CHECKED = "spam_folders_checked"
 const val SHOW_THUMBNAIL_FILE_TYPES = "show_thumbnail_file_types"
 const val MARK_FAVORITE_ITEMS = "mark_favorite_items"
 const val SHOW_EXIF_RATINGS = "show_exif_ratings"
+const val GUESS_CAPTURE_DATE_FROM_FILENAME = "guess_capture_date_from_filename"
 const val GO_TO_NEXT_AFTER_EXIF_RATING = "go_to_next_after_exif_rating"
 const val EDITOR_BRUSH_COLOR = "editor_brush_color"
 const val EDITOR_BRUSH_HARDNESS = "editor_brush_hardness"
@@ -251,8 +252,11 @@ const val ACTION_MEDIA_STORE_PATH_CHANGED = "org.fossify.gallery.action.MEDIA_ST
 const val ACTION_DATE_TAKEN_INDEX_UPDATED = "org.fossify.gallery.action.DATE_TAKEN_INDEX_UPDATED"
 const val ACTION_DATE_TAKEN_INDEX_PROGRESS = "org.fossify.gallery.action.DATE_TAKEN_INDEX_PROGRESS"
 
-/** [DateTaken.lastFixed] value for rows written by [DateTakenIndexer]; manual fix uses a unix timestamp. */
-const val AUTO_DATE_TAKEN_INDEX_LAST_FIXED = 0
+// [DateTaken.source] values
+const val DATE_TAKEN_SOURCE_MANUAL = 0
+const val DATE_TAKEN_SOURCE_INDEXED = 1
+/** The indexer read the file and found no capture date; [DateTaken.taken] is 0. Re-checked when the file's last_modified changes. */
+const val DATE_TAKEN_SOURCE_NOT_FOUND = 2
 
 // aspect ratios used at the editor for cropping
 const val ASPECT_RATIO_FREE = 0

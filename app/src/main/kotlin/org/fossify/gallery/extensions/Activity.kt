@@ -47,6 +47,7 @@ import org.fossify.gallery.dialogs.ResizeMultipleImagesDialog
 import org.fossify.gallery.dialogs.ResizeWithPathDialog
 import org.fossify.gallery.helpers.ACTION_DATE_TAKEN_INDEX_UPDATED
 import org.fossify.gallery.helpers.CaptureTimeReader
+import org.fossify.gallery.helpers.DATE_TAKEN_SOURCE_MANUAL
 import org.fossify.gallery.helpers.DIRECTORY
 import org.fossify.gallery.helpers.RECYCLE_BIN
 import org.fossify.gallery.helpers.TEMP_FOLDER_NAME
@@ -624,7 +625,8 @@ fun AppCompatActivity.fixDateTaken(
                         path.getParentPath(),
                         timestamp,
                         (System.currentTimeMillis() / 1000).toInt(),
-                        File(path).lastModified()
+                        File(path).lastModified(),
+                        DATE_TAKEN_SOURCE_MANUAL
                     )
                     dateTakens.add(dateTaken)
                     if (!hasRescanned && getFileDateTaken(path) == 0L) {

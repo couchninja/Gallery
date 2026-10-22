@@ -9,6 +9,7 @@ import androidx.core.net.toUri
 import androidx.exifinterface.media.ExifInterface
 import org.fossify.commons.extensions.isImageFast
 import org.fossify.commons.extensions.isVideoFast
+import org.fossify.gallery.extensions.config
 import java.io.File
 import java.io.FileInputStream
 import java.text.SimpleDateFormat
@@ -125,12 +126,15 @@ object CaptureTimeReader {
         filename: String,
         mediaStoreId: Long = 0L
     ): Long? {
-        val raw = when {
+        val fromMetadata = when {
             path.isVideoFast() -> readVideoCaptureTimeMillis(context, path, mediaStoreId)
             path.isImageFast() -> readExifCaptureTimeMillis(context, path, mediaStoreId)
-                ?: parseTimestampFromFilename(filename)
-                ?: parseCompactDateFromFilename(filename)
-            else -> parseTimestampFromFilename(filename) ?: parseCompactDateFromFilename(filename)
+            else -> null
+        }
+        val raw = fromMetadata ?: if (context.config.guessCaptureDateFromFilename) {
+            parseTimestampFromFilename(filename) ?: parseCompactDateFromFilename(filename)
+        } else {
+            null
         }
         return raw?.let { millis -> normalizeCaptureTimeMillis(millis).takeIf { it != 0L } }
     }

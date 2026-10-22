@@ -17,9 +17,15 @@ import org.fossify.gallery.models.DateTaken
 import java.util.concurrent.atomic.AtomicBoolean
 
 data class DateTakenIndexProgress(
-    val isRunning: Boolean,
-    val processed: Int,
-    val total: Int
+    val isRunning: Boolean = false,
+    val isFullRescan: Boolean = false,
+    /** False while the run is still listing files, before [total] is known. */
+    val isListed: Boolean = false,
+    val processed: Int = 0,
+    val total: Int = 0,
+    val found: Int = 0,
+    /** When the last run finished, 0 if none has finished since the app started. */
+    val finishedAt: Long = 0L
 ) {
     val percent: Int
         get() = if (total <= 0) {
@@ -31,49 +37,54 @@ data class DateTakenIndexProgress(
 
 object DateTakenIndexer {
     private val isRunning = AtomicBoolean(false)
+    private val forceRequested = AtomicBoolean(false)
 
     @Volatile
-    private var progress = DateTakenIndexProgress(isRunning = false, processed = 0, total = 0)
-
-    @Volatile
-    private var hasCompletedRun = false
+    private var progress = DateTakenIndexProgress()
 
     fun getProgress(): DateTakenIndexProgress = progress
 
-    fun hasCompletedRun(): Boolean = hasCompletedRun
+    fun isFullRescanQueued(): Boolean = isRunning.get() && forceRequested.get()
 
+    /** Non-forced requests made while a run is active are dropped; forced ones run again once it finishes. */
     fun schedule(context: Context, force: Boolean = false) {
         val appContext = context.applicationContext
+        if (force) {
+            forceRequested.set(true)
+            publishProgress(appContext, progress)
+        }
         ensureBackgroundThread {
             if (!isRunning.compareAndSet(false, true)) {
                 return@ensureBackgroundThread
             }
 
             try {
-                runIndex(appContext, force)
+                do {
+                    runIndex(appContext, forceRequested.getAndSet(false))
+                } while (forceRequested.get())
             } finally {
-                hasCompletedRun = true
                 isRunning.set(false)
-                publishProgress(appContext, progress.copy(isRunning = false))
+                publishProgress(appContext, progress.copy(isRunning = false, finishedAt = System.currentTimeMillis()))
+            }
+            if (forceRequested.get()) {
+                schedule(appContext)
             }
         }
     }
 
     private fun runIndex(context: Context, force: Boolean) {
+        var current = DateTakenIndexProgress(isRunning = true, isFullRescan = force, finishedAt = progress.finishedAt)
+        publishProgress(context, current)
+
         val cached = context.dateTakensDB.getAllDateTakens().associateBy { it.fullPath }
         val pending = collectPending(context, force, cached)
-        val total = pending.size
-        publishProgress(context, DateTakenIndexProgress(isRunning = true, processed = 0, total = total))
+        current = current.copy(isListed = true, total = pending.size)
+        publishProgress(context, current)
 
-        if (pending.isEmpty()) {
-            return
-        }
-
-        var processed = 0
         for (batch in pending.chunked(BATCH_SIZE)) {
-            indexBatch(context, batch, cached)
-            processed += batch.size
-            publishProgress(context, DateTakenIndexProgress(isRunning = true, processed = processed, total = total))
+            val found = indexBatch(context, batch, cached)
+            current = current.copy(processed = current.processed + batch.size, found = current.found + found)
+            publishProgress(context, current)
         }
     }
 
@@ -108,10 +119,9 @@ object DateTakenIndexer {
                 val mediaStoreId = cursor.getLongValue(Images.Media._ID)
                 val dateModifiedMillis = cursor.getLongValue(Images.Media.DATE_MODIFIED) * 1000L
                 val lastModified = CaptureTimeReader.fileLastModifiedMillis(path).takeIf { it > 0L } ?: dateModifiedMillis
-                if (!force) {
+                if (!force && existing != null && existing.lastModified == lastModified) {
                     if (
-                        existing != null &&
-                        existing.lastModified == lastModified &&
+                        existing.source == DATE_TAKEN_SOURCE_NOT_FOUND ||
                         CaptureTimeReader.isPlausibleCaptureTimeMillis(
                             CaptureTimeReader.normalizeCaptureTimeMillis(existing.taken)
                         )
@@ -138,7 +148,8 @@ object DateTakenIndexer {
         return pending
     }
 
-    private fun indexBatch(context: Context, batch: List<PendingItem>, cached: Map<String, DateTaken>) {
+    /** Returns how many files in [batch] had a capture date. */
+    private fun indexBatch(context: Context, batch: List<PendingItem>, cached: Map<String, DateTaken>): Int {
         val dateTakens = ArrayList<DateTaken>()
         var improvedSortOrder = false
         for (item in batch) {
@@ -154,13 +165,11 @@ object DateTakenIndexer {
                 mediaStoreId = item.mediaStoreId
             )
             val resolved = captureMillis?.let { CaptureTimeReader.normalizeCaptureTimeMillis(it) } ?: 0L
-            if (resolved == 0L) {
-                continue
-            }
-
-            val fallbackModified = item.dateModifiedMillis.takeIf { it > 0L } ?: item.lastModified
-            if (resolved != fallbackModified) {
-                improvedSortOrder = true
+            if (resolved != 0L) {
+                val fallbackModified = item.dateModifiedMillis.takeIf { it > 0L } ?: item.lastModified
+                if (resolved != fallbackModified) {
+                    improvedSortOrder = true
+                }
             }
             dateTakens.add(
                 DateTaken(
@@ -169,8 +178,9 @@ object DateTakenIndexer {
                     item.filename,
                     item.path.getParentPath(),
                     resolved,
-                    AUTO_DATE_TAKEN_INDEX_LAST_FIXED,
-                    item.lastModified
+                    0,
+                    item.lastModified,
+                    if (resolved != 0L) DATE_TAKEN_SOURCE_INDEXED else DATE_TAKEN_SOURCE_NOT_FOUND
                 )
             )
         }
@@ -183,6 +193,7 @@ object DateTakenIndexer {
                 Intent(ACTION_DATE_TAKEN_INDEX_UPDATED).setPackage(context.packageName)
             )
         }
+        return dateTakens.count { it.source == DATE_TAKEN_SOURCE_INDEXED }
     }
 
     private fun findCachedDateTaken(cached: Map<String, DateTaken>, path: String): DateTaken? {
@@ -191,10 +202,7 @@ object DateTakenIndexer {
     }
 
     private fun isManualCaptureDateEntry(entry: DateTaken?): Boolean {
-        if (entry == null) {
-            return false
-        }
-        if (entry.lastFixed == AUTO_DATE_TAKEN_INDEX_LAST_FIXED) {
+        if (entry == null || entry.source != DATE_TAKEN_SOURCE_MANUAL) {
             return false
         }
         return CaptureTimeReader.isPlausibleCaptureTimeMillis(
@@ -204,14 +212,7 @@ object DateTakenIndexer {
 
     private fun publishProgress(context: Context, newProgress: DateTakenIndexProgress) {
         progress = newProgress
-        context.sendBroadcast(
-            Intent(ACTION_DATE_TAKEN_INDEX_PROGRESS).apply {
-                setPackage(context.packageName)
-                putExtra(EXTRA_INDEX_RUNNING, newProgress.isRunning)
-                putExtra(EXTRA_INDEX_PROCESSED, newProgress.processed)
-                putExtra(EXTRA_INDEX_TOTAL, newProgress.total)
-            }
-        )
+        context.sendBroadcast(Intent(ACTION_DATE_TAKEN_INDEX_PROGRESS).setPackage(context.packageName))
     }
 
     private data class PendingItem(
@@ -223,8 +224,4 @@ object DateTakenIndexer {
     )
 
     private const val BATCH_SIZE = 100
-
-    const val EXTRA_INDEX_RUNNING = "running"
-    const val EXTRA_INDEX_PROCESSED = "processed"
-    const val EXTRA_INDEX_TOTAL = "total"
 }

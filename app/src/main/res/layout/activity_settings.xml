@@ -170,7 +170,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_below="@+id/settings_capture_time_index_label"
-                    tools:text="@string/capture_time_index_idle" />
+                    tools:text="@string/capture_time_index_schedule" />
 
                 <com.google.android.material.progressindicator.LinearProgressIndicator
                     android:id="@+id/settings_capture_time_index_progress"
@@ -180,6 +180,21 @@
                     android:layout_marginTop="8dp"
                     android:visibility="gone"
                     app:trackCornerRadius="2dp" />
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/settings_guess_capture_date_from_filename_holder"
+                style="@style/SettingsHolderSwitchStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyMaterialSwitch
+                    android:id="@+id/settings_guess_capture_date_from_filename"
+                    style="@style/SettingsSwitchStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/guess_capture_date_from_filename" />
 
             </RelativeLayout>
 

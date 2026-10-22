@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import org.fossify.gallery.interfaces.*
 import org.fossify.gallery.models.*
 
-@Database(entities = [Directory::class, Medium::class, Widget::class, DateTaken::class, Favorite::class, XmpMetadataEntry::class], version = 12)
+@Database(entities = [Directory::class, Medium::class, Widget::class, DateTaken::class, Favorite::class, XmpMetadataEntry::class], version = 13)
 abstract class GalleryDatabase : RoomDatabase() {
 
     abstract fun DirectoryDao(): DirectoryDao
@@ -41,6 +41,7 @@ abstract class GalleryDatabase : RoomDatabase() {
                             .addMigrations(MIGRATION_9_10)
                             .addMigrations(MIGRATION_10_11)
                             .addMigrations(MIGRATION_11_12)
+                            .addMigrations(MIGRATION_12_13)
                             .build()
                     }
                 }
@@ -130,6 +131,14 @@ abstract class GalleryDatabase : RoomDatabase() {
                         "SELECT `full_path`, `filename`, `parent_path`, `rating`, '', 0 FROM `exif_ratings`"
                 )
                 database.execSQL("DROP TABLE IF EXISTS `exif_ratings`")
+            }
+        }
+
+        // Before this version the indexer marked its rows with last_fixed = 0; manual fixes stored a timestamp.
+        private val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE date_takens ADD COLUMN source INTEGER default 0 NOT NULL")
+                database.execSQL("UPDATE date_takens SET source = 1 WHERE last_fixed = 0")
             }
         }
     }
