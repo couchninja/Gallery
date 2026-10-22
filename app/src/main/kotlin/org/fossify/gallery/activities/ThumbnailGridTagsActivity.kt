@@ -16,9 +16,10 @@ import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.gallery.R
 import org.fossify.gallery.adapters.ThumbnailGridTagsAdapter
 import org.fossify.gallery.databinding.ActivityThumbnailGridTagsBinding
-import org.fossify.gallery.helpers.ACTION_XMP_METADATA_INDEX_UPDATED
+import org.fossify.gallery.helpers.ACTION_MEDIA_METADATA_INDEX_UPDATED
+import org.fossify.gallery.helpers.EXTRA_METADATA_XMP_CHANGED
+import org.fossify.gallery.helpers.MediaMetadataIndexer
 import org.fossify.gallery.helpers.THUMBNAIL_GRID_SELECTED_TAG
-import org.fossify.gallery.helpers.XmpMetadataIndexer
 import org.fossify.gallery.helpers.XmpTagIndex
 
 class ThumbnailGridTagsActivity : SimpleActivity() {
@@ -30,6 +31,9 @@ class ThumbnailGridTagsActivity : SimpleActivity() {
 
     private val indexReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.getBooleanExtra(EXTRA_METADATA_XMP_CHANGED, false) != true) {
+                return
+            }
             indexUpdateReceived = true
             refreshTags()
         }
@@ -48,7 +52,7 @@ class ThumbnailGridTagsActivity : SimpleActivity() {
         binding.thumbnailGridTagsList.adapter = adapter
         registerIndexReceiver()
         warmTagIndexFromDb()
-        XmpMetadataIndexer.schedule(applicationContext)
+        MediaMetadataIndexer.schedule(applicationContext)
         refreshTags()
         binding.root.postDelayed({
             if (!indexUpdateReceived) {
@@ -72,7 +76,7 @@ class ThumbnailGridTagsActivity : SimpleActivity() {
         if (receiverRegistered) {
             return
         }
-        val filter = IntentFilter(ACTION_XMP_METADATA_INDEX_UPDATED)
+        val filter = IntentFilter(ACTION_MEDIA_METADATA_INDEX_UPDATED)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(indexReceiver, filter, RECEIVER_NOT_EXPORTED)
         } else {

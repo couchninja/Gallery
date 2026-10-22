@@ -108,8 +108,7 @@ import org.fossify.gallery.helpers.TYPE_PORTRAITS
 import org.fossify.gallery.helpers.TYPE_RAWS
 import org.fossify.gallery.helpers.TYPE_SVGS
 import org.fossify.gallery.helpers.TYPE_VIDEOS
-import org.fossify.gallery.interfaces.DateTakensDao
-import org.fossify.gallery.interfaces.XmpMetadataDao
+import org.fossify.gallery.interfaces.MediaMetadataDao
 import org.fossify.gallery.interfaces.DirectoryDao
 import org.fossify.gallery.interfaces.FavoritesDao
 import org.fossify.gallery.interfaces.MediumDao
@@ -148,11 +147,8 @@ val Context.directoryDB: DirectoryDao
 val Context.favoritesDB: FavoritesDao
     get() = GalleryDatabase.getInstance(applicationContext).FavoritesDao()
 
-val Context.dateTakensDB: DateTakensDao
-    get() = GalleryDatabase.getInstance(applicationContext).DateTakensDao()
-
-val Context.xmpMetadataDB: XmpMetadataDao
-    get() = GalleryDatabase.getInstance(applicationContext).XmpMetadataDao()
+val Context.mediaMetadataDB: MediaMetadataDao
+    get() = GalleryDatabase.getInstance(applicationContext).MediaMetadataDao()
 
 val Context.recycleBin: File get() = filesDir
 
@@ -1025,18 +1021,18 @@ private fun Context.applyDbCaptureTimesForSort(media: ArrayList<Medium>, path: S
         return
     }
 
-    val dateTakenValues = try {
+    val metadataEntries = try {
         when {
-            path.isEmpty() || path == FAVORITES -> dateTakensDB.getAllDateTakens()
-            else -> dateTakensDB.getDateTakensFromPath(path)
+            path.isEmpty() || path == FAVORITES -> mediaMetadataDB.getAll()
+            else -> mediaMetadataDB.getFromParent(path)
         }
     } catch (_: Exception) {
         return
     }
 
-    val byPath = HashMap<String, Long>(dateTakenValues.size)
-    dateTakenValues.forEach { entry ->
-        val normalized = CaptureTimeReader.normalizeCaptureTimeMillis(entry.taken)
+    val byPath = HashMap<String, Long>(metadataEntries.size)
+    metadataEntries.forEach { entry ->
+        val normalized = CaptureTimeReader.normalizeCaptureTimeMillis(entry.dateTaken)
         if (normalized != 0L) {
             byPath[entry.fullPath] = normalized
         }
@@ -1206,7 +1202,7 @@ fun Context.deleteDBPath(path: String) {
 fun Context.deleteMediumWithPath(path: String) {
     try {
         mediaDB.deleteMediumPath(path)
-        xmpMetadataDB.deletePath(path)
+        mediaMetadataDB.deletePath(path)
         XmpTagIndex.remove(path)
     } catch (ignored: Exception) {
     }
@@ -1465,8 +1461,9 @@ fun Context.updateDirectoryPath(path: String) {
         HashMap()
     }
 
-    val dateTakens = mediaFetcher.getFolderDateTakens(path)
-    val exifRatings = mediaFetcher.getFolderExifRatings(path)
+    val metadataCache = mediaFetcher.getFolderMetadataCache(path)
+    val dateTakens = metadataCache.dateTakens
+    val exifRatings = metadataCache.exifRatings
     val favoritePaths = getFavoritePaths()
     val curMedia = mediaFetcher.getFilesFrom(
         curPath = path,

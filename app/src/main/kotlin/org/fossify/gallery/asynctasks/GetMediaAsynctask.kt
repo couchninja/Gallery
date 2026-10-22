@@ -8,8 +8,7 @@ import org.fossify.commons.helpers.SORT_BY_DATE_TAKEN
 import org.fossify.commons.helpers.SORT_BY_SIZE
 import org.fossify.gallery.extensions.config
 import org.fossify.gallery.extensions.getFavoritePaths
-import org.fossify.gallery.helpers.DateTakenIndexer
-import org.fossify.gallery.helpers.XmpMetadataIndexer
+import org.fossify.gallery.helpers.MediaMetadataIndexer
 import org.fossify.gallery.helpers.*
 import org.fossify.gallery.R
 import org.fossify.gallery.models.Medium
@@ -22,8 +21,6 @@ class GetMediaAsynctask(
 ) :
     AsyncTask<Void, Void, ArrayList<ThumbnailItem>>() {
     private val mediaFetcher = MediaFetcher(context)
-    private var shouldIndexCaptureTimes = false
-
     private fun reportStatus(stringRes: Int) {
         onStatus?.invoke(context.getString(stringRes))
     }
@@ -35,8 +32,6 @@ class GetMediaAsynctask(
         val getProperDateTaken = folderSorting and SORT_BY_DATE_TAKEN != 0 ||
             folderGrouping and GROUP_BY_DATE_TAKEN_DAILY != 0 ||
             folderGrouping and GROUP_BY_DATE_TAKEN_MONTHLY != 0
-        shouldIndexCaptureTimes = getProperDateTaken
-
         val getProperLastModified = folderSorting and SORT_BY_DATE_MODIFIED != 0 ||
             folderGrouping and GROUP_BY_LAST_MODIFIED_DAILY != 0 ||
             folderGrouping and GROUP_BY_LAST_MODIFIED_MONTHLY != 0 ||
@@ -46,17 +41,31 @@ class GetMediaAsynctask(
         val favoritePaths = context.getFavoritePaths()
         val getVideoDurations = context.config.showThumbnailVideoDuration
         val lastModifieds = if (getProperLastModified) mediaFetcher.getLastModifieds() else HashMap()
-        if (getProperDateTaken) {
-            reportStatus(R.string.loading_media_reading_dates)
-        }
-        val dateTakens = if (getProperDateTaken) mediaFetcher.getDateTakens() else HashMap()
-        val exifRatings = if (context.config.showExifRatings) {
-            reportStatus(R.string.loading_media_reading_ratings)
-            if (showAll) {
-                mediaFetcher.getExifRatings()
-            } else {
-                mediaFetcher.getFolderExifRatings(mPath)
+        val showExifRatings = context.config.showExifRatings
+        val metadataCache = when {
+            getProperDateTaken -> {
+                reportStatus(R.string.loading_media_reading_dates)
+                mediaFetcher.getAllMetadataCache()
             }
+
+            showExifRatings -> {
+                reportStatus(R.string.loading_media_reading_ratings)
+                if (showAll) {
+                    mediaFetcher.getAllMetadataCache(includeDates = false)
+                } else {
+                    mediaFetcher.getFolderMetadataCache(mPath, includeDates = false)
+                }
+            }
+
+            else -> null
+        }
+        val dateTakens = if (getProperDateTaken) {
+            metadataCache?.dateTakens ?: HashMap()
+        } else {
+            HashMap()
+        }
+        val exifRatings = if (showExifRatings) {
+            metadataCache?.exifRatings ?: HashMap()
         } else {
             HashMap()
         }
@@ -93,12 +102,7 @@ class GetMediaAsynctask(
     override fun onPostExecute(media: ArrayList<ThumbnailItem>) {
         super.onPostExecute(media)
         callback(media)
-        if (shouldIndexCaptureTimes) {
-            DateTakenIndexer.schedule(context)
-        }
-        if (context.config.showExifRatings) {
-            XmpMetadataIndexer.schedule(context)
-        }
+        MediaMetadataIndexer.schedule(context)
     }
 
     fun stopFetching() {

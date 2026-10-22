@@ -22,6 +22,11 @@ import java.io.File
 import java.util.Calendar
 import java.util.Locale
 
+data class MetadataCache(
+    val dateTakens: HashMap<String, Long>,
+    val exifRatings: HashMap<String, Int>
+)
+
 class MediaFetcher(val context: Context) {
     var shouldStop = false
 
@@ -617,18 +622,14 @@ class MediaFetcher(val context: Context) {
         return media
     }
 
-    fun getFolderDateTakens(folder: String): HashMap<String, Long> {
+    /** One `media_metadata` read for both maps; the MediaStore date query only runs when [includeDates] is set. */
+    fun getFolderMetadataCache(folder: String, includeDates: Boolean = true): MetadataCache {
         val dateTakens = HashMap<String, Long>()
-        if (folder != FAVORITES) {
-            val projection = arrayOf(
-                Images.Media.DATA,
-                Images.Media.DATE_TAKEN
-            )
-
+        if (includeDates && folder != FAVORITES) {
+            val projection = arrayOf(Images.Media.DATA, Images.Media.DATE_TAKEN)
             val uri = Files.getContentUri("external")
             val selection = "${Images.Media.DATA} LIKE ? AND ${Images.Media.DATA} NOT LIKE ?"
             val selectionArgs = arrayOf("$folder/%", "$folder/%/%")
-
             context.queryCursor(uri, projection, selection, selectionArgs) { cursor ->
                 try {
                     val dateTaken = CaptureTimeReader.normalizeCaptureTimeMillis(
@@ -638,70 +639,18 @@ class MediaFetcher(val context: Context) {
                         val path = cursor.getStringValue(Images.Media.DATA) ?: return@queryCursor
                         dateTakens[path] = dateTaken
                     }
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                 }
             }
         }
-
-        val dateTakenValues = try {
-            if (folder == FAVORITES) {
-                context.dateTakensDB.getAllDateTakens()
-            } else {
-                context.dateTakensDB.getDateTakensFromPath(folder)
-            }
-        } catch (e: Exception) {
-            return dateTakens
-        }
-
-        dateTakenValues.forEach {
-            val normalized = CaptureTimeReader.normalizeCaptureTimeMillis(it.taken)
-            if (normalized != 0L) {
-                dateTakens[it.fullPath] = normalized
-            }
-        }
-
-        return dateTakens
+        return mergeMetadataEntries(loadMetadataEntries(folder), dateTakens, includeDates)
     }
 
-    fun getFolderExifRatings(folder: String): HashMap<String, Int> {
-        val exifRatings = HashMap<String, Int>()
-        val ratingValues = try {
-            if (folder == FAVORITES) {
-                context.xmpMetadataDB.getAll()
-            } else {
-                context.xmpMetadataDB.getFromPath(folder)
-            }
-        } catch (_: Exception) {
-            return exifRatings
-        }
-
-        ratingValues.forEach {
-            exifRatings[it.fullPath] = it.rating.coerceIn(0, 5)
-        }
-        return exifRatings
-    }
-
-    fun getExifRatings(): HashMap<String, Int> {
-        val exifRatings = HashMap<String, Int>()
-        try {
-            context.xmpMetadataDB.getAll().forEach {
-                exifRatings[it.fullPath] = it.rating.coerceIn(0, 5)
-            }
-        } catch (_: Exception) {
-        }
-        return exifRatings
-    }
-
-    fun getDateTakens(): HashMap<String, Long> {
+    fun getAllMetadataCache(includeDates: Boolean = true): MetadataCache {
         val dateTakens = HashMap<String, Long>()
-        val projection = arrayOf(
-            Images.Media.DATA,
-            Images.Media.DATE_TAKEN
-        )
-
+        val projection = arrayOf(Images.Media.DATA, Images.Media.DATE_TAKEN)
         val uri = Files.getContentUri("external")
-
-        try {
+        if (includeDates) try {
             context.queryCursor(uri, projection) { cursor ->
                 try {
                     val dateTaken = CaptureTimeReader.normalizeCaptureTimeMillis(
@@ -711,22 +660,48 @@ class MediaFetcher(val context: Context) {
                         val path = cursor.getStringValue(Images.Media.DATA)
                         dateTakens[path] = dateTaken
                     }
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                 }
             }
-
-            val dateTakenValues = context.dateTakensDB.getAllDateTakens()
-
-            dateTakenValues.forEach {
-                val normalized = CaptureTimeReader.normalizeCaptureTimeMillis(it.taken)
-                if (normalized != 0L) {
-                    dateTakens[it.fullPath] = normalized
-                }
-            }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
         }
+        return mergeMetadataEntries(loadMetadataEntries(FAVORITES), dateTakens, includeDates)
+    }
 
-        return dateTakens
+    fun getFolderDateTakens(folder: String): HashMap<String, Long> = getFolderMetadataCache(folder).dateTakens
+
+    fun getFolderExifRatings(folder: String): HashMap<String, Int> = getFolderMetadataCache(folder, includeDates = false).exifRatings
+
+    fun getExifRatings(): HashMap<String, Int> = getAllMetadataCache(includeDates = false).exifRatings
+
+    fun getDateTakens(): HashMap<String, Long> = getAllMetadataCache().dateTakens
+
+    private fun loadMetadataEntries(folder: String) = try {
+        if (folder == FAVORITES) {
+            context.mediaMetadataDB.getAll()
+        } else {
+            context.mediaMetadataDB.getFromParent(folder)
+        }
+    } catch (_: Exception) {
+        emptyList()
+    }
+
+    private fun mergeMetadataEntries(
+        entries: List<org.fossify.gallery.models.MediaMetadata>,
+        dateTakens: HashMap<String, Long>,
+        includeDates: Boolean
+    ): MetadataCache {
+        val exifRatings = HashMap<String, Int>()
+        entries.forEach { entry ->
+            if (includeDates) {
+                val normalized = CaptureTimeReader.normalizeCaptureTimeMillis(entry.dateTaken)
+                if (normalized != 0L) {
+                    dateTakens[entry.fullPath] = normalized
+                }
+            }
+            exifRatings[entry.fullPath] = entry.rating.coerceIn(0, 5)
+        }
+        return MetadataCache(dateTakens, exifRatings)
     }
 
     fun getFolderLastModifieds(folder: String): HashMap<String, Long> {

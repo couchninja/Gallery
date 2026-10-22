@@ -117,7 +117,8 @@ import org.fossify.gallery.extensions.storeDirectoryItems
 import org.fossify.gallery.extensions.tryDeleteFileDirItem
 import org.fossify.gallery.extensions.updateDBDirectory
 import org.fossify.gallery.extensions.updateWidgets
-import org.fossify.gallery.helpers.ACTION_DATE_TAKEN_INDEX_UPDATED
+import org.fossify.gallery.helpers.ACTION_MEDIA_METADATA_INDEX_UPDATED
+import org.fossify.gallery.helpers.EXTRA_METADATA_DATES_CHANGED
 import org.fossify.gallery.helpers.applyTransparentSystemBarsForThumbnailGrid
 import org.fossify.gallery.helpers.setupThumbnailGridUnderChrome
 import org.fossify.gallery.helpers.updateThumbnailGridNavBarScrim
@@ -205,7 +206,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
 
     private val mDateTakenIndexReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (mLoadedInitialPhotos) {
+            if (mLoadedInitialPhotos && intent?.getBooleanExtra(EXTRA_METADATA_DATES_CHANGED, false) == true) {
                 getDirectories()
             }
         }
@@ -661,7 +662,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
             return
         }
 
-        val filter = IntentFilter(ACTION_DATE_TAKEN_INDEX_UPDATED)
+        val filter = IntentFilter(ACTION_MEDIA_METADATA_INDEX_UPDATED)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(mDateTakenIndexReceiver, filter, RECEIVER_NOT_EXPORTED)
         } else {
@@ -1218,12 +1219,9 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
         val getProperFileSize = config.directorySorting and SORT_BY_SIZE != 0
         val dirPathsToRemove = ArrayList<String>()
         val lastModifieds = mLastMediaFetcher!!.getLastModifieds()
-        val dateTakens = mLastMediaFetcher!!.getDateTakens()
-        val exifRatings = if (config.showExifRatings) {
-            mLastMediaFetcher!!.getExifRatings()
-        } else {
-            HashMap()
-        }
+        val metadataCache = mLastMediaFetcher!!.getAllMetadataCache()
+        val dateTakens = metadataCache.dateTakens
+        val exifRatings = if (config.showExifRatings) metadataCache.exifRatings else HashMap()
 
         if (
             config.showRecycleBinAtFolders

@@ -96,11 +96,11 @@ import org.fossify.gallery.extensions.showRecycleBinEmptyingDialog
 import org.fossify.gallery.extensions.showRestoreConfirmationDialog
 import org.fossify.gallery.extensions.tryDeleteFileDirItem
 import org.fossify.gallery.extensions.updateWidgets
-import org.fossify.gallery.helpers.ACTION_DATE_TAKEN_INDEX_UPDATED
-import org.fossify.gallery.helpers.ACTION_XMP_METADATA_INDEX_UPDATED
+import org.fossify.gallery.helpers.ACTION_MEDIA_METADATA_INDEX_UPDATED
 import org.fossify.gallery.helpers.ACTION_MEDIA_STORE_PATH_CHANGED
-import org.fossify.gallery.helpers.DateTakenIndexer
-import org.fossify.gallery.helpers.XmpMetadataIndexer
+import org.fossify.gallery.helpers.EXTRA_METADATA_DATES_CHANGED
+import org.fossify.gallery.helpers.EXTRA_METADATA_XMP_CHANGED
+import org.fossify.gallery.helpers.MediaMetadataIndexer
 import org.fossify.gallery.helpers.GROUP_BY_DATE_TAKEN_DAILY
 import org.fossify.gallery.helpers.GROUP_BY_DATE_TAKEN_MONTHLY
 import org.fossify.gallery.helpers.syncMediaStoreItemsWithIdGreaterThan
@@ -172,8 +172,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     private var mTempShowHiddenHandler = Handler()
     private var mCurrAsyncTask: GetMediaAsynctask? = null
     private var mZoomListener: MyRecyclerView.MyZoomListener? = null
-    private var mDateTakenIndexReceiverRegistered = false
-    private var mExifRatingIndexReceiverRegistered = false
+    private var mMetadataIndexReceiverRegistered = false
     private var mMediaStorePathReceiverRegistered = false
     private var mRequireFullMediaRescan = false
     private var mIsRefreshingFromCache = false
@@ -183,24 +182,21 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         performLightMediaRefresh()
     }
 
-    private val mDateTakenIndexReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (mLoadedInitialPhotos) {
-                scheduleLightMediaRefresh()
-            }
-        }
-    }
-
-    private val mExifRatingIndexReceiver = object : BroadcastReceiver() {
+    private val mMetadataIndexReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (!mLoadedInitialPhotos) {
                 return
             }
-            refreshDisplayedExifRatings()
-            if (mCurrentThumbnailGridView == ThumbnailGridView.TAGS
-                || mCurrentThumbnailGridView == ThumbnailGridView.CARDS
-            ) {
-                applyCurrentThumbnailGridView()
+            if (intent?.getBooleanExtra(EXTRA_METADATA_DATES_CHANGED, false) == true) {
+                scheduleLightMediaRefresh()
+            }
+            if (intent?.getBooleanExtra(EXTRA_METADATA_XMP_CHANGED, false) == true) {
+                refreshDisplayedExifRatings()
+                if (mCurrentThumbnailGridView == ThumbnailGridView.TAGS
+                    || mCurrentThumbnailGridView == ThumbnailGridView.CARDS
+                ) {
+                    applyCurrentThumbnailGridView()
+                }
             }
         }
     }
@@ -406,15 +402,13 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             }
         }
 
-        registerDateTakenIndexReceiver()
-        registerExifRatingIndexReceiver()
+        registerMetadataIndexReceiver()
         registerMediaStorePathReceiver()
     }
 
     override fun onPause() {
         super.onPause()
-        unregisterDateTakenIndexReceiver()
-        unregisterExifRatingIndexReceiver()
+        unregisterMetadataIndexReceiver()
         unregisterMediaStorePathReceiver()
         mLightRefreshHandler.removeCallbacks(mLightRefreshRunnable)
         mIsGettingMedia = false
@@ -734,19 +728,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     }
 
     private fun scheduleMetadataIndexers() {
-        if (config.showExifRatings) {
-            XmpMetadataIndexer.schedule(applicationContext)
-        }
-
-        val pathToUse = mediaConfigPath()
-        val folderSorting = config.getFolderSorting(pathToUse)
-        val folderGrouping = config.getFolderGrouping(pathToUse)
-        val needsCaptureTime = folderSorting and SORT_BY_DATE_TAKEN != 0
-            || folderGrouping and GROUP_BY_DATE_TAKEN_DAILY != 0
-            || folderGrouping and GROUP_BY_DATE_TAKEN_MONTHLY != 0
-        if (needsCaptureTime) {
-            DateTakenIndexer.schedule(applicationContext)
-        }
+        MediaMetadataIndexer.schedule(applicationContext)
     }
 
     private fun refreshMediaFromCache() {
@@ -951,50 +933,27 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         mLoadedInitialPhotos = true
     }
 
-    private fun registerDateTakenIndexReceiver() {
-        if (mDateTakenIndexReceiverRegistered) {
+    private fun registerMetadataIndexReceiver() {
+        if (mMetadataIndexReceiverRegistered) {
             return
         }
 
-        val filter = IntentFilter(ACTION_DATE_TAKEN_INDEX_UPDATED)
+        val filter = IntentFilter(ACTION_MEDIA_METADATA_INDEX_UPDATED)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(mDateTakenIndexReceiver, filter, RECEIVER_NOT_EXPORTED)
+            registerReceiver(mMetadataIndexReceiver, filter, RECEIVER_NOT_EXPORTED)
         } else {
-            registerReceiver(mDateTakenIndexReceiver, filter)
+            registerReceiver(mMetadataIndexReceiver, filter)
         }
-        mDateTakenIndexReceiverRegistered = true
+        mMetadataIndexReceiverRegistered = true
     }
 
-    private fun unregisterDateTakenIndexReceiver() {
-        if (!mDateTakenIndexReceiverRegistered) {
+    private fun unregisterMetadataIndexReceiver() {
+        if (!mMetadataIndexReceiverRegistered) {
             return
         }
 
-        unregisterReceiver(mDateTakenIndexReceiver)
-        mDateTakenIndexReceiverRegistered = false
-    }
-
-    private fun registerExifRatingIndexReceiver() {
-        if (mExifRatingIndexReceiverRegistered) {
-            return
-        }
-
-        val filter = IntentFilter(ACTION_XMP_METADATA_INDEX_UPDATED)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(mExifRatingIndexReceiver, filter, RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(mExifRatingIndexReceiver, filter)
-        }
-        mExifRatingIndexReceiverRegistered = true
-    }
-
-    private fun unregisterExifRatingIndexReceiver() {
-        if (!mExifRatingIndexReceiverRegistered) {
-            return
-        }
-
-        unregisterReceiver(mExifRatingIndexReceiver)
-        mExifRatingIndexReceiverRegistered = false
+        unregisterReceiver(mMetadataIndexReceiver)
+        mMetadataIndexReceiverRegistered = false
     }
 
     private fun registerMediaStorePathReceiver() {

@@ -36,12 +36,12 @@ class SettingsActivity : SimpleActivity() {
     }
 
     private var mRecycleBinContentSize = 0L
-    private var mCaptureTimeIndexReceiverRegistered = false
+    private var mMetadataIndexReceiverRegistered = false
     private val binding by viewBinding(ActivitySettingsBinding::inflate)
 
-    private val mCaptureTimeIndexProgressReceiver = object : BroadcastReceiver() {
+    private val mMetadataIndexProgressReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            updateCaptureTimeIndexProgress()
+            updateMetadataIndexProgress()
         }
     }
 
@@ -60,13 +60,13 @@ class SettingsActivity : SimpleActivity() {
         super.onResume()
         setupTopAppBar(binding.settingsAppbar, NavigationIcon.Arrow)
         setupSettingItems()
-        registerCaptureTimeIndexProgressReceiver()
-        updateCaptureTimeIndexProgress()
+        registerMetadataIndexProgressReceiver()
+        updateMetadataIndexProgress()
     }
 
     override fun onPause() {
         super.onPause()
-        unregisterCaptureTimeIndexProgressReceiver()
+        unregisterMetadataIndexProgressReceiver()
     }
 
     private fun setupSettingItems() {
@@ -75,7 +75,7 @@ class SettingsActivity : SimpleActivity() {
         setupLanguage()
         setupChangeDateTimeFormat()
         setupFileLoadingPriority()
-        setupCaptureTimeIndexing()
+        setupMetadataIndexing()
         setupGuessCaptureDateFromFilename()
         setupManageIncludedFolders()
         setupManageExcludedFolders()
@@ -195,13 +195,13 @@ class SettingsActivity : SimpleActivity() {
         }
     }
 
-    private fun setupCaptureTimeIndexing() {
-        binding.settingsCaptureTimeIndexProgress.setIndicatorColor(getProperPrimaryColor())
-        binding.settingsCaptureTimeIndexProgress.trackColor = getProperPrimaryColor().adjustAlpha(0.25f)
-        binding.settingsCaptureTimeIndexHolder.setOnClickListener {
-            val progress = DateTakenIndexer.getProgress()
+    private fun setupMetadataIndexing() {
+        binding.settingsMetadataIndexProgress.setIndicatorColor(getProperPrimaryColor())
+        binding.settingsMetadataIndexProgress.trackColor = getProperPrimaryColor().adjustAlpha(0.25f)
+        binding.settingsMetadataIndexHolder.setOnClickListener {
+            val progress = MediaMetadataIndexer.getProgress()
             if (!(progress.isRunning && progress.isFullRescan)) {
-                DateTakenIndexer.schedule(this, force = true)
+                MediaMetadataIndexer.schedule(this, force = true)
             }
         }
     }
@@ -211,36 +211,36 @@ class SettingsActivity : SimpleActivity() {
         binding.settingsGuessCaptureDateFromFilenameHolder.setOnClickListener {
             binding.settingsGuessCaptureDateFromFilename.toggle()
             config.guessCaptureDateFromFilename = binding.settingsGuessCaptureDateFromFilename.isChecked
-            DateTakenIndexer.schedule(this, force = true)
+            MediaMetadataIndexer.schedule(this, force = true)
         }
     }
 
-    private fun registerCaptureTimeIndexProgressReceiver() {
-        if (mCaptureTimeIndexReceiverRegistered) {
+    private fun registerMetadataIndexProgressReceiver() {
+        if (mMetadataIndexReceiverRegistered) {
             return
         }
 
-        val filter = IntentFilter(ACTION_DATE_TAKEN_INDEX_PROGRESS)
+        val filter = IntentFilter(ACTION_MEDIA_METADATA_INDEX_PROGRESS)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(mCaptureTimeIndexProgressReceiver, filter, RECEIVER_NOT_EXPORTED)
+            registerReceiver(mMetadataIndexProgressReceiver, filter, RECEIVER_NOT_EXPORTED)
         } else {
-            registerReceiver(mCaptureTimeIndexProgressReceiver, filter)
+            registerReceiver(mMetadataIndexProgressReceiver, filter)
         }
-        mCaptureTimeIndexReceiverRegistered = true
+        mMetadataIndexReceiverRegistered = true
     }
 
-    private fun unregisterCaptureTimeIndexProgressReceiver() {
-        if (!mCaptureTimeIndexReceiverRegistered) {
+    private fun unregisterMetadataIndexProgressReceiver() {
+        if (!mMetadataIndexReceiverRegistered) {
             return
         }
 
-        unregisterReceiver(mCaptureTimeIndexProgressReceiver)
-        mCaptureTimeIndexReceiverRegistered = false
+        unregisterReceiver(mMetadataIndexProgressReceiver)
+        mMetadataIndexReceiverRegistered = false
     }
 
-    private fun updateCaptureTimeIndexProgress() {
-        val progress = DateTakenIndexer.getProgress()
-        binding.settingsCaptureTimeIndexProgress.apply {
+    private fun updateMetadataIndexProgress() {
+        val progress = MediaMetadataIndexer.getProgress()
+        binding.settingsMetadataIndexProgress.apply {
             isIndeterminate = progress.isRunning && !progress.isListed
             if (progress.isListed) {
                 max = 100
@@ -251,11 +251,11 @@ class SettingsActivity : SimpleActivity() {
 
         val status = when {
             progress.isRunning && !progress.isListed -> getString(
-                if (progress.isFullRescan) R.string.capture_time_index_listing_full else R.string.capture_time_index_listing
+                if (progress.isFullRescan) R.string.metadata_index_listing_full else R.string.metadata_index_listing
             )
 
             progress.isRunning -> getString(
-                if (progress.isFullRescan) R.string.capture_time_index_running_full else R.string.capture_time_index_running,
+                if (progress.isFullRescan) R.string.metadata_index_running_full else R.string.metadata_index_running,
                 progress.percent,
                 progress.processed,
                 progress.total
@@ -264,12 +264,12 @@ class SettingsActivity : SimpleActivity() {
             progress.finishedAt == 0L -> null
 
             progress.total == 0 -> getString(
-                if (progress.isFullRescan) R.string.capture_time_index_up_to_date_full else R.string.capture_time_index_up_to_date,
+                if (progress.isFullRescan) R.string.metadata_index_up_to_date_full else R.string.metadata_index_up_to_date,
                 progress.finishedAt.formatDate(this)
             )
 
             else -> getString(
-                R.string.capture_time_index_result,
+                R.string.metadata_index_result,
                 progress.finishedAt.formatDate(this),
                 progress.found,
                 progress.total
@@ -277,12 +277,12 @@ class SettingsActivity : SimpleActivity() {
         }
 
         val hint = when {
-            DateTakenIndexer.isFullRescanQueued() -> getString(R.string.capture_time_index_queued)
+            MediaMetadataIndexer.isFullRescanQueued() -> getString(R.string.metadata_index_queued)
             progress.isRunning -> null
-            else -> getString(R.string.capture_time_index_schedule)
+            else -> getString(R.string.metadata_index_schedule)
         }
 
-        binding.settingsCaptureTimeIndexStatus.text = listOfNotNull(status, hint).joinToString("\n")
+        binding.settingsMetadataIndexStatus.text = listOfNotNull(status, hint).joinToString("\n")
     }
 
     private fun setupFileLoadingPriority() {

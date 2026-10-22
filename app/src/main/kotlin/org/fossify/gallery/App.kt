@@ -8,12 +8,11 @@ import okhttp3.Response
 import org.fossify.commons.FossifyApp
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.gallery.extensions.config
-import org.fossify.gallery.helpers.DateTakenIndexer
+import org.fossify.gallery.helpers.MediaMetadataIndexer
 import org.fossify.gallery.helpers.SHOW_ALL
 import org.fossify.gallery.helpers.ThumbnailGridView
 import org.fossify.gallery.helpers.ThumbnailGridViewConfig
 import org.fossify.gallery.helpers.ThumbnailGridViewShortcuts
-import org.fossify.gallery.helpers.XmpMetadataIndexer
 import org.fossify.gallery.helpers.XmpTagIndex
 
 class App : FossifyApp() {
@@ -25,11 +24,8 @@ class App : FossifyApp() {
         ThumbnailGridViewConfig.setSelectedView(this, SHOW_ALL, ThumbnailGridView.ALL)
         ThumbnailGridViewShortcuts.refresh(this)
         ensureBackgroundThread {
-            DateTakenIndexer.schedule(this)
             XmpTagIndex.loadFromDb(this)
-            if (config.showExifRatings) {
-                XmpMetadataIndexer.schedule(this)
-            }
+            MediaMetadataIndexer.schedule(this)
         }
         Reprint.initialize(this)
         Picasso.setSingletonInstance(Picasso.Builder(this).downloader(object : Downloader {

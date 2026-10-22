@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import org.fossify.gallery.interfaces.*
 import org.fossify.gallery.models.*
 
-@Database(entities = [Directory::class, Medium::class, Widget::class, DateTaken::class, Favorite::class, XmpMetadataEntry::class], version = 13)
+@Database(entities = [Directory::class, Medium::class, Widget::class, Favorite::class, MediaMetadata::class], version = 14)
 abstract class GalleryDatabase : RoomDatabase() {
 
     abstract fun DirectoryDao(): DirectoryDao
@@ -18,11 +18,9 @@ abstract class GalleryDatabase : RoomDatabase() {
 
     abstract fun WidgetsDao(): WidgetsDao
 
-    abstract fun DateTakensDao(): DateTakensDao
-
     abstract fun FavoritesDao(): FavoritesDao
 
-    abstract fun XmpMetadataDao(): XmpMetadataDao
+    abstract fun MediaMetadataDao(): MediaMetadataDao
 
     companion object {
         private var db: GalleryDatabase? = null
@@ -42,6 +40,7 @@ abstract class GalleryDatabase : RoomDatabase() {
                             .addMigrations(MIGRATION_10_11)
                             .addMigrations(MIGRATION_11_12)
                             .addMigrations(MIGRATION_12_13)
+                            .addMigrations(MIGRATION_13_14)
                             .build()
                     }
                 }
@@ -139,6 +138,48 @@ abstract class GalleryDatabase : RoomDatabase() {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE date_takens ADD COLUMN source INTEGER default 0 NOT NULL")
                 database.execSQL("UPDATE date_takens SET source = 1 WHERE last_fixed = 0")
+            }
+        }
+
+        // XMP rows start with date_taken_source = 3 (pending) so the indexer reads their EXIF date once. JPEG rows that only had a
+        // date get last_modified = 0 so their XMP is read; the indexer keeps manual dates.
+        private val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `media_metadata` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                        "`full_path` TEXT NOT NULL, " +
+                        "`filename` TEXT NOT NULL, " +
+                        "`parent_path` TEXT NOT NULL, " +
+                        "`last_modified` INTEGER NOT NULL, " +
+                        "`date_taken` INTEGER NOT NULL, " +
+                        "`date_taken_source` INTEGER NOT NULL, " +
+                        "`last_fixed` INTEGER NOT NULL, " +
+                        "`rating` INTEGER NOT NULL, " +
+                        "`tags` TEXT NOT NULL)"
+                )
+                database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_media_metadata_full_path` ON `media_metadata` (`full_path`)")
+                database.execSQL(
+                    "INSERT INTO `media_metadata` (`full_path`, `filename`, `parent_path`, `last_modified`, `date_taken`, `date_taken_source`, `last_fixed`, `rating`, `tags`) " +
+                        "SELECT `full_path`, `filename`, `parent_path`, `last_modified`, 0, 3, 0, `rating`, `tags` FROM `xmp_metadata`"
+                )
+                database.execSQL(
+                    "UPDATE `media_metadata` SET " +
+                        "`date_taken` = (SELECT d.`date_taken` FROM `date_takens` d WHERE d.`full_path` = `media_metadata`.`full_path`), " +
+                        "`date_taken_source` = (SELECT d.`source` FROM `date_takens` d WHERE d.`full_path` = `media_metadata`.`full_path`), " +
+                        "`last_fixed` = (SELECT d.`last_fixed` FROM `date_takens` d WHERE d.`full_path` = `media_metadata`.`full_path`) " +
+                        "WHERE EXISTS (SELECT 1 FROM `date_takens` d WHERE d.`full_path` = `media_metadata`.`full_path`)"
+                )
+                database.execSQL(
+                    "INSERT INTO `media_metadata` (`full_path`, `filename`, `parent_path`, `last_modified`, `date_taken`, `date_taken_source`, `last_fixed`, `rating`, `tags`) " +
+                        "SELECT d.`full_path`, d.`filename`, d.`parent_path`, " +
+                        "CASE WHEN LOWER(d.`full_path`) LIKE '%.jpg' OR LOWER(d.`full_path`) LIKE '%.jpeg' THEN 0 ELSE d.`last_modified` END, " +
+                        "d.`date_taken`, d.`source`, d.`last_fixed`, 0, '' " +
+                        "FROM `date_takens` d WHERE NOT EXISTS (" +
+                        "SELECT 1 FROM `media_metadata` m WHERE m.`full_path` = d.`full_path`)"
+                )
+                database.execSQL("DROP TABLE IF EXISTS `date_takens`")
+                database.execSQL("DROP TABLE IF EXISTS `xmp_metadata`")
             }
         }
     }

@@ -247,16 +247,19 @@ const val DEFAULT_BOTTOM_ACTIONS = BOTTOM_ACTION_EDIT or BOTTOM_ACTION_SHARE or 
 const val REQUEST_THUMBNAIL_GRID_TAG = 1001
 const val THUMBNAIL_GRID_SELECTED_TAG = "thumbnail_grid_selected_tag"
 
-const val ACTION_XMP_METADATA_INDEX_UPDATED = "org.fossify.gallery.action.XMP_METADATA_INDEX_UPDATED"
+const val ACTION_MEDIA_METADATA_INDEX_UPDATED = "org.fossify.gallery.action.MEDIA_METADATA_INDEX_UPDATED"
+const val ACTION_MEDIA_METADATA_INDEX_PROGRESS = "org.fossify.gallery.action.MEDIA_METADATA_INDEX_PROGRESS"
+const val EXTRA_METADATA_DATES_CHANGED = "extra_metadata_dates_changed"
+const val EXTRA_METADATA_XMP_CHANGED = "extra_metadata_xmp_changed"
 const val ACTION_MEDIA_STORE_PATH_CHANGED = "org.fossify.gallery.action.MEDIA_STORE_PATH_CHANGED"
-const val ACTION_DATE_TAKEN_INDEX_UPDATED = "org.fossify.gallery.action.DATE_TAKEN_INDEX_UPDATED"
-const val ACTION_DATE_TAKEN_INDEX_PROGRESS = "org.fossify.gallery.action.DATE_TAKEN_INDEX_PROGRESS"
 
-// [DateTaken.source] values
+// [MediaMetadata.dateTakenSource] values
 const val DATE_TAKEN_SOURCE_MANUAL = 0
 const val DATE_TAKEN_SOURCE_INDEXED = 1
-/** The indexer read the file and found no capture date; [DateTaken.taken] is 0. Re-checked when the file's last_modified changes. */
+/** The indexer read the file and found no capture date; [MediaMetadata.dateTaken] is 0. Re-checked when last_modified changes. */
 const val DATE_TAKEN_SOURCE_NOT_FOUND = 2
+/** The row was written by an XMP write before the indexer read the capture date, or the file changed since; re-read on the next index run. */
+const val DATE_TAKEN_SOURCE_PENDING = 3
 
 // aspect ratios used at the editor for cropping
 const val ASPECT_RATIO_FREE = 0

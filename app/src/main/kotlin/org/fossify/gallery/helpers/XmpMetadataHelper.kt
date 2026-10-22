@@ -6,9 +6,9 @@ import org.fossify.commons.extensions.getParentPath
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.commons.helpers.FAVORITES
 import org.fossify.gallery.extensions.config
-import org.fossify.gallery.extensions.xmpMetadataDB
+import org.fossify.gallery.extensions.mediaMetadataDB
+import org.fossify.gallery.models.MediaMetadata
 import org.fossify.gallery.models.Medium
-import org.fossify.gallery.models.XmpMetadataEntry
 import java.io.File
 import java.util.Locale
 
@@ -91,20 +91,23 @@ fun applyExifRatingsToMedia(media: List<Medium>, exifRatings: HashMap<String, In
     return changedPaths
 }
 
-fun Context.cacheXmpMetadata(path: String, metadata: XmpMetadata, lastModified: Long? = null) {
+/**
+ * [previousModified] is the file mtime before an in-app XMP write; pass null when the file was not written by us, so any
+ * mtime change since the last index marks the cached capture date as pending.
+ */
+fun Context.cacheXmpMetadata(path: String, metadata: XmpMetadata, lastModified: Long? = null, previousModified: Long? = null) {
     val modified = lastModified?.takeIf { it > 0L }
         ?: CaptureTimeReader.fileLastModifiedMillis(path).takeIf { it > 0L }
         ?: File(path).lastModified()
-    val entry = XmpMetadataEntry(
-        id = null,
-        fullPath = path,
+    mediaMetadataDB.upsertXmp(
+        path = path,
         filename = path.getFilenameFromPath(),
         parentPath = path.getParentPath(),
         rating = metadata.rating.coerceIn(0, 5),
-        tags = XmpMetadataEntry.encodeTags(metadata.tags),
-        lastModified = modified
+        tags = MediaMetadata.encodeTags(metadata.tags),
+        lastModified = modified,
+        previousModified = previousModified ?: modified
     )
-    xmpMetadataDB.insertAll(listOf(entry))
     XmpTagIndex.update(path, metadata.tags)
 }
 
@@ -115,7 +118,7 @@ fun Context.loadXmpMetadata(path: String): XmpMetadata {
     }
     val lastModified = File(path).lastModified()
     val cached = try {
-        xmpMetadataDB.getByPath(path)
+        mediaMetadataDB.getByPath(path)
     } catch (_: Exception) {
         null
     }
@@ -131,10 +134,11 @@ fun Context.setExifRating(path: String, rating: Int): Boolean {
     if (!path.isJpegPath()) {
         return false
     }
+    val previousModified = File(path).lastModified()
     if (!writeXmpRatingToJpegFile(path, rating)) {
         return false
     }
-    cacheXmpMetadata(path, readXmpMetadataFromJpegFile(path), File(path).lastModified())
+    cacheXmpMetadata(path, readXmpMetadataFromJpegFile(path), File(path).lastModified(), previousModified)
     return true
 }
 
@@ -142,9 +146,10 @@ fun Context.setXmpTags(path: String, tags: List<String>): Boolean {
     if (!path.isJpegPath()) {
         return false
     }
+    val previousModified = File(path).lastModified()
     if (!writeXmpTagsToJpegFile(path, tags)) {
         return false
     }
-    cacheXmpMetadata(path, readXmpMetadataFromJpegFile(path), File(path).lastModified())
+    cacheXmpMetadata(path, readXmpMetadataFromJpegFile(path), File(path).lastModified(), previousModified)
     return true
 }

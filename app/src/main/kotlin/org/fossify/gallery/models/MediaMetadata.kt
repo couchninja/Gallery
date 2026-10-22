@@ -5,16 +5,19 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "xmp_metadata", indices = [Index(value = ["full_path"], unique = true)])
-data class XmpMetadataEntry(
+@Entity(tableName = "media_metadata", indices = [Index(value = ["full_path"], unique = true)])
+data class MediaMetadata(
     @PrimaryKey(autoGenerate = true) var id: Int?,
     @ColumnInfo(name = "full_path") var fullPath: String,
     @ColumnInfo(name = "filename") var filename: String,
     @ColumnInfo(name = "parent_path") var parentPath: String,
+    @ColumnInfo(name = "last_modified") var lastModified: Long,
+    @ColumnInfo(name = "date_taken") var dateTaken: Long,
+    @ColumnInfo(name = "date_taken_source") var dateTakenSource: Int,
+    @ColumnInfo(name = "last_fixed") var lastFixed: Int,
     @ColumnInfo(name = "rating") var rating: Int,
     /** Newline-separated `dc:subject` tags. */
     @ColumnInfo(name = "tags") var tags: String,
-    @ColumnInfo(name = "last_modified") var lastModified: Long
 ) {
     fun tagList(): List<String> = decodeTags(tags)
 

@@ -45,15 +45,15 @@ import org.fossify.gallery.dialogs.AllFilesPermissionDialog
 import org.fossify.gallery.dialogs.PickDirectoryDialog
 import org.fossify.gallery.dialogs.ResizeMultipleImagesDialog
 import org.fossify.gallery.dialogs.ResizeWithPathDialog
-import org.fossify.gallery.helpers.ACTION_DATE_TAKEN_INDEX_UPDATED
+import org.fossify.gallery.helpers.ACTION_MEDIA_METADATA_INDEX_UPDATED
 import org.fossify.gallery.helpers.CaptureTimeReader
 import org.fossify.gallery.helpers.DATE_TAKEN_SOURCE_MANUAL
+import org.fossify.gallery.helpers.EXTRA_METADATA_DATES_CHANGED
+import org.fossify.gallery.helpers.EXTRA_METADATA_XMP_CHANGED
 import org.fossify.gallery.helpers.DIRECTORY
 import org.fossify.gallery.helpers.RECYCLE_BIN
 import org.fossify.gallery.helpers.TEMP_FOLDER_NAME
-import org.fossify.gallery.models.DateTaken
 import java.io.*
-import java.text.SimpleDateFormat
 import java.util.Locale
 import androidx.core.net.toUri
 
@@ -550,25 +550,12 @@ private fun AppCompatActivity.resolveFixDateTakenTimestamp(
     filename: String,
     mediaStoreId: Long
 ): Long? {
-    CaptureTimeReader.readCaptureTimeMillis(
+    return CaptureTimeReader.readCaptureTimeMillis(
         context = applicationContext,
         path = path,
         filename = filename,
         mediaStoreId = mediaStoreId
-    )?.let { return it }
-
-    return try {
-        val dateTime = ExifInterface(path).getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)
-            ?: ExifInterface(path).getAttribute(ExifInterface.TAG_DATETIME)
-            ?: return null
-        val t = if (dateTime.length > 10 && dateTime.substring(10, 11) == "T") "\'T\'" else " "
-        val separator = dateTime.substring(4, 5)
-        val format = "yyyy${separator}MM${separator}dd${t}kk:mm:ss"
-        val parsed = SimpleDateFormat(format, Locale.getDefault()).parse(dateTime)?.time ?: return null
-        CaptureTimeReader.normalizeCaptureTimeMillis(parsed).takeIf { it != 0L }
-    } catch (_: Exception) {
-        null
-    }
+    )?.let { CaptureTimeReader.normalizeCaptureTimeMillis(it).takeIf { normalized -> normalized != 0L } }
 }
 
 fun AppCompatActivity.fixDateTaken(
@@ -588,7 +575,7 @@ fun AppCompatActivity.fixDateTaken(
         val operations = ArrayList<ContentProviderOperation>()
 
         ensureBackgroundThread {
-            val dateTakens = ArrayList<DateTaken>()
+            var manualDateUpdates = 0
 
             for (path in paths) {
                 try {
@@ -618,17 +605,15 @@ fun AppCompatActivity.fixDateTaken(
                     mediaDB.updateFavoriteDateTaken(path, timestamp)
                     didUpdateFile = true
 
-                    val dateTaken = DateTaken(
-                        null,
-                        path,
-                        path.getFilenameFromPath(),
-                        path.getParentPath(),
-                        timestamp,
-                        (System.currentTimeMillis() / 1000).toInt(),
-                        File(path).lastModified(),
-                        DATE_TAKEN_SOURCE_MANUAL
+                    mediaMetadataDB.upsertManualDateTaken(
+                        path = path,
+                        filename = path.getFilenameFromPath(),
+                        parentPath = path.getParentPath(),
+                        dateTaken = timestamp,
+                        dateTakenSource = DATE_TAKEN_SOURCE_MANUAL,
+                        lastFixed = (System.currentTimeMillis() / 1000).toInt()
                     )
-                    dateTakens.add(dateTaken)
+                    manualDateUpdates++
                     if (!hasRescanned && getFileDateTaken(path) == 0L) {
                         pathsToRescan.add(path)
                     }
@@ -656,17 +641,19 @@ fun AppCompatActivity.fixDateTaken(
             }
 
             if (hasRescanned || pathsToRescan.isEmpty()) {
-                if (dateTakens.isNotEmpty()) {
-                    dateTakensDB.insertAll(dateTakens)
+                if (manualDateUpdates > 0) {
                     sendBroadcast(
-                        Intent(ACTION_DATE_TAKEN_INDEX_UPDATED).setPackage(packageName)
+                        Intent(ACTION_MEDIA_METADATA_INDEX_UPDATED).setPackage(packageName).apply {
+                            putExtra(EXTRA_METADATA_DATES_CHANGED, true)
+                            putExtra(EXTRA_METADATA_XMP_CHANGED, false)
+                        }
                     )
                 }
 
                 runOnUiThread {
                     if (showToasts) {
                         val message = when {
-                            dateTakens.isNotEmpty() -> R.string.dates_fixed_successfully
+                            manualDateUpdates > 0 -> R.string.dates_fixed_successfully
                             didUpdateFile -> R.string.dates_fixed_successfully
                             else -> org.fossify.commons.R.string.unknown_error_occurred
                         }
