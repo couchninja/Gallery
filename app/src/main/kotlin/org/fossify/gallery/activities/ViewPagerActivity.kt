@@ -46,6 +46,7 @@ import org.fossify.commons.extensions.beGone
 import org.fossify.commons.extensions.beVisible
 import org.fossify.commons.extensions.beVisibleIf
 import org.fossify.commons.extensions.convertToBitmap
+import org.fossify.commons.extensions.fadeIn
 import org.fossify.commons.extensions.formatSize
 import org.fossify.commons.extensions.getColoredDrawableWithColor
 import org.fossify.commons.extensions.getDataColumn
@@ -82,6 +83,7 @@ import org.fossify.commons.extensions.toast
 import org.fossify.commons.extensions.tryGenericMimeType
 import org.fossify.commons.extensions.updateBrightness
 import org.fossify.commons.extensions.viewBinding
+import org.fossify.commons.helpers.DEFAULT_ANIMATION_DURATION
 import org.fossify.commons.helpers.FAVORITES
 import org.fossify.commons.helpers.IS_FROM_GALLERY
 import org.fossify.commons.helpers.NOMEDIA
@@ -1247,6 +1249,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
     // INVISIBLE rather than GONE, and no setText when unchanged, so swiping doesn't trigger a relayout.
     private fun bindViewerXmpTags(tags: List<String>, mediumPath: String? = null) {
         val view = binding.viewerXmpTags
+        view.animate().cancel()
         if (tags.isEmpty()) {
             mViewerXmpTagsPath = null
             if (view.text.isNotEmpty()) {
@@ -1262,8 +1265,17 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
         if (view.text.toString() != text) {
             view.text = text
         }
+        val fadeIn = view.visibility != View.VISIBLE
         if (view.visibility != View.VISIBLE) {
             view.visibility = View.VISIBLE
+        }
+        if (fadeIn) {
+            if (mIsFullScreen) {
+                view.alpha = 0f
+            } else {
+                view.alpha = 0f
+                view.fadeIn(DEFAULT_ANIMATION_DURATION)
+            }
         }
     }
 
