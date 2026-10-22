@@ -69,11 +69,10 @@ class PickDirectoryDialog(
         configureSearchView()
 
         val builder = activity.getAlertDialogBuilder()
-            .setPositiveButton(org.fossify.commons.R.string.ok, null)
             .setNegativeButton(org.fossify.commons.R.string.cancel, null)
 
         if (showOtherFolderButton) {
-            builder.setNeutralButton(R.string.other_folder) { dialogInterface, i -> showOtherFolder() }
+            builder.setPositiveButton(R.string.other_folder) { _, _ -> showOtherFolder() }
         }
 
         builder.apply {

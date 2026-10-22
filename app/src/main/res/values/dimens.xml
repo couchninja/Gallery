@@ -29,7 +29,9 @@
     <dimen name="full_brush_size">40dp</dimen>
     <dimen name="lock_padding">30dp</dimen>
     <dimen name="sample_thumbnail_size">180dp</dimen>
-    <dimen name="directory_picker_dialog_min_height">180dp</dimen>
+    <dimen name="directory_picker_dialog_min_height">360dp</dimen>
+    <dimen name="directory_picker_dialog_list_min_height">300dp</dimen>
+    <dimen name="directory_picker_dialog_max_height">560dp</dimen>
     <dimen name="smaller_icon_size">36dp</dimen>
     <dimen name="thumbnail_grid_bottom_nav_icon_size">22dp</dimen>
     <dimen name="thumbnail_grid_bottom_nav_item_padding_top">2dp</dimen>
