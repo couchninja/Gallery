@@ -112,6 +112,7 @@ import org.fossify.gallery.helpers.GET_VIDEO_INTENT
 import org.fossify.gallery.helpers.GridSpacingItemDecoration
 import org.fossify.gallery.helpers.IS_IN_RECYCLE_BIN
 import org.fossify.gallery.helpers.MAX_COLUMN_COUNT
+import org.fossify.gallery.helpers.LoadTimer
 import org.fossify.gallery.helpers.MediaFetcher
 import org.fossify.gallery.helpers.mergeExifRatingsIntoMediaAsync
 import org.fossify.gallery.helpers.PATH
@@ -152,6 +153,7 @@ import org.fossify.gallery.interfaces.MediaOperationsListener
 import org.fossify.gallery.models.Medium
 import org.fossify.gallery.models.ThumbnailItem
 import org.fossify.gallery.models.ThumbnailSection
+import android.view.ViewTreeObserver
 import java.io.File
 import java.io.IOException
 
@@ -181,6 +183,8 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     private var mMediaStorePathReceiverRegistered = false
     private var mRequireFullMediaRescan = false
     private var mIsRefreshingFromCache = false
+    private var mLoggedCachePaint = false
+    private var mLoggedRescanPaint = false
     private val mLightRefreshHandler = Handler()
 
     private val mLightRefreshRunnable = Runnable {
@@ -323,6 +327,14 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         }
 
         updateWidgets()
+    }
+
+    override fun onRestart() {
+        super.onRestart()
+        if (mShowAll) {
+            LoadTimer.resetSession("mediaActivityRestart")
+            mLoggedCachePaint = false
+        }
     }
 
     override fun onStart() {
@@ -770,15 +782,14 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         mIsRefreshingFromCache = true
         ensureBackgroundThread {
             try {
-                val grouped = applicationContext.buildGroupedMediaFromCache(
+                val sorted = applicationContext.buildGroupedMediaFromCache(
                     path = mPath,
                     getVideosOnly = mIsGetVideoIntent && !mIsGetImageIntent,
                     getImagesOnly = mIsGetImageIntent && !mIsGetVideoIntent,
+                    group = false,
                 )
-                runOnUiThread {
-                    if (!isFinishing) {
-                        gotMedia(grouped, isFromCache = true)
-                    }
+                if (!isFinishing) {
+                    gotMedia(sorted, isFromCache = true)
                 }
             } catch (_: Exception) {
             } finally {
@@ -932,6 +943,19 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         binding.mediaRefreshStatus.beGone()
     }
 
+    private fun scheduleGridPaintMarker(label: String) {
+        binding.mediaGrid.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                binding.mediaGrid.viewTreeObserver.removeOnPreDrawListener(this)
+                LoadTimer.mark(
+                    label,
+                    "adapterItems=${binding.mediaGrid.adapter?.itemCount ?: 0}",
+                )
+                return true
+            }
+        })
+    }
+
     private fun getMedia() {
         if (mIsGettingMedia) {
             return
@@ -955,6 +979,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                 mIsGetVideoIntent && !mIsGetImageIntent,
                 mIsGetImageIntent && !mIsGetVideoIntent,
                 onStatus = { updateLoadingStatus(it) },
+                group = false,
             ) {
                 if (it.isEmpty()) {
                     runOnUiThread {
@@ -1052,6 +1077,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             isPickVideo = mIsGetVideoIntent && !mIsGetImageIntent,
             showAll = mShowAll,
             onStatus = { updateLoadingStatus(it) },
+            group = false,
         ) {
             ensureBackgroundThread {
                 val oldMedia = mMedia.clone() as ArrayList<ThumbnailItem>
@@ -1431,6 +1457,9 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     }
 
     private fun commitThumbnailGridView(view: ThumbnailGridView) {
+        if (mShowAll && shouldShowThumbnailGridViewsBar()) {
+            LoadTimer.resetSession("viewSwitch:${view.storageId}")
+        }
         mCurrentThumbnailGridView = view
         if (view != ThumbnailGridView.TAGS) {
             mThumbnailGridTagFilter = null
@@ -1464,22 +1493,29 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         } else {
             searchQueryChanged(mLastSearchedText)
         }
+        if (mShowAll && shouldShowThumbnailGridViewsBar()) {
+            scheduleGridPaintMarker("viewSwitchPaint")
+        }
     }
 
     private fun buildGroupedMediaForCurrentView(): ArrayList<ThumbnailItem> {
-        val filtered = filterMediaForThumbnailGridView(
-            rawMedia = mRawMedia,
-            view = mCurrentThumbnailGridView,
-            stickyUnratedPaths = mStickyUnratedPaths,
-            selectedTag = mThumbnailGridTagFilter,
-            showPrivateTagged = config.shouldShowHidden,
-        )
-        return MediaFetcher(applicationContext).groupMedia(filtered, mPath)
-            .withFolderPathHeader(
-                showAll = mShowAll,
-                path = mPath,
-                humanizedPath = humanizePath(mPath).trimEnd('/'),
+        val filtered = LoadTimer.section("filterMediaForThumbnailGridView") {
+            filterMediaForThumbnailGridView(
+                rawMedia = mRawMedia,
+                view = mCurrentThumbnailGridView,
+                stickyUnratedPaths = mStickyUnratedPaths,
+                selectedTag = mThumbnailGridTagFilter,
+                showPrivateTagged = config.shouldShowHidden,
             )
+        }
+        return LoadTimer.section("groupMedia") {
+            MediaFetcher(applicationContext).groupMedia(filtered, mPath)
+                .withFolderPathHeader(
+                    showAll = mShowAll,
+                    path = mPath,
+                    humanizedPath = humanizePath(mPath).trimEnd('/'),
+                )
+        }
     }
 
     private fun openInViewPager(path: String) {
@@ -1523,6 +1559,15 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             }
             binding.mediaFastscroller.beVisibleIf(binding.mediaEmptyTextPlaceholder.isGone())
             setupAdapter()
+            if (mShowAll) {
+                if (isFromCache && !mLoggedCachePaint) {
+                    mLoggedCachePaint = true
+                    scheduleGridPaintMarker("firstPaintFromCache")
+                } else if (!isFromCache && !mLoggedRescanPaint) {
+                    mLoggedRescanPaint = true
+                    scheduleGridPaintMarker("secondPaintFromRescan")
+                }
+            }
             if (isFromCache && config.showExifRatings) {
                 refreshDisplayedExifRatings()
             }

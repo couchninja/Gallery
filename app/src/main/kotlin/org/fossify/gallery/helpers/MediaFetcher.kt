@@ -790,6 +790,19 @@ class MediaFetcher(val context: Context) {
             return
         }
 
+        val sortsByCaptureTime = sorting and (SORT_BY_NAME or SORT_BY_PATH or SORT_BY_SIZE or SORT_BY_DATE_MODIFIED) == 0
+        if (sortsByCaptureTime) {
+            val keyed = media.map { CaptureTimeSortEntry(it.resolvedCaptureTimeMillis(), it) }
+            val comparator = if (sorting and SORT_DESCENDING != 0) {
+                compareByDescending<CaptureTimeSortEntry> { it.captureTime }
+            } else {
+                compareBy { it.captureTime }
+            }
+            media.clear()
+            keyed.sortedWith(comparator).mapTo(media) { it.medium }
+            return
+        }
+
         media.sortWith { o1, o2 ->
             o1 as Medium
             o2 as Medium
@@ -837,36 +850,30 @@ class MediaFetcher(val context: Context) {
 
         val mediumGroups = LinkedHashMap<String, ArrayList<Medium>>()
         media.forEach {
-            val key = it.getGroupingKey(currentGrouping)
-            if (!mediumGroups.containsKey(key)) {
-                mediumGroups[key] = ArrayList()
-            }
-            mediumGroups[key]!!.add(it)
+            mediumGroups.getOrPut(it.getGroupingKey(currentGrouping)) { ArrayList() }.add(it)
         }
 
         val sortDescending = currentGrouping and GROUP_DESCENDING != 0
         val sorted = if (currentGrouping and GROUP_BY_LAST_MODIFIED_DAILY != 0 || currentGrouping and GROUP_BY_LAST_MODIFIED_MONTHLY != 0 ||
             currentGrouping and GROUP_BY_DATE_TAKEN_DAILY != 0 || currentGrouping and GROUP_BY_DATE_TAKEN_MONTHLY != 0
         ) {
-            mediumGroups.toSortedMap(if (sortDescending) compareByDescending {
-                it.toLongOrNull() ?: 0L
+            val byNumericKey = mediumGroups.entries.map { (it.key.toLongOrNull() ?: 0L) to it }
+            val ordered = if (sortDescending) {
+                byNumericKey.sortedByDescending { it.first }
             } else {
-                compareBy { it.toLongOrNull() ?: 0L }
-            })
+                byNumericKey.sortedBy { it.first }
+            }
+            ordered.map { it.second }
         } else {
-            mediumGroups.toSortedMap(if (sortDescending) compareByDescending { it } else compareBy { it })
+            mediumGroups.toSortedMap(if (sortDescending) compareByDescending { it } else compareBy { it }).entries.toList()
         }
 
-        mediumGroups.clear()
+        val dateFormatter = GroupDateFormatter(context.config.dateFormat)
+        val today = dateFormatter.format(System.currentTimeMillis().toString(), true)
+        val yesterday = dateFormatter.format((System.currentTimeMillis() - DAY_SECONDS * 1000).toString(), true)
         for ((key, value) in sorted) {
-            mediumGroups[key] = value
-        }
-
-        val today = formatDate(System.currentTimeMillis().toString(), true)
-        val yesterday = formatDate((System.currentTimeMillis() - DAY_SECONDS * 1000).toString(), true)
-        for ((key, value) in mediumGroups) {
             var currentGridPosition = 0
-            val sectionKey = getFormattedKey(key, currentGrouping, today, yesterday, value.size)
+            val sectionKey = getFormattedKey(key, currentGrouping, today, yesterday, value.size, dateFormatter)
             thumbnailItems.add(ThumbnailSection(sectionKey))
 
             value.forEach {
@@ -879,15 +886,22 @@ class MediaFetcher(val context: Context) {
         return thumbnailItems
     }
 
-    private fun getFormattedKey(key: String, grouping: Int, today: String, yesterday: String, count: Int): String {
+    private fun getFormattedKey(
+        key: String,
+        grouping: Int,
+        today: String,
+        yesterday: String,
+        count: Int,
+        dateFormatter: GroupDateFormatter,
+    ): String {
         var result = when {
             grouping and GROUP_BY_LAST_MODIFIED_DAILY != 0 || grouping and GROUP_BY_DATE_TAKEN_DAILY != 0 -> getFinalDate(
-                formatDate(key, true),
+                dateFormatter.format(key, true),
                 today,
                 yesterday
             )
 
-            grouping and GROUP_BY_LAST_MODIFIED_MONTHLY != 0 || grouping and GROUP_BY_DATE_TAKEN_MONTHLY != 0 -> formatDate(key, false)
+            grouping and GROUP_BY_LAST_MODIFIED_MONTHLY != 0 || grouping and GROUP_BY_DATE_TAKEN_MONTHLY != 0 -> dateFormatter.format(key, false)
             grouping and GROUP_BY_FILE_TYPE != 0 -> getFileTypeString(key)
             grouping and GROUP_BY_EXTENSION != 0 -> key.uppercase(Locale.getDefault())
             grouping and GROUP_BY_FOLDER != 0 -> context.humanizePath(key)
@@ -913,15 +927,13 @@ class MediaFetcher(val context: Context) {
         }
     }
 
-    private fun formatDate(timestamp: String, showDay: Boolean): String {
-        val millis = timestamp.toLongOrNull()
-        return if (millis != null) {
-            val cal = Calendar.getInstance(Locale.ENGLISH)
-            cal.timeInMillis = millis
-            val format = if (showDay) context.config.dateFormat else "MMMM yyyy"
-            DateFormat.format(format, cal).toString()
-        } else {
-            ""
+    private class GroupDateFormatter(private val dayFormat: String) {
+        private val calendar = Calendar.getInstance(Locale.ENGLISH)
+
+        fun format(timestamp: String, showDay: Boolean): String {
+            val millis = timestamp.toLongOrNull() ?: return ""
+            calendar.timeInMillis = millis
+            return DateFormat.format(if (showDay) dayFormat else "MMMM yyyy", calendar).toString()
         }
     }
 
@@ -936,4 +948,6 @@ class MediaFetcher(val context: Context) {
         }
         return context.getString(stringId)
     }
+
+    private class CaptureTimeSortEntry(val captureTime: Long, val medium: Medium)
 }

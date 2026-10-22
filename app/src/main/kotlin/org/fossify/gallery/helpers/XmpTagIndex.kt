@@ -3,11 +3,13 @@ package org.fossify.gallery.helpers
 import android.content.Context
 import org.fossify.gallery.extensions.mediaMetadataDB
 import org.fossify.gallery.models.MediaMetadata
+import java.util.Locale
 
 /** In-memory reverse map from XMP tag to the paths of photos carrying it, mirrored from the metadata cache. */
 object XmpTagIndex {
     private val pathsByTag = HashMap<String, LinkedHashSet<String>>()
     private val tagsByPath = HashMap<String, List<String>>()
+    private val keyByLowercasePath = HashMap<String, String>()
 
     fun loadFromDb(context: Context) {
         val entries = try {
@@ -22,6 +24,7 @@ object XmpTagIndex {
     fun replaceAll(entries: Collection<MediaMetadata>) {
         pathsByTag.clear()
         tagsByPath.clear()
+        keyByLowercasePath.clear()
         entries.forEach { putLocked(it.fullPath, it.tagList()) }
     }
 
@@ -39,7 +42,8 @@ object XmpTagIndex {
     @Synchronized
     fun getTags(path: String): List<String> {
         tagsByPath[path]?.let { return it }
-        return tagsByPath.entries.firstOrNull { it.key.equals(path, ignoreCase = true) }?.value.orEmpty()
+        val key = keyByLowercasePath[path.lowercaseKey()] ?: return emptyList()
+        return tagsByPath[key].orEmpty()
     }
 
     @Synchronized
@@ -57,11 +61,12 @@ object XmpTagIndex {
         }
         val key = pathKey(path)
         tagsByPath[key] = tags
+        keyByLowercasePath[key.lowercaseKey()] = key
         tags.forEach { tag -> pathsByTag.getOrPut(tag) { LinkedHashSet() }.add(key) }
     }
 
     private fun removeLocked(path: String) {
-        val key = tagsByPath.keys.firstOrNull { it.equals(path, ignoreCase = true) } ?: return
+        val key = keyByLowercasePath.remove(path.lowercaseKey()) ?: return
         tagsByPath.remove(key)?.forEach { tag ->
             val paths = pathsByTag[tag] ?: return@forEach
             paths.remove(key)
@@ -71,6 +76,7 @@ object XmpTagIndex {
         }
     }
 
-    private fun pathKey(path: String): String =
-        tagsByPath.keys.firstOrNull { it.equals(path, ignoreCase = true) } ?: path
+    private fun pathKey(path: String): String = keyByLowercasePath[path.lowercaseKey()] ?: path
+
+    private fun String.lowercaseKey(): String = lowercase(Locale.ROOT)
 }

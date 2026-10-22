@@ -55,7 +55,7 @@ enum class ThumbnailGridView(
 
     private val cardTagNamesLowercase = setOf("klantenkaart", "card")
 
-    fun matchesMedium(medium: Medium, stickyUnratedPaths: Set<String>?, selectedTag: String?): Boolean {
+    fun matchesMedium(medium: Medium, stickyUnratedPaths: Set<String>?, selectedTagPaths: Set<String>?): Boolean {
         return when (this) {
             ALL -> true
             UNRATED -> {
@@ -67,10 +67,7 @@ enum class ThumbnailGridView(
             }
             VIDEOS -> medium.isVideo()
             TOP_RATED -> medium.isJpeg() && medium.exifRating >= 4
-            TAGS -> {
-                val tag = selectedTag?.takeIf { it.isNotEmpty() } ?: return false
-                medium.path in XmpTagIndex.getPathsWithTag(tag)
-            }
+            TAGS -> selectedTagPaths != null && medium.path in selectedTagPaths
             CARDS -> mediumHasCardTag(medium)
         }
     }
@@ -137,8 +134,24 @@ fun filterMediaForThumbnailGridView(
     selectedTag: String? = null,
     showPrivateTagged: Boolean = false,
 ): ArrayList<Medium> {
-    return PrivateTaggedMedia.filter(rawMedia, showPrivateTagged).filterIsInstance<Medium>()
-        .filter { view.matchesMedium(it, stickyUnratedPaths, selectedTag) } as ArrayList
+    val selectedTagPaths = if (view == ThumbnailGridView.TAGS) {
+        selectedTag?.takeIf { it.isNotEmpty() }?.let { XmpTagIndex.getPathsWithTag(it) }
+    } else {
+        null
+    }
+    val result = ArrayList<Medium>(rawMedia.size)
+    for (item in rawMedia) {
+        if (item !is Medium) {
+            continue
+        }
+        if (!showPrivateTagged && PrivateTaggedMedia.hasPrivateTag(item)) {
+            continue
+        }
+        if (view.matchesMedium(item, stickyUnratedPaths, selectedTagPaths)) {
+            result.add(item)
+        }
+    }
+    return result
 }
 
 fun folderKeyForThumbnailGridViews(path: String, showAll: Boolean): String {

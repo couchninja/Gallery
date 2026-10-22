@@ -39,6 +39,10 @@ data class Medium(
 
     companion object {
         private const val serialVersionUID = -6553149366975655L
+        private const val DAY_MILLIS = 86_400_000L
+
+        // java.util.GregorianCalendar uses Julian dates before 1582-10-15.
+        private const val GREGORIAN_CUTOVER_MILLIS = -12_219_292_800_000L
     }
 
     fun isWebP() = name.isWebP()
@@ -107,6 +111,10 @@ data class Medium(
     private fun getDayStartTS(ts: Long, resetDays: Boolean): String {
         if (ts == 0L) {
             return "0"
+        }
+
+        if (!resetDays && ts >= GREGORIAN_CUTOVER_MILLIS) {
+            return (Math.floorDiv(ts, DAY_MILLIS) * DAY_MILLIS).toString()
         }
 
         val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"), Locale.ENGLISH).apply {

@@ -8,6 +8,7 @@ import org.fossify.commons.helpers.SORT_BY_DATE_TAKEN
 import org.fossify.commons.helpers.SORT_BY_SIZE
 import org.fossify.gallery.extensions.config
 import org.fossify.gallery.extensions.getFavoritePaths
+import org.fossify.gallery.helpers.LoadTimer
 import org.fossify.gallery.helpers.MediaMetadataIndexer
 import org.fossify.gallery.helpers.*
 import org.fossify.gallery.R
@@ -17,6 +18,7 @@ import org.fossify.gallery.models.ThumbnailItem
 class GetMediaAsynctask(
     val context: Context, val mPath: String, val isPickImage: Boolean = false, val isPickVideo: Boolean = false,
     val showAll: Boolean, private val onStatus: ((String) -> Unit)? = null,
+    private val group: Boolean = true,
     val callback: (media: ArrayList<ThumbnailItem>) -> Unit
 ) :
     AsyncTask<Void, Void, ArrayList<ThumbnailItem>>() {
@@ -72,21 +74,24 @@ class GetMediaAsynctask(
 
         val media = if (showAll) {
             reportStatus(R.string.loading_media_finding_folders)
-            val foldersToScan = mediaFetcher.getFoldersToScan().filter { it != RECYCLE_BIN && it != FAVORITES && !context.config.isFolderProtected(it) }
-            reportStatus(R.string.loading_media_scanning_library)
-            val media = ArrayList<Medium>()
-            foldersToScan.forEach {
-                val newMedia = mediaFetcher.getFilesFrom(
-                    it, isPickImage, isPickVideo, getProperDateTaken, getProperLastModified, getProperFileSize,
-                    favoritePaths, getVideoDurations, lastModifieds, dateTakens.clone() as HashMap<String, Long>,
-                    exifRatings, null
-                )
-                media.addAll(newMedia)
+            val foldersToScan = mediaFetcher.getFoldersToScan().filter {
+                it != RECYCLE_BIN && it != FAVORITES && !context.config.isFolderProtected(it)
             }
-
+            reportStatus(R.string.loading_media_scanning_library)
+            val scanned = ArrayList<Medium>()
+            LoadTimer.section("getFilesFromLoop folders=${foldersToScan.size}") {
+                foldersToScan.forEach {
+                    val newMedia = mediaFetcher.getFilesFrom(
+                        it, isPickImage, isPickVideo, getProperDateTaken, getProperLastModified, getProperFileSize,
+                        favoritePaths, getVideoDurations, lastModifieds, dateTakens.clone() as HashMap<String, Long>,
+                        exifRatings, null
+                    )
+                    scanned.addAll(newMedia)
+                }
+            }
             reportStatus(R.string.loading_media_organizing)
-            mediaFetcher.sortMedia(media, context.config.getFolderSorting(SHOW_ALL))
-            media
+            mediaFetcher.sortMedia(scanned, context.config.getFolderSorting(SHOW_ALL))
+            scanned
         } else {
             reportStatus(R.string.loading_media_scanning_library)
             mediaFetcher.getFilesFrom(
@@ -95,12 +100,18 @@ class GetMediaAsynctask(
             )
         }
 
+        if (!group) {
+            return ArrayList<ThumbnailItem>(media)
+        }
         reportStatus(R.string.loading_media_organizing)
         return mediaFetcher.groupMedia(media, pathToUse)
     }
 
     override fun onPostExecute(media: ArrayList<ThumbnailItem>) {
         super.onPostExecute(media)
+        if (showAll) {
+            LoadTimer.mark("GetMediaAsynctask.onPostExecute")
+        }
         callback(media)
         MediaMetadataIndexer.schedule(context)
     }

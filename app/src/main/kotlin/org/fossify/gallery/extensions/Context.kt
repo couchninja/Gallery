@@ -82,6 +82,7 @@ import org.fossify.gallery.asynctasks.GetMediaAsynctask
 import org.fossify.gallery.databases.GalleryDatabase
 import org.fossify.gallery.helpers.Config
 import org.fossify.gallery.helpers.XmpTagIndex
+import org.fossify.gallery.helpers.LoadTimer
 import org.fossify.gallery.helpers.GROUP_BY_DATE_TAKEN_DAILY
 import org.fossify.gallery.helpers.GROUP_BY_DATE_TAKEN_MONTHLY
 import org.fossify.gallery.helpers.GROUP_BY_LAST_MODIFIED_DAILY
@@ -1076,9 +1077,12 @@ fun Context.buildGroupedMediaFromCache(
     getVideosOnly: Boolean = false,
     getImagesOnly: Boolean = false,
     onStatus: ((String) -> Unit)? = null,
+    group: Boolean = true,
 ): ArrayList<ThumbnailItem> {
     val mediaFetcher = MediaFetcher(this)
-    val media = loadCachedMediaList(path, getVideosOnly, getImagesOnly, onStatus)
+    val media = LoadTimer.section("loadCachedMediaList") {
+        loadCachedMediaList(path, getVideosOnly, getImagesOnly, onStatus)
+    }
     applyDbCaptureTimesForSort(media, path)
 
     if (config.showExifRatings && media.isNotEmpty()) {
@@ -1092,19 +1096,27 @@ fun Context.buildGroupedMediaFromCache(
 
     val pathToUse = path.ifEmpty { SHOW_ALL }
     onStatus?.invoke(getString(R.string.loading_media_organizing))
-    mediaFetcher.sortMedia(media, config.getFolderSorting(pathToUse))
-    return mediaFetcher.groupMedia(media, pathToUse)
+    return LoadTimer.section("sortMedia+groupMedia") {
+        mediaFetcher.sortMedia(media, config.getFolderSorting(pathToUse))
+        if (!group) {
+            ArrayList<ThumbnailItem>(media)
+        } else {
+            mediaFetcher.groupMedia(media, pathToUse)
+        }
+    }
 }
 
+/** With [group] false the callback receives sorted [Medium] items only, without section headers. */
 fun Context.getCachedMedia(
     path: String,
     getVideosOnly: Boolean = false,
     getImagesOnly: Boolean = false,
     onStatus: ((String) -> Unit)? = null,
+    group: Boolean = true,
     callback: (ArrayList<ThumbnailItem>) -> Unit
 ) {
     ensureBackgroundThread {
-        val grouped = buildGroupedMediaFromCache(path, getVideosOnly, getImagesOnly, onStatus)
+        val grouped = buildGroupedMediaFromCache(path, getVideosOnly, getImagesOnly, onStatus, group)
         val media = grouped.filterIsInstance<Medium>()
         callback(grouped.clone() as ArrayList<ThumbnailItem>)
 

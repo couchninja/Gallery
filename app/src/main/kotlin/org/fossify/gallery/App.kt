@@ -8,6 +8,7 @@ import okhttp3.Response
 import org.fossify.commons.FossifyApp
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.gallery.extensions.config
+import org.fossify.gallery.helpers.LoadTimer
 import org.fossify.gallery.helpers.MediaMetadataIndexer
 import org.fossify.gallery.helpers.ThumbnailGridViewConfig
 import org.fossify.gallery.helpers.ThumbnailGridViewShortcuts
@@ -19,6 +20,7 @@ class App : FossifyApp() {
 
     override fun onCreate() {
         super.onCreate()
+        LoadTimer.resetSession("appColdStart")
         ThumbnailGridViewConfig.resetAllPhotosGridToAll(this)
         ThumbnailGridViewShortcuts.refresh(this)
         ensureBackgroundThread {

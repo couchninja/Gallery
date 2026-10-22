@@ -133,6 +133,7 @@ import org.fossify.gallery.helpers.GROUP_BY_DATE_TAKEN_MONTHLY
 import org.fossify.gallery.helpers.GROUP_BY_LAST_MODIFIED_DAILY
 import org.fossify.gallery.helpers.GROUP_BY_LAST_MODIFIED_MONTHLY
 import org.fossify.gallery.helpers.GROUP_DESCENDING
+import org.fossify.gallery.helpers.LoadTimer
 import org.fossify.gallery.helpers.LOCATION_INTERNAL
 import org.fossify.gallery.helpers.MAX_COLUMN_COUNT
 import org.fossify.gallery.helpers.MONTH_MILLISECONDS
@@ -808,6 +809,12 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
         animateBack: Boolean = false,
     ) {
         config.showAll = true
+        if (!mIsThirdPartyIntent) {
+            when {
+                animateBack -> LoadTimer.resetSession("folderToAllPhotosBack")
+                mShowDirectoryList -> LoadTimer.resetSession("folderToAllPhotosMenu")
+            }
+        }
         Intent(this, MediaActivity::class.java).apply {
             putExtra(DIRECTORY, "")
             if (resetThumbnailGridToAll) {

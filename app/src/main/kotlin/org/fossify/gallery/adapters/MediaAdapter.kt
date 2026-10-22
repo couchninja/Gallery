@@ -20,6 +20,7 @@ import com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller
 import org.fossify.commons.activities.BaseSimpleActivity
 import org.fossify.commons.adapters.MyRecyclerViewAdapter
 import org.fossify.gallery.extensions.showMediaProperties
+import org.fossify.gallery.helpers.LoadTimer
 import org.fossify.commons.dialogs.RenameDialog
 import org.fossify.commons.dialogs.RenameItemDialog
 import org.fossify.commons.extensions.applyColorFilter
@@ -788,16 +789,18 @@ class MediaAdapter(
     private fun getItemWithKey(key: Int): Medium? = media.firstOrNull { (it as? Medium)?.path?.hashCode() == key } as? Medium
 
     fun updateMedia(newMedia: ArrayList<ThumbnailItem>) {
-        val thumbnailItems = newMedia.clone() as ArrayList<ThumbnailItem>
-        if (thumbnailItems.hashCode() != currentMediaHash) {
-            currentMediaHash = thumbnailItems.hashCode()
-            media = thumbnailItems
-            notifyDataSetChanged()
-            finishActMode()
-        } else {
-            val changedPaths = syncExifRatingsFrom(thumbnailItems.filterIsInstance<Medium>())
-            if (changedPaths.isNotEmpty()) {
-                notifyExifRatingPathsChanged(changedPaths)
+        LoadTimer.section("updateMedia.hashAndNotify") {
+            val thumbnailItems = newMedia.clone() as ArrayList<ThumbnailItem>
+            if (thumbnailItems.hashCode() != currentMediaHash) {
+                currentMediaHash = thumbnailItems.hashCode()
+                media = thumbnailItems
+                notifyDataSetChanged()
+                finishActMode()
+            } else {
+                val changedPaths = syncExifRatingsFrom(thumbnailItems.filterIsInstance<Medium>())
+                if (changedPaths.isNotEmpty()) {
+                    notifyExifRatingPathsChanged(changedPaths)
+                }
             }
         }
     }
