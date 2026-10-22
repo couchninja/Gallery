@@ -75,14 +75,14 @@ data class Medium(
     fun resolvedCaptureTimeMillis(): Long = CaptureTimeReader.resolveCaptureTimeMillis(taken, modified)
 
     private fun captureTimeForGrouping(): Long {
-        return resolvedCaptureTimeMillis().takeIf { it > 0L && CaptureTimeReader.isPlausibleCaptureTimeMillis(it) }
-            ?: modified.takeIf { it > 0L && CaptureTimeReader.isPlausibleCaptureTimeMillis(it) }
+        return resolvedCaptureTimeMillis().takeIf { CaptureTimeReader.isPlausibleCaptureTimeMillis(it) }
+            ?: modified.takeIf { CaptureTimeReader.isPlausibleCaptureTimeMillis(it) }
             ?: 0L
     }
 
     private fun groupingKeyForCaptureTime(monthly: Boolean): String {
         val captureTime = captureTimeForGrouping()
-        return if (captureTime > 0L) {
+        return if (captureTime != 0L) {
             getDayStartTS(captureTime, monthly)
         } else {
             ""
@@ -105,7 +105,7 @@ data class Medium(
     fun getIsInRecycleBin() = deletedTS != 0L
 
     private fun getDayStartTS(ts: Long, resetDays: Boolean): String {
-        if (ts <= 0L) {
+        if (ts == 0L) {
             return "0"
         }
 

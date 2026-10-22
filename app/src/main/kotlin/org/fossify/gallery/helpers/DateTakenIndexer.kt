@@ -101,7 +101,7 @@ object DateTakenIndexer {
                 }
 
                 val mediaStoreDateTaken = cursor.getLongValue(Images.Media.DATE_TAKEN)
-                if (CaptureTimeReader.normalizeCaptureTimeMillis(mediaStoreDateTaken) > 0L) {
+                if (CaptureTimeReader.normalizeCaptureTimeMillis(mediaStoreDateTaken) != 0L) {
                     return@queryCursor
                 }
 
@@ -154,7 +154,7 @@ object DateTakenIndexer {
                 mediaStoreId = item.mediaStoreId
             )
             val resolved = captureMillis?.let { CaptureTimeReader.normalizeCaptureTimeMillis(it) } ?: 0L
-            if (resolved <= 0L) {
+            if (resolved == 0L) {
                 continue
             }
 

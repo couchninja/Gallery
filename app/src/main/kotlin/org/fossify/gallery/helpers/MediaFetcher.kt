@@ -634,7 +634,7 @@ class MediaFetcher(val context: Context) {
                     val dateTaken = CaptureTimeReader.normalizeCaptureTimeMillis(
                         cursor.getLongValue(Images.Media.DATE_TAKEN)
                     )
-                    if (dateTaken > 0L) {
+                    if (dateTaken != 0L) {
                         val path = cursor.getStringValue(Images.Media.DATA) ?: return@queryCursor
                         dateTakens[path] = dateTaken
                     }
@@ -655,7 +655,7 @@ class MediaFetcher(val context: Context) {
 
         dateTakenValues.forEach {
             val normalized = CaptureTimeReader.normalizeCaptureTimeMillis(it.taken)
-            if (normalized > 0L) {
+            if (normalized != 0L) {
                 dateTakens[it.fullPath] = normalized
             }
         }
@@ -707,7 +707,7 @@ class MediaFetcher(val context: Context) {
                     val dateTaken = CaptureTimeReader.normalizeCaptureTimeMillis(
                         cursor.getLongValue(Images.Media.DATE_TAKEN)
                     )
-                    if (dateTaken > 0L) {
+                    if (dateTaken != 0L) {
                         val path = cursor.getStringValue(Images.Media.DATA)
                         dateTakens[path] = dateTaken
                     }
@@ -719,7 +719,7 @@ class MediaFetcher(val context: Context) {
 
             dateTakenValues.forEach {
                 val normalized = CaptureTimeReader.normalizeCaptureTimeMillis(it.taken)
-                if (normalized > 0L) {
+                if (normalized != 0L) {
                     dateTakens[it.fullPath] = normalized
                 }
             }
@@ -939,9 +939,10 @@ class MediaFetcher(val context: Context) {
     }
 
     private fun formatDate(timestamp: String, showDay: Boolean): String {
-        return if (timestamp.areDigitsOnly()) {
+        val millis = timestamp.toLongOrNull()
+        return if (millis != null) {
             val cal = Calendar.getInstance(Locale.ENGLISH)
-            cal.timeInMillis = timestamp.toLong()
+            cal.timeInMillis = millis
             val format = if (showDay) context.config.dateFormat else "MMMM yyyy"
             DateFormat.format(format, cal).toString()
         } else {

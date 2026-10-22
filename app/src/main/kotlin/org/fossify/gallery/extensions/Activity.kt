@@ -575,7 +575,7 @@ private fun AppCompatActivity.resolveFixDateTakenTimestamp(
         val separator = dateTime.substring(4, 5)
         val format = "yyyy${separator}MM${separator}dd${t}kk:mm:ss"
         val parsed = SimpleDateFormat(format, Locale.getDefault()).parse(dateTime)?.time ?: return null
-        CaptureTimeReader.normalizeCaptureTimeMillis(parsed).takeIf { it > 0L }
+        CaptureTimeReader.normalizeCaptureTimeMillis(parsed).takeIf { it != 0L }
     } catch (_: Exception) {
         null
     }

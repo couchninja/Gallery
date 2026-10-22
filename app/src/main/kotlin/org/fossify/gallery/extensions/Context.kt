@@ -1037,7 +1037,7 @@ private fun Context.applyDbCaptureTimesForSort(media: ArrayList<Medium>, path: S
     val byPath = HashMap<String, Long>(dateTakenValues.size)
     dateTakenValues.forEach { entry ->
         val normalized = CaptureTimeReader.normalizeCaptureTimeMillis(entry.taken)
-        if (normalized > 0L) {
+        if (normalized != 0L) {
             byPath[entry.fullPath] = normalized
         }
     }

@@ -31,7 +31,22 @@ object CaptureTimeReader {
     // Reject junk MediaStore values (small counters, unset fields) that land on 1 Jan 1970 after scaling.
     private const val MIN_PLAUSIBLE_CAPTURE_MILLIS = 31_536_000_000L // 1971-01-01 UTC
 
+    // Pre-1970 captures (e.g. scanned historic photos) are negative millis; 0 stays the "missing" sentinel,
+    // so values within a day before the epoch are treated as junk like -1.
+    private const val MIN_HISTORIC_CAPTURE_MILLIS = -5_364_662_400_000L // 1800-01-01 UTC
+    private const val MAX_PRE_EPOCH_CAPTURE_MILLIS = -86_400_000L
+
+    // MP4/QuickTime creation_time 0 decodes to 1904-01-01 UTC; videos without a real date carry it.
+    private const val QUICKTIME_EPOCH_MILLIS = -2_082_844_800_000L
+    private const val DAY_MILLIS = 86_400_000L
+
     fun isPlausibleCaptureTimeMillis(millis: Long): Boolean {
+        if (millis < 0L) {
+            if (millis in (QUICKTIME_EPOCH_MILLIS - DAY_MILLIS)..(QUICKTIME_EPOCH_MILLIS + DAY_MILLIS)) {
+                return false
+            }
+            return millis in MIN_HISTORIC_CAPTURE_MILLIS..MAX_PRE_EPOCH_CAPTURE_MILLIS
+        }
         if (millis < MIN_PLAUSIBLE_CAPTURE_MILLIS) {
             return false
         }
@@ -41,10 +56,15 @@ object CaptureTimeReader {
     /**
      * MediaStore [Images.Media.DATE_TAKEN] is usually millis for photos, but many videos use epoch seconds.
      * Values between 1e9 and 1e12 can be either seconds or millis (e.g. 1999-01-01 is ~9.15e11 ms).
+     * Negative values are pre-1970 millis. Returns 0 when the value is not a usable capture time.
      */
     fun normalizeCaptureTimeMillis(value: Long): Long {
-        if (value <= 0L) {
+        if (value == 0L) {
             return 0L
+        }
+
+        if (value < 0L) {
+            return if (isPlausibleCaptureTimeMillis(value)) value else 0L
         }
 
         if (value >= 1_000_000_000_000L) {
@@ -68,7 +88,7 @@ object CaptureTimeReader {
     }
 
     fun resolveCaptureTimeMillis(taken: Long, modifiedFallback: Long): Long {
-        normalizeCaptureTimeMillis(taken).takeIf { it > 0L }?.let { return it }
+        normalizeCaptureTimeMillis(taken).takeIf { it != 0L }?.let { return it }
         return if (isPlausibleCaptureTimeMillis(modifiedFallback)) {
             modifiedFallback
         } else {
@@ -92,10 +112,10 @@ object CaptureTimeReader {
         lastModified: Long
     ): Long {
         lookupAndRemoveDateTaken(dateTakens, path)?.let { cached ->
-            normalizeCaptureTimeMillis(cached).takeIf { it > 0L }?.let { return it }
+            normalizeCaptureTimeMillis(cached).takeIf { it != 0L }?.let { return it }
         }
-        normalizeCaptureTimeMillis(mediaStoreDateTaken).takeIf { it > 0L }?.let { return it }
-        readCaptureTimeMillis(context, path, filename, mediaStoreId)?.takeIf { it > 0L }?.let { return it }
+        normalizeCaptureTimeMillis(mediaStoreDateTaken).takeIf { it != 0L }?.let { return it }
+        readCaptureTimeMillis(context, path, filename, mediaStoreId)?.let { return it }
         return resolveCaptureTimeMillis(0L, lastModified)
     }
 
@@ -112,7 +132,7 @@ object CaptureTimeReader {
                 ?: parseCompactDateFromFilename(filename)
             else -> parseTimestampFromFilename(filename) ?: parseCompactDateFromFilename(filename)
         }
-        return raw?.let { millis -> normalizeCaptureTimeMillis(millis).takeIf { it > 0L } }
+        return raw?.let { millis -> normalizeCaptureTimeMillis(millis).takeIf { it != 0L } }
     }
 
     fun readExifCaptureTimeMillis(path: String): Long? {
