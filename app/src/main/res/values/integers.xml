@@ -4,5 +4,6 @@
     <integer name="media_columns_vertical_scroll">3</integer>
     <integer name="media_columns_horizontal_scroll">4</integer>
 
-    <integer name="default_sorting">33794</integer>
+    <!-- SORT_BY_DATE_TAKEN | SORT_DESCENDING | SORT_USE_NUMERIC_VALUE (commons 7.1.3) -->
+    <integer name="default_sorting">33800</integer>
 </resources>

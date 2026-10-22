@@ -89,7 +89,7 @@ class Config(context: Context) : BaseConfig(context) {
         set(pinnedFolders) = prefs.edit().putStringSet(PINNED_FOLDERS, pinnedFolders).apply()
 
     var showAll: Boolean
-        get() = prefs.getBoolean(SHOW_ALL, false)
+        get() = prefs.getBoolean(SHOW_ALL, true)
         set(showAll) = prefs.edit().putBoolean(SHOW_ALL, showAll).apply()
 
     fun addPinnedFolders(paths: Set<String>) {
@@ -124,8 +124,12 @@ class Config(context: Context) : BaseConfig(context) {
     }
 
     var excludedFolders: MutableSet<String>
-        get() = prefs.getStringSet(EXCLUDED_FOLDERS, HashSet())!!
+        get() = prefs.getStringSet(EXCLUDED_FOLDERS, getDefaultExcludedFolders())!!
         set(excludedFolders) = prefs.edit().remove(EXCLUDED_FOLDERS).putStringSet(EXCLUDED_FOLDERS, excludedFolders).apply()
+
+    private fun getDefaultExcludedFolders() = hashSetOf(
+        "$internalStoragePath/Android/media",
+    )
 
     var isExcludedPasswordProtectionOn: Boolean
         get() = prefs.getBoolean(EXCLUDED_PASSWORD_PROTECTION, false)
@@ -244,7 +248,7 @@ class Config(context: Context) : BaseConfig(context) {
             .apply()
 
     var videoPlayerType: Int
-        get() = prefs.getInt(VIDEO_PLAYER_TYPE, if (appRunCount <= 1) VIDEO_PLAYER_APP else VIDEO_PLAYER_SYSTEM)
+        get() = prefs.getInt(VIDEO_PLAYER_TYPE, VIDEO_PLAYER_APP)
         set(videoPlayerType) = prefs.edit().putInt(VIDEO_PLAYER_TYPE, videoPlayerType).apply()
 
     var displayFileNames: Boolean
