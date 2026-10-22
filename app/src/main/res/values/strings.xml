@@ -331,7 +331,7 @@
     <string name="thumbnail_grid_view_all">All</string>
     <string name="thumbnail_grid_view_unrated">Unrated</string>
     <string name="thumbnail_grid_view_videos">Videos</string>
-    <string name="thumbnail_grid_view_top_rated">4–5 stars</string>
+    <string name="thumbnail_grid_view_top_rated">4+ stars</string>
     <string name="thumbnail_grid_view_tags">Tags</string>
     <string name="thumbnail_grid_view_cards">Cards</string>
     <string name="thumbnail_grid_view_tags_pick">Choose a tag</string>
