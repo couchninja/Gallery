@@ -82,6 +82,7 @@ import org.fossify.gallery.extensions.emptyTheRecycleBin
 import org.fossify.gallery.extensions.favoritesDB
 import org.fossify.gallery.extensions.buildGroupedMediaFromCache
 import org.fossify.gallery.extensions.getCachedMedia
+import org.fossify.gallery.extensions.pruneStaleCachedMedia
 import org.fossify.gallery.extensions.getHumanizedFilename
 import org.fossify.gallery.extensions.isDownloadsFolder
 import org.fossify.gallery.extensions.launchAbout
@@ -782,10 +783,17 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         mIsRefreshingFromCache = true
         ensureBackgroundThread {
             try {
+                val getVideosOnly = mIsGetVideoIntent && !mIsGetImageIntent
+                val getImagesOnly = mIsGetImageIntent && !mIsGetVideoIntent
+                applicationContext.pruneStaleCachedMedia(
+                    path = mPath,
+                    getVideosOnly = getVideosOnly,
+                    getImagesOnly = getImagesOnly,
+                )
                 val sorted = applicationContext.buildGroupedMediaFromCache(
                     path = mPath,
-                    getVideosOnly = mIsGetVideoIntent && !mIsGetImageIntent,
-                    getImagesOnly = mIsGetImageIntent && !mIsGetVideoIntent,
+                    getVideosOnly = getVideosOnly,
+                    getImagesOnly = getImagesOnly,
                     group = false,
                 )
                 if (!isFinishing) {

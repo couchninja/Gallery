@@ -1072,6 +1072,16 @@ private fun Context.pruneMissingCachedMedia(media: List<Medium>) {
     sendBroadcast(Intent(ACTION_MEDIA_STORE_PATH_CHANGED).setPackage(packageName))
 }
 
+/** Drops cached media rows whose files no longer exist (e.g. deleted in another app). */
+fun Context.pruneStaleCachedMedia(
+    path: String,
+    getVideosOnly: Boolean = false,
+    getImagesOnly: Boolean = false,
+) {
+    val media = loadCachedMediaList(path, getVideosOnly, getImagesOnly, onStatus = null)
+    pruneMissingCachedMedia(media)
+}
+
 fun Context.buildGroupedMediaFromCache(
     path: String,
     getVideosOnly: Boolean = false,

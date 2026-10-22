@@ -1,5 +1,6 @@
 package org.fossify.gallery.activities
 
+import android.content.Intent
 import android.database.ContentObserver
 import android.net.Uri
 import android.provider.MediaStore.Images
@@ -15,7 +16,9 @@ import org.fossify.gallery.R
 import org.fossify.gallery.dialogs.StoragePermissionRequiredDialog
 import org.fossify.gallery.extensions.addPathToDB
 import org.fossify.gallery.extensions.config
+import org.fossify.gallery.extensions.deleteMediumWithPath
 import org.fossify.gallery.extensions.updateDirectoryPath
+import org.fossify.gallery.helpers.ACTION_MEDIA_STORE_PATH_CHANGED
 import org.fossify.gallery.helpers.getPermissionsToRequest
 
 open class SimpleActivity : BaseSimpleActivity() {
@@ -25,12 +28,19 @@ open class SimpleActivity : BaseSimpleActivity() {
     private val observer = object : ContentObserver(null) {
         override fun onChange(selfChange: Boolean, uri: Uri?) {
             super.onChange(selfChange, uri)
-            if (uri != null) {
-                val path = getRealPathFromURI(uri)
-                if (path != null) {
-                    updateDirectoryPath(path.getParentPath())
-                    addPathToDB(path)
+            ensureBackgroundThread {
+                if (uri != null) {
+                    val path = getRealPathFromURI(uri)
+                    if (path != null) {
+                        updateDirectoryPath(path.getParentPath())
+                        if (getDoesFilePathExist(path)) {
+                            addPathToDB(path)
+                        } else {
+                            deleteMediumWithPath(path)
+                        }
+                    }
                 }
+                sendBroadcast(Intent(ACTION_MEDIA_STORE_PATH_CHANGED).setPackage(packageName))
             }
         }
     }
