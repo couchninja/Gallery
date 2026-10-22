@@ -1043,6 +1043,34 @@ private fun Context.applyDbCaptureTimesForSort(media: ArrayList<Medium>, path: S
     }
 }
 
+/**
+ * Removes cached rows whose files were deleted outside the app. Deletes by path because cached
+ * rows are loaded without their Room id, so `mediaDB.deleteMedia` would match nothing.
+ */
+private fun Context.pruneMissingCachedMedia(media: List<Medium>) {
+    val OTGPath = config.OTGPath
+    val missing = media.filter { !getDoesFilePathExist(it.path, OTGPath) }
+    if (missing.isEmpty()) {
+        return
+    }
+
+    missing.forEach {
+        if (it.path.startsWith(recycleBinPath)) {
+            deleteDBPath(it.path)
+        } else {
+            deleteMediumWithPath(it.path)
+            if (it.isFavorite) {
+                try {
+                    favoritesDB.deleteFavoritePath(it.path)
+                } catch (ignored: Exception) {
+                }
+            }
+        }
+    }
+
+    sendBroadcast(Intent(ACTION_MEDIA_STORE_PATH_CHANGED).setPackage(packageName))
+}
+
 fun Context.buildGroupedMediaFromCache(
     path: String,
     getVideosOnly: Boolean = false,
@@ -1077,35 +1105,13 @@ fun Context.getCachedMedia(
 ) {
     ensureBackgroundThread {
         val grouped = buildGroupedMediaFromCache(path, getVideosOnly, getImagesOnly, onStatus)
-        val media = grouped.filterIsInstance<Medium>() as ArrayList<Medium>
+        val media = grouped.filterIsInstance<Medium>()
         callback(grouped.clone() as ArrayList<ThumbnailItem>)
-        val OTGPath = config.OTGPath
 
-        try {
-            val mediaToDelete = ArrayList<Medium>()
-            // creating a new thread intentionally, do not reuse the common background thread
-            Thread {
-                media.filter { !getDoesFilePathExist(it.path, OTGPath) }.forEach {
-                    if (it.path.startsWith(recycleBinPath)) {
-                        deleteDBPath(it.path)
-                    } else {
-                        mediaToDelete.add(it)
-                    }
-                }
-
-                if (mediaToDelete.isNotEmpty()) {
-                    try {
-                        mediaDB.deleteMedia(*mediaToDelete.toTypedArray())
-
-                        mediaToDelete.filter { it.isFavorite }.forEach {
-                            favoritesDB.deleteFavoritePath(it.path)
-                        }
-                    } catch (ignored: Exception) {
-                    }
-                }
-            }.start()
-        } catch (ignored: Exception) {
-        }
+        // creating a new thread intentionally, do not reuse the common background thread
+        Thread {
+            pruneMissingCachedMedia(media)
+        }.start()
     }
 }
 
