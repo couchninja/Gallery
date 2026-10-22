@@ -131,6 +131,10 @@ import org.fossify.gallery.helpers.isJpeg
 import org.fossify.gallery.helpers.setThumbnailGridBottomChromeVisible
 import org.fossify.gallery.helpers.REQUEST_THUMBNAIL_GRID_TAG
 import org.fossify.gallery.helpers.THUMBNAIL_GRID_NAV_SCRIM_TAG
+import org.fossify.gallery.helpers.EXTRA_BACK_TO_ALL_MEDIA_ON_BACK
+import org.fossify.gallery.helpers.EXTRA_LAUNCHED_FROM_THUMBNAIL_SHORTCUT
+import org.fossify.gallery.helpers.EXTRA_RESET_THUMBNAIL_GRID_TO_ALL
+import org.fossify.gallery.helpers.EXTRA_SHOW_DIRECTORY_LIST
 import org.fossify.gallery.helpers.THUMBNAIL_GRID_VIEW_SHORTCUT_ID
 import org.fossify.gallery.helpers.THUMBNAIL_GRID_SELECTED_TAG
 import org.fossify.commons.extensions.updatePaddingWithBase
@@ -224,6 +228,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     private var mThumbnailGridTagsScreenOpen = false
     private var mStickyUnratedPaths: LinkedHashSet<String>? = null
     private var mThumbnailGridViewFromShortcut: ThumbnailGridView? = null
+    private var mLaunchedFromThumbnailShortcut = false
     private lateinit var mThumbnailGridViewsBar: ThumbnailGridViewsBar
 
     private val binding by viewBinding(ActivityMediaBinding::inflate)
@@ -259,12 +264,21 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         setupOptionsMenu()
         refreshMenuItems()
         storeStateVariables()
-        mCurrentThumbnailGridView = ThumbnailGridViewConfig.getSelectedView(
-            this,
-            folderKeyForThumbnailGridViews(mPath, mShowAll),
-        )
+        mCurrentThumbnailGridView = if (
+            mShowAll && intent.getBooleanExtra(EXTRA_RESET_THUMBNAIL_GRID_TO_ALL, false)
+        ) {
+            ThumbnailGridView.ALL
+        } else {
+            ThumbnailGridViewConfig.getSelectedView(
+                this,
+                folderKeyForThumbnailGridViews(mPath, mShowAll),
+            )
+        }
+        mLaunchedFromThumbnailShortcut =
+            intent.getBooleanExtra(EXTRA_LAUNCHED_FROM_THUMBNAIL_SHORTCUT, false)
         intent.getStringExtra(THUMBNAIL_GRID_VIEW_SHORTCUT_ID)?.let { viewId ->
             mThumbnailGridViewFromShortcut = ThumbnailGridView.fromStorageId(viewId)
+            mLaunchedFromThumbnailShortcut = true
             intent.removeExtra(THUMBNAIL_GRID_VIEW_SHORTCUT_ID)
             if (mThumbnailGridViewFromShortcut != ThumbnailGridView.TAGS) {
                 mCurrentThumbnailGridView = mThumbnailGridViewFromShortcut!!
@@ -452,6 +466,10 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     override fun onBackPressedCompat(): Boolean {
         return if (binding.mediaMenu.isSearchOpen) {
             binding.mediaMenu.closeSearch()
+            true
+        } else if (mLaunchedFromThumbnailShortcut && mShowAll) {
+            appLockManager.lock()
+            finishAffinity()
             true
         } else {
             if (config.showAll) {
@@ -834,8 +852,14 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
 
     private fun switchToFolderView() {
         hideKeyboard()
-        config.showAll = false
-        startActivity(Intent(this, MainActivity::class.java))
+        Intent(this, MainActivity::class.java).apply {
+            putExtra(EXTRA_SHOW_DIRECTORY_LIST, true)
+            putExtra(EXTRA_BACK_TO_ALL_MEDIA_ON_BACK, true)
+            if (mLaunchedFromThumbnailShortcut) {
+                putExtra(EXTRA_LAUNCHED_FROM_THUMBNAIL_SHORTCUT, true)
+            }
+            startActivity(this)
+        }
         finish()
     }
 

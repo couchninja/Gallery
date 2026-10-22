@@ -113,6 +113,10 @@ const val HIDDEN_THUMBNAIL_GRID_VIEWS = "hidden_thumbnail_grid_views"
 const val THUMBNAIL_GRID_VIEW_PREFIX = "thumbnail_grid_view_"
 const val ACTION_THUMBNAIL_GRID_VIEW_SHORTCUT = "org.fossify.gallery.action.THUMBNAIL_GRID_VIEW"
 const val THUMBNAIL_GRID_VIEW_SHORTCUT_ID = "thumbnail_grid_view_shortcut_id"
+const val EXTRA_SHOW_DIRECTORY_LIST = "show_directory_list"
+const val EXTRA_BACK_TO_ALL_MEDIA_ON_BACK = "back_to_all_media_on_back"
+const val EXTRA_LAUNCHED_FROM_THUMBNAIL_SHORTCUT = "launched_from_thumbnail_shortcut"
+const val EXTRA_RESET_THUMBNAIL_GRID_TO_ALL = "reset_thumbnail_grid_to_all"
 
 // slideshow
 const val SLIDESHOW_INTERVAL = "slideshow_interval"

@@ -37,7 +37,11 @@ object ThumbnailGridViewShortcuts {
         return Intent(context, MainActivity::class.java).apply {
             action = ACTION_THUMBNAIL_GRID_VIEW_SHORTCUT
             putExtra(THUMBNAIL_GRID_VIEW_SHORTCUT_ID, view.storageId)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK
+                    or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    or Intent.FLAG_ACTIVITY_CLEAR_TOP,
+            )
         }
     }
 

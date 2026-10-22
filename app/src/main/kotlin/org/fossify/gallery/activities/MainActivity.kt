@@ -140,6 +140,11 @@ import org.fossify.gallery.helpers.PICKED_PATHS
 import org.fossify.gallery.helpers.RECYCLE_BIN
 import org.fossify.gallery.helpers.SET_WALLPAPER_INTENT
 import org.fossify.gallery.helpers.ACTION_THUMBNAIL_GRID_VIEW_SHORTCUT
+import org.fossify.gallery.helpers.EXTRA_BACK_TO_ALL_MEDIA_ON_BACK
+import org.fossify.gallery.helpers.EXTRA_LAUNCHED_FROM_THUMBNAIL_SHORTCUT
+import org.fossify.gallery.helpers.EXTRA_RESET_THUMBNAIL_GRID_TO_ALL
+import org.fossify.gallery.helpers.EXTRA_SHOW_DIRECTORY_LIST
+import org.fossify.gallery.helpers.ThumbnailGridViewConfig
 import org.fossify.gallery.helpers.SHOW_ALL
 import org.fossify.gallery.helpers.THUMBNAIL_GRID_VIEW_SHORTCUT_ID
 import org.fossify.gallery.helpers.SHOW_TEMP_HIDDEN_DURATION
@@ -203,6 +208,10 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
     private var mDirsIgnoringSearch = ArrayList<Directory>()
     private var mDateTakenIndexReceiverRegistered = false
     private var mPendingThumbnailGridViewShortcutId: String? = null
+    private var mShowDirectoryList = false
+    private var mBackToAllMediaOnBack = false
+    private var mLaunchedFromThumbnailShortcut = false
+    private var mResetThumbnailGridOnShowAll = false
 
     private val mDateTakenIndexReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -242,6 +251,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
         mIsGetAnyContentIntent = isGetAnyContentIntent(intent)
         mIsSetWallpaperIntent = isSetWallpaperIntent(intent)
         mAllowPickingMultiple = intent.getBooleanExtra(Intent.EXTRA_ALLOW_MULTIPLE, false)
+        val isThumbnailShortcutLaunch = intent?.action == ACTION_THUMBNAIL_GRID_VIEW_SHORTCUT
         consumeThumbnailGridViewShortcut(intent)
         mIsThirdPartyIntent = mIsPickImageIntent
                 || mIsPickVideoIntent
@@ -249,6 +259,17 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
                 || mIsGetVideoContentIntent
                 || mIsGetAnyContentIntent
                 || mIsSetWallpaperIntent
+
+        readDirectoryNavigationExtras(intent)
+        mResetThumbnailGridOnShowAll = shouldResetToDefaultAllPhotosOnLaunch(
+            savedInstanceState = savedInstanceState,
+            isThirdPartyIntent = mIsThirdPartyIntent,
+            isThumbnailShortcutLaunch = isThumbnailShortcutLaunch,
+        )
+        if (mResetThumbnailGridOnShowAll) {
+            config.showAll = true
+            ThumbnailGridViewConfig.resetAllPhotosGridToAll(this)
+        }
 
         setupOptionsMenu()
         refreshMenuItems()
@@ -428,6 +449,9 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
     override fun onBackPressedCompat(): Boolean {
         return if (binding.mainMenu.isSearchOpen) {
             binding.mainMenu.closeSearch()
+            true
+        } else if (mBackToAllMediaOnBack && (!config.groupDirectSubfolders || mCurrentPathPrefix.isEmpty())) {
+            showAllMedia(animateBack = true)
             true
         } else if (config.groupDirectSubfolders) {
             if (mCurrentPathPrefix.isEmpty()) {
@@ -647,8 +671,8 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
             checkOTGPath()
             checkDefaultSpamFolders()
 
-            if (config.showAll) {
-                showAllMedia()
+            if (config.showAll && !mShowDirectoryList) {
+                showAllMedia(resetThumbnailGridToAll = mResetThumbnailGridOnShowAll)
             } else {
                 getDirectories()
             }
@@ -734,9 +758,30 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
         super.onNewIntent(intent)
         setIntent(intent)
         consumeThumbnailGridViewShortcut(intent)
+        readDirectoryNavigationExtras(intent)
         if (mPendingThumbnailGridViewShortcutId != null) {
             showAllMedia()
+        } else if (mShowDirectoryList) {
+            getDirectories()
         }
+    }
+
+    private fun readDirectoryNavigationExtras(intent: Intent?) {
+        mShowDirectoryList = intent?.getBooleanExtra(EXTRA_SHOW_DIRECTORY_LIST, false) == true
+        mBackToAllMediaOnBack = intent?.getBooleanExtra(EXTRA_BACK_TO_ALL_MEDIA_ON_BACK, false) == true
+        mLaunchedFromThumbnailShortcut =
+            intent?.getBooleanExtra(EXTRA_LAUNCHED_FROM_THUMBNAIL_SHORTCUT, false) == true
+    }
+
+    private fun shouldResetToDefaultAllPhotosOnLaunch(
+        savedInstanceState: Bundle?,
+        isThirdPartyIntent: Boolean,
+        isThumbnailShortcutLaunch: Boolean,
+    ): Boolean {
+        return savedInstanceState == null
+            && !isThirdPartyIntent
+            && !isThumbnailShortcutLaunch
+            && !mShowDirectoryList
     }
 
     private fun consumeThumbnailGridViewShortcut(intent: Intent?) {
@@ -751,13 +796,24 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
         intent.action = Intent.ACTION_MAIN
     }
 
-    private fun showAllMedia() {
+    private fun showAllMedia(
+        resetThumbnailGridToAll: Boolean = false,
+        animateBack: Boolean = false,
+    ) {
         config.showAll = true
         Intent(this, MediaActivity::class.java).apply {
             putExtra(DIRECTORY, "")
+            if (resetThumbnailGridToAll) {
+                putExtra(EXTRA_RESET_THUMBNAIL_GRID_TO_ALL, true)
+            }
             mPendingThumbnailGridViewShortcutId?.let { viewId ->
                 putExtra(THUMBNAIL_GRID_VIEW_SHORTCUT_ID, viewId)
+                putExtra(EXTRA_LAUNCHED_FROM_THUMBNAIL_SHORTCUT, true)
                 mPendingThumbnailGridViewShortcutId = null
+            } ?: run {
+                if (mLaunchedFromThumbnailShortcut) {
+                    putExtra(EXTRA_LAUNCHED_FROM_THUMBNAIL_SHORTCUT, true)
+                }
             }
 
             if (mIsThirdPartyIntent) {
@@ -766,6 +822,9 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
                 hideKeyboard()
                 startActivity(this)
                 finish()
+                if (animateBack) {
+                    overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
+                }
             }
         }
     }

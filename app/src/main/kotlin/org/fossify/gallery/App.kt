@@ -9,8 +9,6 @@ import org.fossify.commons.FossifyApp
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.gallery.extensions.config
 import org.fossify.gallery.helpers.MediaMetadataIndexer
-import org.fossify.gallery.helpers.SHOW_ALL
-import org.fossify.gallery.helpers.ThumbnailGridView
 import org.fossify.gallery.helpers.ThumbnailGridViewConfig
 import org.fossify.gallery.helpers.ThumbnailGridViewShortcuts
 import org.fossify.gallery.helpers.XmpTagIndex
@@ -21,7 +19,7 @@ class App : FossifyApp() {
 
     override fun onCreate() {
         super.onCreate()
-        ThumbnailGridViewConfig.setSelectedView(this, SHOW_ALL, ThumbnailGridView.ALL)
+        ThumbnailGridViewConfig.resetAllPhotosGridToAll(this)
         ThumbnailGridViewShortcuts.refresh(this)
         ensureBackgroundThread {
             XmpTagIndex.loadFromDb(this)

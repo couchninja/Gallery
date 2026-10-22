@@ -124,6 +124,10 @@ object ThumbnailGridViewConfig {
     fun setSelectedView(context: Context, folderKey: String, view: ThumbnailGridView) {
         context.config.setThumbnailGridView(folderKey, view.storageId)
     }
+
+    fun resetAllPhotosGridToAll(context: Context) {
+        setSelectedView(context, SHOW_ALL, ThumbnailGridView.ALL)
+    }
 }
 
 fun filterMediaForThumbnailGridView(
