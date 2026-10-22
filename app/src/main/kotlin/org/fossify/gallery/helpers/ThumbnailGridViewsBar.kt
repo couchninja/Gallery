@@ -329,7 +329,7 @@ class ThumbnailGridViewsBar(
             var order = 0
             if (onTagsView) {
                 menu.add(0, R.id.thumbnail_view_tags_pick, order++, activity.getString(R.string.thumbnail_grid_view_tags_pick))
-                    .setIcon(R.drawable.ic_xmp_tags_vector)
+                    .setIcon(ThumbnailGridView.TAGS.iconRes)
             }
             overflowViews.forEach { view ->
                 menu.add(0, view.menuItemId, order++, activity.getString(view.labelRes))

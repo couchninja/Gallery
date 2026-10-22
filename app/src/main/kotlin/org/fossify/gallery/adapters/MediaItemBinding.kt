@@ -14,6 +14,7 @@ import org.fossify.gallery.databinding.VideoItemListBinding
 interface MediaItemBinding {
     val root: ViewGroup
     val mediaItemHolder: ViewGroup
+    val xmpTagIndicators: ViewGroup?
     val exifRatingBar: LinearLayout?
     val playPortraitOutline: ImageView?
     val fileType: TextView?
@@ -26,6 +27,7 @@ interface MediaItemBinding {
 class PhotoListMediaItemBinding(val binding: PhotoItemListBinding) : MediaItemBinding {
     override val root: ViewGroup = binding.root
     override val mediaItemHolder: ViewGroup = binding.mediaItemHolder
+    override val xmpTagIndicators: ViewGroup? = binding.root.findViewById(R.id.xmp_tag_indicators)
     override val exifRatingBar: LinearLayout? = binding.root.findViewById(R.id.exif_rating_bar)
     override val playPortraitOutline: ImageView? = null
     override val fileType: TextView = binding.fileType
@@ -40,6 +42,7 @@ fun PhotoItemListBinding.toMediaItemBinding() = PhotoListMediaItemBinding(this)
 class PhotoGridMediaItemBinding(val binding: PhotoItemGridBinding) : MediaItemBinding {
     override val root: ViewGroup = binding.root
     override val mediaItemHolder: ViewGroup = binding.mediaItemHolder
+    override val xmpTagIndicators: ViewGroup? = binding.root.findViewById(R.id.xmp_tag_indicators)
     override val exifRatingBar: LinearLayout? = binding.root.findViewById(R.id.exif_rating_bar)
     override val playPortraitOutline: ImageView? = null
     override val fileType: TextView = binding.fileType
@@ -54,6 +57,7 @@ fun PhotoItemGridBinding.toMediaItemBinding() = PhotoGridMediaItemBinding(this)
 class VideoListMediaItemBinding(val binding: VideoItemListBinding) : MediaItemBinding {
     override val root: ViewGroup = binding.root
     override val mediaItemHolder: ViewGroup = binding.mediaItemHolder
+    override val xmpTagIndicators: ViewGroup? = binding.root.findViewById(R.id.xmp_tag_indicators)
     override val exifRatingBar: LinearLayout? = binding.root.findViewById(R.id.exif_rating_bar)
     override val playPortraitOutline: ImageView = binding.playPortraitOutline
     override val fileType: TextView? = null
@@ -68,6 +72,7 @@ fun VideoItemListBinding.toMediaItemBinding() = VideoListMediaItemBinding(this)
 class VideoGridMediaItemBinding(val binding: VideoItemGridBinding) : MediaItemBinding {
     override val root: ViewGroup = binding.root
     override val mediaItemHolder: ViewGroup = binding.mediaItemHolder
+    override val xmpTagIndicators: ViewGroup? = binding.root.findViewById(R.id.xmp_tag_indicators)
     override val exifRatingBar: LinearLayout? = binding.root.findViewById(R.id.exif_rating_bar)
     override val playPortraitOutline: ImageView = binding.playPortraitOutline
     override val fileType: TextView? = null

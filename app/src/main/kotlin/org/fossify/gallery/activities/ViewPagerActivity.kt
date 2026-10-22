@@ -1248,12 +1248,13 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
 
     // INVISIBLE rather than GONE, and no setText when unchanged, so swiping doesn't trigger a relayout.
     private fun bindViewerXmpTags(tags: List<String>, mediumPath: String? = null) {
-        val view = binding.viewerXmpTags
+        val view = binding.viewerXmpTags.root
+        val textView = binding.viewerXmpTags.viewerXmpTagsText
         view.animate().cancel()
         if (tags.isEmpty()) {
             mViewerXmpTagsPath = null
-            if (view.text.isNotEmpty()) {
-                view.text = ""
+            if (textView.text.isNotEmpty()) {
+                textView.text = ""
             }
             if (view.visibility != View.INVISIBLE) {
                 view.visibility = View.INVISIBLE
@@ -1262,8 +1263,8 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
         }
         mViewerXmpTagsPath = mediumPath ?: getCurrentMedium()?.path
         val text = tags.joinToString("\n")
-        if (view.text.toString() != text) {
-            view.text = text
+        if (textView.text.toString() != text) {
+            textView.text = text
         }
         val fadeIn = view.visibility != View.VISIBLE
         if (view.visibility != View.VISIBLE) {
@@ -1687,7 +1688,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
             (it as MyPagerAdapter).toggleFullscreen(mIsFullScreen)
             val newAlpha = if (mIsFullScreen) 0f else 1f
             binding.topShadow.animate().alpha(newAlpha).start()
-            binding.viewerXmpTags.animate().alpha(newAlpha).start()
+            binding.viewerXmpTags.root.animate().alpha(newAlpha).start()
             binding.bottomControls.animate().alpha(newAlpha).withStartAction {
                 binding.bottomControls.beVisible()
             }.withEndAction {

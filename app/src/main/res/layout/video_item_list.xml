@@ -18,6 +18,14 @@
         android:layout_height="@dimen/list_view_folder_thumbnail_size"
         tools:src="@mipmap/ic_launcher" />
 
+    <include
+        layout="@layout/thumbnail_xmp_tag_indicators"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignStart="@id/medium_thumbnail"
+        android:layout_alignTop="@id/medium_thumbnail"
+        android:layout_margin="@dimen/tiny_margin" />
+
     <FrameLayout
         android:layout_width="@dimen/list_view_folder_thumbnail_size"
         android:layout_height="wrap_content"

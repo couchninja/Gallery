@@ -59,20 +59,13 @@
 
     </com.google.android.material.appbar.AppBarLayout>
 
-    <TextView
+    <include
         android:id="@+id/viewer_xmp_tags"
+        layout="@layout/viewer_xmp_tags"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_below="@id/medium_viewer_appbar"
         android:layout_alignParentStart="true"
         android:layout_marginStart="@dimen/activity_margin"
-        android:layout_marginTop="@dimen/small_margin"
-        android:background="@drawable/viewer_xmp_tags_background"
-        android:paddingHorizontal="@dimen/normal_margin"
-        android:paddingVertical="@dimen/small_margin"
-        android:textColor="@android:color/white"
-        android:textSize="@dimen/normal_text_size"
-        android:visibility="invisible"
-        tools:text="keep 2 months"
-        tools:visibility="visible" />
+        android:layout_marginTop="@dimen/small_margin" />
 </RelativeLayout>

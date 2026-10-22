@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/xmp_tag_indicators"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:visibility="gone"
+    tools:visibility="visible">
+
+    <ImageView
+        android:id="@+id/xmp_tag_keep_indicator"
+        android:layout_width="@dimen/thumbnail_xmp_tag_indicator_size"
+        android:layout_height="@dimen/thumbnail_xmp_tag_indicator_size"
+        android:background="@drawable/darkened_automatic_circle_background"
+        android:contentDescription="@null"
+        android:padding="2dp"
+        android:src="@drawable/ic_clock_vector"
+        android:visibility="gone"
+        tools:visibility="visible" />
+
+    <ImageView
+        android:id="@+id/xmp_tag_other_indicator"
+        android:layout_width="@dimen/thumbnail_xmp_tag_indicator_size"
+        android:layout_height="@dimen/thumbnail_xmp_tag_indicator_size"
+        android:layout_marginStart="2dp"
+        android:background="@drawable/darkened_automatic_circle_background"
+        android:contentDescription="@null"
+        android:padding="2dp"
+        android:src="@drawable/ic_xmp_tags_vector"
+        android:visibility="gone"
+        tools:visibility="visible" />
+
+</LinearLayout>

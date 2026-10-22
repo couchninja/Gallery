@@ -43,7 +43,7 @@ enum class ThumbnailGridView(
         storageId = "tags",
         menuItemId = R.id.thumbnail_view_tags,
         labelRes = R.string.thumbnail_grid_view_tags,
-        iconRes = R.drawable.ic_xmp_tags_vector,
+        iconRes = R.drawable.ic_xmp_tags_nav_vector,
     ),
     CARDS(
         storageId = "cards",

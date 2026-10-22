@@ -86,6 +86,7 @@ import org.fossify.gallery.extensions.updateFavoritePaths
 import org.fossify.gallery.helpers.PATH
 import org.fossify.gallery.helpers.applyExifRatingsToMedia
 import org.fossify.gallery.helpers.bindThumbnailExifRating
+import org.fossify.gallery.helpers.bindThumbnailXmpTagIndicators
 import org.fossify.gallery.helpers.isJpeg
 import org.fossify.gallery.helpers.setExifRating
 import org.fossify.gallery.dialogs.EditXmpTagsDialog
@@ -183,11 +184,13 @@ class MediaAdapter(
     override fun onBindViewHolder(holder: MyRecyclerViewAdapter.ViewHolder, position: Int, payloads: MutableList<Any>) {
         if (payloads.contains(PAYLOAD_EXIF_RATING)) {
             val medium = media.getOrNull(position) as? Medium ?: return
+            val itemBinding = bindItem(holder.itemView, medium)
             bindThumbnailExifRating(
-                bindItem(holder.itemView, medium).exifRatingBar,
+                itemBinding.exifRatingBar,
                 medium.exifRating,
                 medium.isJpeg() && config.showExifRatings
             )
+            bindThumbnailXmpTagIndicators(itemBinding.xmpTagIndicators, medium.path, medium.isJpeg())
             return
         }
 
@@ -841,6 +844,7 @@ class MediaAdapter(
                 medium.exifRating,
                 medium.isJpeg() && config.showExifRatings
             )
+            bindThumbnailXmpTagIndicators(xmpTagIndicators, medium.path, medium.isJpeg())
 
             playPortraitOutline?.beVisibleIf(medium.isVideo() || medium.isPortrait())
             if (medium.isVideo()) {
