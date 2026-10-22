@@ -10,7 +10,7 @@ import android.text.Html
 import android.view.View
 import androidx.core.graphics.drawable.toDrawable
 import com.google.android.material.appbar.AppBarLayout
-import org.fossify.commons.dialogs.PropertiesDialog
+import org.fossify.gallery.extensions.showMediaProperties
 import org.fossify.commons.extensions.beGone
 import org.fossify.commons.extensions.beVisible
 import org.fossify.commons.extensions.beVisibleIf
@@ -340,7 +340,7 @@ open class PhotoVideoActivity : BaseViewerActivity(), ViewPagerFragment.Fragment
     }
 
     private fun showProperties() {
-        PropertiesDialog(this, mUri!!.path!!)
+        showMediaProperties(mUri!!.path!!)
     }
 
     private fun isFileTypeVisible(path: String): Boolean {

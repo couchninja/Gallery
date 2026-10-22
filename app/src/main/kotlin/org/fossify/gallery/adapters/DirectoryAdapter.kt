@@ -23,7 +23,7 @@ import org.fossify.commons.activities.BaseSimpleActivity
 import org.fossify.commons.adapters.MyRecyclerViewAdapter
 import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.dialogs.FolderLockingNoticeDialog
-import org.fossify.commons.dialogs.PropertiesDialog
+import org.fossify.gallery.extensions.showMediaProperties
 import org.fossify.commons.dialogs.RenameItemDialog
 import org.fossify.commons.dialogs.RenameItemsDialog
 import org.fossify.commons.dialogs.SecurityDialog
@@ -295,12 +295,12 @@ class DirectoryAdapter(
             if (path != FAVORITES && path != RECYCLE_BIN) {
                 activity.handleLockedFolderOpening(path) { success ->
                     if (success) {
-                        PropertiesDialog(activity, path, config.shouldShowHidden)
+                        activity.showMediaProperties(path, config.shouldShowHidden)
                     }
                 }
             }
         } else {
-            PropertiesDialog(activity, getSelectedPaths().filter {
+            activity.showMediaProperties(getSelectedPaths().filter {
                 it != FAVORITES && it != RECYCLE_BIN && !config.isFolderProtected(it)
             }.toMutableList(), config.shouldShowHidden)
         }

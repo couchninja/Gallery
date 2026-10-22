@@ -19,7 +19,7 @@ import com.bumptech.glide.Glide
 import com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller
 import org.fossify.commons.activities.BaseSimpleActivity
 import org.fossify.commons.adapters.MyRecyclerViewAdapter
-import org.fossify.commons.dialogs.PropertiesDialog
+import org.fossify.gallery.extensions.showMediaProperties
 import org.fossify.commons.dialogs.RenameDialog
 import org.fossify.commons.dialogs.RenameItemDialog
 import org.fossify.commons.extensions.applyColorFilter
@@ -373,10 +373,10 @@ class MediaAdapter(
     private fun showProperties() {
         if (selectedKeys.size <= 1) {
             val path = getFirstSelectedItemPath() ?: return
-            PropertiesDialog(activity, path, config.shouldShowHidden)
+            activity.showMediaProperties(path, config.shouldShowHidden)
         } else {
             val paths = getSelectedPaths()
-            PropertiesDialog(activity, paths, config.shouldShowHidden)
+            activity.showMediaProperties(paths, config.shouldShowHidden)
         }
     }
 
