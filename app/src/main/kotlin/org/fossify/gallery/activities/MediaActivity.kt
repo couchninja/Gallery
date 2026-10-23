@@ -101,6 +101,7 @@ import org.fossify.gallery.helpers.ACTION_MEDIA_METADATA_INDEX_UPDATED
 import org.fossify.gallery.helpers.ACTION_MEDIA_STORE_PATH_CHANGED
 import org.fossify.gallery.helpers.EXTRA_METADATA_DATES_CHANGED
 import org.fossify.gallery.helpers.EXTRA_METADATA_XMP_CHANGED
+import org.fossify.gallery.helpers.EXTRA_METADATA_XMP_CHANGED_PATH
 import org.fossify.gallery.helpers.MediaMetadataIndexer
 import org.fossify.gallery.helpers.GROUP_BY_DATE_TAKEN_DAILY
 import org.fossify.gallery.helpers.GROUP_BY_DATE_TAKEN_MONTHLY
@@ -205,6 +206,12 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             }
             if (intent?.getBooleanExtra(EXTRA_METADATA_XMP_CHANGED, false) == true) {
                 refreshDisplayedExifRatings()
+                val changedPath = intent.getStringExtra(EXTRA_METADATA_XMP_CHANGED_PATH)
+                if (changedPath.isNullOrEmpty()) {
+                    notifyGridThumbnailOverlaysChangedVisibleOnly()
+                } else {
+                    notifyGridThumbnailOverlaysChanged(listOf(changedPath))
+                }
                 applyCurrentThumbnailGridView()
             }
         }
@@ -244,6 +251,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     companion object {
         var mMedia = ArrayList<ThumbnailItem>()
         val pendingExifRatingRefreshPaths = LinkedHashSet<String>()
+        val pendingXmpTagRefreshPaths = LinkedHashSet<String>()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -432,11 +440,16 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         }
 
         if (mWasFullscreenViewOpen) {
-            val paths = pendingExifRatingRefreshPaths.toList()
+            val ratingPaths = pendingExifRatingRefreshPaths.toList()
             pendingExifRatingRefreshPaths.clear()
+            val tagPaths = pendingXmpTagRefreshPaths.toList()
+            pendingXmpTagRefreshPaths.clear()
             mWasFullscreenViewOpen = false
-            if (paths.isNotEmpty()) {
-                notifyGridExifRatingsChanged(paths)
+            if (ratingPaths.isNotEmpty()) {
+                notifyGridExifRatingsChanged(ratingPaths)
+            }
+            if (tagPaths.isNotEmpty()) {
+                notifyGridThumbnailOverlaysChanged(tagPaths)
             }
             if (::mThumbnailGridViewsBar.isInitialized && shouldShowThumbnailGridViewsBar()) {
                 mThumbnailGridViewsBar.revealAfterReturningToGrid()
@@ -1092,6 +1105,14 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             val synced = adapter.syncExifRatingsFrom(mMedia.filterIsInstance<Medium>())
             adapter.notifyExifRatingPathsChanged((paths + synced).toSet())
         }
+    }
+
+    private fun notifyGridThumbnailOverlaysChanged(paths: Collection<String>) {
+        getMediaAdapter()?.notifyThumbnailOverlayPathsChanged(paths)
+    }
+
+    private fun notifyGridThumbnailOverlaysChangedVisibleOnly() {
+        getMediaAdapter()?.notifyVisibleExifRatingItemsChanged()
     }
 
     private fun refreshDisplayedExifRatings() {

@@ -219,6 +219,9 @@ class MediaAdapter(
         return applyExifRatingsToMedia(media.filterIsInstance<Medium>(), ratings)
     }
 
+    /** Rebinds EXIF star and XMP tag overlays without reloading thumbnails. */
+    fun notifyThumbnailOverlayPathsChanged(paths: Collection<String>) = notifyExifRatingPathsChanged(paths)
+
     fun notifyExifRatingPathsChanged(paths: Collection<String>) {
         if (paths.isEmpty()) {
             return

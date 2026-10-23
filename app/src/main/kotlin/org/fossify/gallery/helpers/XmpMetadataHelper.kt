@@ -43,6 +43,10 @@ fun syncExifRatingOnGalleryMedia(path: String, rating: Int) {
     org.fossify.gallery.activities.MediaActivity.pendingExifRatingRefreshPaths.add(path)
 }
 
+fun requestGalleryXmpTagThumbnailRefresh(path: String) {
+    org.fossify.gallery.activities.MediaActivity.pendingXmpTagRefreshPaths.add(path)
+}
+
 fun Context.mergeExifRatingsIntoMediaAsync(
     media: List<Medium>,
     folderPath: String,
@@ -117,10 +121,12 @@ fun Context.cacheXmpMetadata(path: String, metadata: XmpMetadata, lastModified: 
     )
     XmpTagIndex.update(path, metadata.tags)
     if (previousTags != metadata.tags) {
+        requestGalleryXmpTagThumbnailRefresh(path)
         sendBroadcast(
             Intent(ACTION_MEDIA_METADATA_INDEX_UPDATED)
                 .setPackage(packageName)
-                .putExtra(EXTRA_METADATA_XMP_CHANGED, true),
+                .putExtra(EXTRA_METADATA_XMP_CHANGED, true)
+                .putExtra(EXTRA_METADATA_XMP_CHANGED_PATH, path),
         )
     }
 }

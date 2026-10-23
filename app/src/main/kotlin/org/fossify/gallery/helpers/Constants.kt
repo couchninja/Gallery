@@ -257,6 +257,7 @@ const val ACTION_MEDIA_METADATA_INDEX_UPDATED = "org.fossify.gallery.action.MEDI
 const val ACTION_MEDIA_METADATA_INDEX_PROGRESS = "org.fossify.gallery.action.MEDIA_METADATA_INDEX_PROGRESS"
 const val EXTRA_METADATA_DATES_CHANGED = "extra_metadata_dates_changed"
 const val EXTRA_METADATA_XMP_CHANGED = "extra_metadata_xmp_changed"
+const val EXTRA_METADATA_XMP_CHANGED_PATH = "extra_metadata_xmp_changed_path"
 const val ACTION_MEDIA_STORE_PATH_CHANGED = "org.fossify.gallery.action.MEDIA_STORE_PATH_CHANGED"
 
 // [MediaMetadata.dateTakenSource] values
