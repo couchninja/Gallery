@@ -1,8 +1,14 @@
 package org.fossify.gallery.helpers
 
 import android.content.res.ColorStateList
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.ColorFilter
+import android.graphics.PixelFormat
+import android.graphics.drawable.Drawable
 import android.view.ContextThemeWrapper
+import androidx.annotation.DrawableRes
+import androidx.appcompat.content.res.AppCompatResources
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -330,10 +336,10 @@ class ThumbnailGridViewsBar(
             var order = 0
             overflowViews.forEach { view ->
                 menu.add(0, view.menuItemId, order++, activity.getString(view.labelRes))
-                    .setIcon(view.iconRes)
+                    .setIcon(navBarSizedMenuIcon(view.iconRes))
             }
             menu.add(0, R.id.thumbnail_view_customize, order, activity.getString(R.string.thumbnail_grid_view_manage))
-                .setIcon(org.fossify.commons.R.drawable.ic_settings_cog_vector)
+                .setIcon(navBarSizedMenuIcon(org.fossify.commons.R.drawable.ic_settings_cog_vector))
 
             (menu as? MenuBuilder)?.setOptionalIconsVisible(true)
 
@@ -346,6 +352,13 @@ class ThumbnailGridViewsBar(
             }
             show()
         }
+    }
+
+    /** Popup menus use the vector intrinsic size (24dp); the bar uses [R.dimen.thumbnail_grid_bottom_nav_icon_size]. */
+    private fun navBarSizedMenuIcon(@DrawableRes iconRes: Int): Drawable {
+        val sizePx = activity.resources.getDimensionPixelSize(R.dimen.thumbnail_grid_bottom_nav_icon_size)
+        val source = requireNotNull(AppCompatResources.getDrawable(activity, iconRes)).mutate()
+        return NavBarSizedMenuIconDrawable(source, sizePx)
     }
 
     private fun findMoreMenuAnchor(): View {
@@ -370,5 +383,30 @@ class ThumbnailGridViewsBar(
     companion object {
         private const val SCROLL_HIDE_THRESHOLD = 12
         private const val SCROLL_ANIM_DURATION_MS = 150L
+    }
+
+    private class NavBarSizedMenuIconDrawable(
+        private val wrapped: Drawable,
+        private val sizePx: Int,
+    ) : Drawable() {
+        override fun draw(canvas: Canvas) {
+            wrapped.bounds = bounds
+            wrapped.draw(canvas)
+        }
+
+        override fun setAlpha(alpha: Int) {
+            wrapped.alpha = alpha
+        }
+
+        override fun setColorFilter(colorFilter: ColorFilter?) {
+            wrapped.colorFilter = colorFilter
+        }
+
+        @Deprecated("Deprecated in Java")
+        override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
+
+        override fun getIntrinsicWidth(): Int = sizePx
+
+        override fun getIntrinsicHeight(): Int = sizePx
     }
 }
