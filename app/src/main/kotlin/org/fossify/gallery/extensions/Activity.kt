@@ -55,6 +55,7 @@ import org.fossify.gallery.helpers.RECYCLE_BIN
 import org.fossify.gallery.helpers.TEMP_FOLDER_NAME
 import org.fossify.gallery.helpers.THUMBNAIL_GRID_VIEW_SHORTCUT_ID
 import org.fossify.gallery.helpers.ThumbnailGridView
+import org.fossify.gallery.helpers.ThumbnailGridViewShortcuts
 import java.io.*
 import java.util.Locale
 import androidx.core.net.toUri
@@ -962,10 +963,8 @@ fun Activity.handleExcludedFolderPasswordProtection(callback: () -> Unit) {
 }
 
 fun Activity.openRecycleBin() {
-    Intent(this, MediaActivity::class.java).apply {
-        putExtra(THUMBNAIL_GRID_VIEW_SHORTCUT_ID, ThumbnailGridView.RECYCLE_BIN.storageId)
-        startActivity(this)
-    }
+    config.showAll = true
+    startActivity(ThumbnailGridViewShortcuts.createMediaActivityIntent(this, ThumbnailGridView.RECYCLE_BIN))
 }
 
 fun BaseSimpleActivity.writeBitmapToCache(

@@ -8,6 +8,7 @@ import android.graphics.drawable.Icon
 import org.fossify.commons.helpers.isNougatMR1Plus
 import org.fossify.gallery.R
 import org.fossify.gallery.activities.MainActivity
+import org.fossify.gallery.activities.MediaActivity
 
 object ThumbnailGridViewShortcuts {
     private val quickLaunchViews = listOf(
@@ -42,6 +43,14 @@ object ThumbnailGridViewShortcuts {
                     or Intent.FLAG_ACTIVITY_CLEAR_TASK
                     or Intent.FLAG_ACTIVITY_CLEAR_TOP,
             )
+        }
+    }
+
+    /** Opens the all-photos grid on [view] (in-app; does not clear the task stack). */
+    fun createMediaActivityIntent(context: Context, view: ThumbnailGridView): Intent {
+        return Intent(context, MediaActivity::class.java).apply {
+            putExtra(DIRECTORY, "")
+            putExtra(THUMBNAIL_GRID_VIEW_SHORTCUT_ID, view.storageId)
         }
     }
 

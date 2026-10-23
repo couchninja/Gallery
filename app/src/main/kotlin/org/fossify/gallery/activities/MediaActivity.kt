@@ -92,7 +92,6 @@ import org.fossify.gallery.extensions.launchGesturePlayer
 import org.fossify.gallery.extensions.mediaDB
 import org.fossify.gallery.extensions.movePathsInRecycleBin
 import org.fossify.gallery.extensions.openPath
-import org.fossify.gallery.extensions.openRecycleBin
 import org.fossify.gallery.extensions.restoreRecycleBinPaths
 import org.fossify.gallery.extensions.showRecycleBinEmptyingDialog
 import org.fossify.gallery.extensions.showRestoreConfirmationDialog
@@ -236,6 +235,8 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     private var mStickyUnratedPaths: LinkedHashSet<String>? = null
     private var mThumbnailGridViewFromShortcut: ThumbnailGridView? = null
     private var mLaunchedFromThumbnailShortcut = false
+    private var mShowAllRawMediaSnapshot: ArrayList<ThumbnailItem>? = null
+    private var mMediaFetchGeneration = 0L
     private lateinit var mThumbnailGridViewsBar: ThumbnailGridViewsBar
 
     private val binding by viewBinding(ActivityMediaBinding::inflate)
@@ -560,8 +561,6 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             findItem(R.id.about).isVisible = mShowAll
             findItem(R.id.create_new_folder).isVisible =
                 !mShowAll && mPath != RECYCLE_BIN && mPath != FAVORITES
-            findItem(R.id.open_recycle_bin).isVisible = false
-
             findItem(R.id.temporarily_show_hidden).isVisible = !config.shouldShowHidden
             findItem(R.id.stop_showing_hidden).isVisible =
                 (!isRPlus() || isExternalStorageManager()) && config.temporarilyShowHidden
@@ -599,7 +598,6 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                 R.id.change_view_type -> changeViewType()
                 R.id.group -> showGroupByDialog()
                 R.id.create_new_folder -> createNewFolder()
-                R.id.open_recycle_bin -> openRecycleBin()
                 R.id.temporarily_show_hidden -> tryToggleTemporarilyShowHidden()
                 R.id.stop_showing_hidden -> tryToggleTemporarilyShowHidden()
                 R.id.column_count -> changeColumnCount()
@@ -667,10 +665,6 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         return thumbnailGridMediaFetchShowAll(mShowAll, mPath, mCurrentThumbnailGridView)
     }
 
-    private fun mediaGroupingPath(): String {
-        return if (isShowingRecycleBinGrid()) RECYCLE_BIN else mPath
-    }
-
     private fun searchQueryChanged(text: String) {
         ensureBackgroundThread {
             try {
@@ -684,12 +678,13 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                 val filtered = baseMedia
                     .filter { it.name.contains(text, true) } as ArrayList
                 filtered.sortBy { !it.name.startsWith(text, true) }
+                val groupPath = mediaFetchPath()
                 val grouped = MediaFetcher(applicationContext).groupMedia(
-                    media = filtered as ArrayList<Medium>, path = mediaGroupingPath()
+                    media = filtered as ArrayList<Medium>, path = groupPath
                 ).withFolderPathHeader(
-                    showAll = mShowAll && !isShowingRecycleBinGrid(),
-                    path = mediaGroupingPath(),
-                    humanizedPath = humanizePath(mediaGroupingPath()).trimEnd('/'),
+                    showAll = mediaFetchShowAll(),
+                    path = groupPath,
+                    humanizedPath = humanizePath(groupPath).trimEnd('/'),
                 )
                 runOnUiThread {
                     if (grouped.isEmpty()) {
@@ -760,7 +755,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                 listener = this,
                 isAGetIntent = mIsGetImageIntent || mIsGetVideoIntent || mIsGetAnyIntent,
                 allowMultiplePicks = mAllowPickingMultiple,
-                path = mediaGroupingPath(),
+                path = mediaFetchPath(),
                 recyclerView = binding.mediaGrid
             ) {
                 if (it is Medium && !isFinishing) {
@@ -1130,7 +1125,11 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             onStatus = { updateLoadingStatus(it) },
             group = false,
         ) {
+            val fetchGeneration = mMediaFetchGeneration
             ensureBackgroundThread {
+                if (fetchGeneration != mMediaFetchGeneration) {
+                    return@ensureBackgroundThread
+                }
                 val oldMedia = mMedia.clone() as ArrayList<ThumbnailItem>
                 val newMedia = it
                 try {
@@ -1546,9 +1545,26 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         if (recycleBinSourceChanged) {
             mCurrAsyncTask?.stopFetching()
             mIsGettingMedia = false
-            mLoadedInitialPhotos = false
-            binding.mediaGrid.adapter = null
-            getMedia()
+            mMediaFetchGeneration++
+            if (view == ThumbnailGridView.RECYCLE_BIN) {
+                if (thumbnailGridMediaFetchShowAll(mShowAll, mPath, previousView) && mRawMedia.isNotEmpty()) {
+                    mShowAllRawMediaSnapshot = ArrayList(mRawMedia)
+                }
+                mLoadedInitialPhotos = false
+                binding.mediaGrid.adapter = null
+                getMedia()
+            } else {
+                val snapshot = mShowAllRawMediaSnapshot?.takeIf { it.isNotEmpty() }
+                mShowAllRawMediaSnapshot = null
+                if (snapshot != null) {
+                    mLoadedInitialPhotos = true
+                    gotMedia(snapshot, isFromCache = true)
+                } else {
+                    mLoadedInitialPhotos = false
+                    binding.mediaGrid.adapter = null
+                    getMedia()
+                }
+            }
         } else {
             refreshStickyUnratedPathsFromRawMedia()
             applyCurrentThumbnailGridView()
@@ -1572,7 +1588,6 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         }
 
         mMedia = buildGroupedMediaForCurrentView()
-        mThumbnailGridViewsBar.updateSelection(mCurrentThumbnailGridView)
         if (mLastSearchedText.isEmpty()) {
             if (getMediaAdapter() == null) {
                 setupAdapter()
@@ -1590,20 +1605,25 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
 
     private fun buildGroupedMediaForCurrentView(): ArrayList<ThumbnailItem> {
         val filtered = LoadTimer.section("filterMediaForThumbnailGridView") {
-            filterMediaForThumbnailGridView(
-                rawMedia = mRawMedia,
-                view = mCurrentThumbnailGridView,
-                stickyUnratedPaths = mStickyUnratedPaths,
-                selectedTag = mThumbnailGridTagFilter,
-                showPrivateTagged = config.shouldShowHidden,
-            )
+            if (isShowingRecycleBinGrid()) {
+                mRawMedia.filterIsInstance<Medium>() as ArrayList<Medium>
+            } else {
+                filterMediaForThumbnailGridView(
+                    rawMedia = mRawMedia,
+                    view = mCurrentThumbnailGridView,
+                    stickyUnratedPaths = mStickyUnratedPaths,
+                    selectedTag = mThumbnailGridTagFilter,
+                    showPrivateTagged = config.shouldShowHidden,
+                )
+            }
         }
+        val groupPath = mediaFetchPath()
         return LoadTimer.section("groupMedia") {
-            MediaFetcher(applicationContext).groupMedia(filtered, mediaGroupingPath())
+            MediaFetcher(applicationContext).groupMedia(filtered, groupPath)
                 .withFolderPathHeader(
-                    showAll = mShowAll && !isShowingRecycleBinGrid(),
-                    path = mediaGroupingPath(),
-                    humanizedPath = humanizePath(mediaGroupingPath()).trimEnd('/'),
+                    showAll = mediaFetchShowAll(),
+                    path = groupPath,
+                    humanizedPath = humanizePath(groupPath).trimEnd('/'),
                 )
         }
     }
@@ -1650,9 +1670,6 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             }
             binding.mediaFastscroller.beVisibleIf(binding.mediaEmptyTextPlaceholder.isGone())
             setupAdapter()
-            if (::mThumbnailGridViewsBar.isInitialized) {
-                mThumbnailGridViewsBar.updateSelection(mCurrentThumbnailGridView)
-            }
             if (mShowAll) {
                 if (isFromCache && !mLoggedCachePaint) {
                     mLoggedCachePaint = true
