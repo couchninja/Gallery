@@ -10,7 +10,7 @@ object XmpTagDisplay {
     private const val FAVORITE_TAG_LOWER = "favorite"
 
     /** Canonical dc:subject value written when toggling favorite from the viewer. */
-    const val FAVORITE_METADATA_TAG = "Favorite"
+    const val FAVORITE_METADATA_TAG = "favorite"
 
     fun isPrivateTag(tag: String): Boolean =
         tag.lowercase(Locale.getDefault()) == PRIVATE_TAG_LOWER
