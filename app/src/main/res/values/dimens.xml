@@ -14,7 +14,8 @@
     <dimen name="manage_thumbnail_grid_view_row_height">40dp</dimen>
     <dimen name="manage_thumbnail_grid_view_drag_handle_touch_width">28dp</dimen>
     <dimen name="manage_thumbnail_grid_view_icon_margin_start">4dp</dimen>
-    <dimen name="manage_thumbnail_grid_view_list_max_height">280dp</dimen>
+    <dimen name="manage_thumbnail_grid_view_list_max_height">600dp</dimen>
+    <dimen name="manage_thumbnail_grid_view_dialog_chrome_height">220dp</dimen>
     <dimen name="play_outline_size_big">96dp</dimen>
     <dimen name="tmb_shadow_height">70dp</dimen>
     <dimen name="media_side_slider_width">60dp</dimen>

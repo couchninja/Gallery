@@ -1,5 +1,6 @@
 package org.fossify.gallery.dialogs
 
+import android.os.Build
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -23,7 +24,7 @@ class ManageThumbnailGridViewsDialog(
         val views = ThumbnailGridViewConfig.getViewsInOrder(activity).toMutableList()
         val horizontalPadding = activity.resources.getDimension(org.fossify.commons.R.dimen.activity_margin).toInt()
         val rowHeight = activity.resources.getDimensionPixelSize(R.dimen.manage_thumbnail_grid_view_row_height)
-        val maxListHeight = activity.resources.getDimensionPixelSize(R.dimen.manage_thumbnail_grid_view_list_max_height)
+        val maxListHeight = maxManageViewsListHeightPx(activity)
         val listHeight = min(rowHeight * views.size, maxListHeight)
         val adapter = ManageThumbnailGridViewsAdapter(activity, views)
 
@@ -84,7 +85,7 @@ class ManageThumbnailGridViewsDialog(
         val hint = MyTextView(activity).apply {
             text = activity.getString(R.string.thumbnail_grid_view_manage_hint)
             alpha = 0.75f
-            setPadding(0, horizontalPadding, 0, horizontalPadding)
+            setPadding(0, horizontalPadding, 0, 0)
         }
 
         val holder = LinearLayout(activity).apply {
@@ -105,5 +106,23 @@ class ManageThumbnailGridViewsDialog(
             .apply {
                 activity.setupDialogStuff(holder, this)
             }
+    }
+
+    companion object {
+        /** List height cap from window size (orientation-aware), [R.dimen.manage_thumbnail_grid_view_list_max_height], and [R.fraction.manage_thumbnail_grid_view_list_max_screen_fraction]. */
+        private fun maxManageViewsListHeightPx(activity: BaseSimpleActivity): Int {
+            val resources = activity.resources
+            val dimenCap = resources.getDimensionPixelSize(R.dimen.manage_thumbnail_grid_view_list_max_height)
+            val chrome = resources.getDimensionPixelSize(R.dimen.manage_thumbnail_grid_view_dialog_chrome_height)
+            val fraction = resources.getFraction(R.fraction.manage_thumbnail_grid_view_list_max_screen_fraction, 1, 1)
+            @Suppress("DEPRECATION")
+            val windowHeight = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                activity.windowManager.currentWindowMetrics.bounds.height()
+            } else {
+                resources.displayMetrics.heightPixels
+            }
+            val fromScreen = ((windowHeight - chrome).coerceAtLeast(0) * fraction).toInt()
+            return min(dimenCap, fromScreen)
+        }
     }
 }
