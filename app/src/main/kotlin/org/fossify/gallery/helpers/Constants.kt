@@ -251,6 +251,7 @@ const val DEFAULT_BOTTOM_ACTIONS = BOTTOM_ACTION_EDIT or BOTTOM_ACTION_SHARE or 
 
 const val REQUEST_THUMBNAIL_GRID_TAG = 1001
 const val THUMBNAIL_GRID_SELECTED_TAG = "thumbnail_grid_selected_tag"
+const val THUMBNAIL_GRID_SELECTED_VIEW = "thumbnail_grid_selected_view"
 
 const val ACTION_MEDIA_METADATA_INDEX_UPDATED = "org.fossify.gallery.action.MEDIA_METADATA_INDEX_UPDATED"
 const val ACTION_MEDIA_METADATA_INDEX_PROGRESS = "org.fossify.gallery.action.MEDIA_METADATA_INDEX_PROGRESS"

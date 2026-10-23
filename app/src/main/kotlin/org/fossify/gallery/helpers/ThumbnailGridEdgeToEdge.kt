@@ -139,6 +139,32 @@ fun EdgeToEdgeActivity.setupThumbnailGridUnderChrome(
     fastScroller?.let { limitFastScrollerTrackToChrome(contentRoot, topInsetAnchor, bottomChrome, it) }
 }
 
+/** Bottom view bar + system nav scrim; use when there is no search-menu top chrome (e.g. tag picker). */
+fun EdgeToEdgeActivity.setupThumbnailGridBottomChrome(
+    contentRoot: ViewGroup,
+    grid: RecyclerView,
+    bottomChrome: View,
+    padTopSystem: List<View> = emptyList(),
+) {
+    applyTransparentSystemBarsForThumbnailGrid(contentRoot)
+    attachThumbnailGridNavBarScrim(contentRoot, bottomChrome)
+    setupEdgeToEdge(
+        padTopSystem = padTopSystem,
+        padBottomImeAndSystem = listOf(grid),
+    )
+    grid.clipToPadding = false
+    bottomChrome.tag = THUMBNAIL_GRID_BOTTOM_CHROME_TAG
+    val bottomChromeLayout = ThumbnailGridBottomChromeLayout.bind(bottomChrome as ViewGroup)
+
+    fun syncBottomInset() {
+        grid.updatePaddingWithBase(bottom = thumbnailGridBottomScrollPadding(contentRoot, bottomChrome))
+    }
+
+    bottomChrome.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> syncBottomInset() }
+    bottomChromeLayout.attachWindowInsets { syncBottomInset() }
+    syncBottomInset()
+}
+
 private const val THUMBNAIL_GRID_BOTTOM_CHROME_TAG = "thumbnail_grid_bottom_chrome"
 
 /**

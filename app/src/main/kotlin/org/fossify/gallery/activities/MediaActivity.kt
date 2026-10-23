@@ -140,6 +140,7 @@ import org.fossify.gallery.helpers.EXTRA_RESET_THUMBNAIL_GRID_TO_ALL
 import org.fossify.gallery.helpers.EXTRA_SHOW_DIRECTORY_LIST
 import org.fossify.gallery.helpers.THUMBNAIL_GRID_VIEW_SHORTCUT_ID
 import org.fossify.gallery.helpers.THUMBNAIL_GRID_SELECTED_TAG
+import org.fossify.gallery.helpers.THUMBNAIL_GRID_SELECTED_VIEW
 import org.fossify.commons.extensions.updatePaddingWithBase
 import org.fossify.gallery.helpers.SHOW_TEMP_HIDDEN_DURATION
 import org.fossify.gallery.helpers.thumbnailGridBottomScrollPadding
@@ -289,8 +290,8 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         }
         mThumbnailGridViewsBar = ThumbnailGridViewsBar(
             activity = this,
-            container = binding.mediaThumbnailViewsContainer,
-            bottomNavigation = binding.mediaThumbnailViewsBar,
+            container = binding.mediaThumbnailViewsContainer.root,
+            bottomNavigation = binding.mediaThumbnailViewsContainer.mediaThumbnailViewsBar,
             searchMenu = binding.mediaMenu,
             onViewSelected = { view -> selectThumbnailGridView(view) },
             currentView = { mCurrentThumbnailGridView },
@@ -312,7 +313,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                 binding.mediaEmptyTextPlaceholder,
                 binding.mediaRefreshStatus,
             ),
-            bottomChrome = binding.mediaThumbnailViewsContainer,
+            bottomChrome = binding.mediaThumbnailViewsContainer.root,
             fastScroller = binding.mediaFastscroller,
             topChrome = binding.mediaTopChrome,
         )
@@ -492,6 +493,9 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         return if (binding.mediaMenu.isSearchOpen) {
             binding.mediaMenu.closeSearch()
             true
+        } else if (isShowingThumbnailGridTagFilter()) {
+            returnToThumbnailGridTagPicker()
+            true
         } else if (mLaunchedFromThumbnailShortcut && mShowAll) {
             appLockManager.lock()
             finishAffinity()
@@ -514,11 +518,16 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         } else if (requestCode == REQUEST_THUMBNAIL_GRID_TAG) {
             mThumbnailGridTagsScreenOpen = false
             if (resultCode == RESULT_OK) {
-                val tag = resultData?.getStringExtra(THUMBNAIL_GRID_SELECTED_TAG)
-                if (!tag.isNullOrEmpty()) {
-                    applyThumbnailGridTagView(tag)
+                val viewId = resultData?.getStringExtra(THUMBNAIL_GRID_SELECTED_VIEW)
+                if (!viewId.isNullOrEmpty()) {
+                    commitThumbnailGridView(ThumbnailGridView.fromStorageId(viewId))
                 } else {
-                    handleThumbnailGridTagScreenCancel()
+                    val tag = resultData?.getStringExtra(THUMBNAIL_GRID_SELECTED_TAG)
+                    if (!tag.isNullOrEmpty()) {
+                        applyThumbnailGridTagView(tag)
+                    } else {
+                        handleThumbnailGridTagScreenCancel()
+                    }
                 }
             } else {
                 handleThumbnailGridTagScreenCancel()
@@ -1398,7 +1407,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         }
 
         val show = shouldShowThumbnailGridViewsBar()
-        setThumbnailGridBottomChromeVisible(binding.mediaCoordinator, binding.mediaThumbnailViewsContainer, show)
+        setThumbnailGridBottomChromeVisible(binding.mediaCoordinator, binding.mediaThumbnailViewsContainer.root, show)
         mThumbnailGridViewsBar.setVisible(show)
         if (!show) {
             updateThumbnailGridBottomPadding()
@@ -1415,10 +1424,10 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         val scrim = binding.mediaCoordinator.findViewWithTag<View>(THUMBNAIL_GRID_NAV_SCRIM_TAG)
         val bottomPadding = thumbnailGridBottomScrollPadding(
             binding.mediaCoordinator,
-            binding.mediaThumbnailViewsContainer,
+            binding.mediaThumbnailViewsContainer.root,
         )
         binding.mediaGrid.updatePaddingWithBase(bottom = bottomPadding)
-        val showViewsBar = shouldShowThumbnailGridViewsBar() && binding.mediaThumbnailViewsContainer.isVisible()
+        val showViewsBar = shouldShowThumbnailGridViewsBar() && binding.mediaThumbnailViewsContainer.root.isVisible()
         if (showViewsBar) {
             scrim?.beGone()
         } else {
@@ -1448,12 +1457,32 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         }
     }
 
-    private fun openThumbnailGridTagsScreen() {
+    private fun isShowingThumbnailGridTagFilter(): Boolean {
+        return shouldShowThumbnailGridViewsBar()
+            && mCurrentThumbnailGridView == ThumbnailGridView.TAGS
+            && !mThumbnailGridTagFilter.isNullOrEmpty()
+    }
+
+    private fun returnToThumbnailGridTagPicker() {
+        openThumbnailGridTagsScreen(TagPickerOpenTransition.BACK_FROM_TAGGED_PHOTOS)
+    }
+
+    private enum class TagPickerOpenTransition {
+        INSTANT,
+        BACK_FROM_TAGGED_PHOTOS,
+    }
+
+    private fun openThumbnailGridTagsScreen(transition: TagPickerOpenTransition = TagPickerOpenTransition.INSTANT) {
         if (mThumbnailGridTagsScreenOpen) {
             return
         }
         mThumbnailGridTagsScreenOpen = true
         startActivityForResult(Intent(this, ThumbnailGridTagsActivity::class.java), REQUEST_THUMBNAIL_GRID_TAG)
+        when (transition) {
+            TagPickerOpenTransition.INSTANT -> overridePendingTransition(0, 0)
+            TagPickerOpenTransition.BACK_FROM_TAGGED_PHOTOS ->
+                overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
+        }
     }
 
     private fun handleThumbnailGridTagScreenCancel() {

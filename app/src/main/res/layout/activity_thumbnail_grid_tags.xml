@@ -43,4 +43,12 @@
             android:visibility="gone" />
 
     </RelativeLayout>
+
+    <include
+        android:id="@+id/media_thumbnail_views_container"
+        layout="@layout/thumbnail_grid_bottom_chrome"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom" />
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

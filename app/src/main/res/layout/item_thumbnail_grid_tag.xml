@@ -1,16 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/thumbnail_grid_tag_holder"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="?attr/selectableItemBackground"
     android:paddingHorizontal="@dimen/activity_margin"
-    android:paddingVertical="@dimen/medium_margin">
+    android:paddingVertical="@dimen/tiny_margin">
 
-    <org.fossify.commons.views.MyTextView
-        android:id="@+id/thumbnail_grid_tag_title"
+    <LinearLayout
+        android:id="@+id/thumbnail_grid_tag_holder"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="@dimen/bigger_text_size" />
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?attr/selectableItemBackground"
+        android:gravity="center_vertical"
+        android:minHeight="52dp"
+        android:orientation="horizontal"
+        android:paddingVertical="@dimen/medium_margin">
+
+        <org.fossify.commons.views.MyTextView
+            android:id="@+id/thumbnail_grid_tag_count"
+            android:layout_width="@dimen/thumbnail_grid_tag_count_column_width"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textSize="@dimen/bigger_text_size" />
+
+        <org.fossify.commons.views.MyTextView
+            android:id="@+id/thumbnail_grid_tag_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:paddingEnd="@dimen/activity_margin"
+            android:textSize="@dimen/bigger_text_size" />
+
+    </LinearLayout>
 
 </FrameLayout>

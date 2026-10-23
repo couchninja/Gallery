@@ -4,17 +4,20 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import org.fossify.commons.activities.BaseSimpleActivity
+import org.fossify.commons.extensions.adjustAlpha
 import org.fossify.commons.extensions.getProperTextColor
 import org.fossify.commons.extensions.setupViewBackground
 import org.fossify.gallery.databinding.ItemThumbnailGridTagBinding
 
+data class ThumbnailGridTagEntry(val name: String, val photoCount: Int)
+
 class ThumbnailGridTagsAdapter(
     private val activity: BaseSimpleActivity,
-    private var tags: List<String>,
+    private var tags: List<ThumbnailGridTagEntry>,
     private val onTagClick: (String) -> Unit,
 ) : RecyclerView.Adapter<ThumbnailGridTagsAdapter.TagViewHolder>() {
 
-    fun updateTags(newTags: List<String>) {
+    fun updateTags(newTags: List<ThumbnailGridTagEntry>) {
         tags = newTags
         notifyDataSetChanged()
     }
@@ -31,13 +34,18 @@ class ThumbnailGridTagsAdapter(
     override fun getItemCount() = tags.size
 
     inner class TagViewHolder(private val binding: ItemThumbnailGridTagBinding) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(tag: String) {
+        fun bind(entry: ThumbnailGridTagEntry) {
             binding.thumbnailGridTagHolder.setupViewBackground(activity)
+            val textColor = binding.root.context.getProperTextColor()
             binding.thumbnailGridTagTitle.apply {
-                text = tag
-                setTextColor(context.getProperTextColor())
+                text = entry.name
+                setTextColor(textColor)
             }
-            binding.root.setOnClickListener { onTagClick(tag) }
+            binding.thumbnailGridTagCount.apply {
+                text = entry.photoCount.toString()
+                setTextColor(textColor.adjustAlpha(0.65f))
+            }
+            binding.thumbnailGridTagHolder.setOnClickListener { onTagClick(entry.name) }
         }
     }
 }
