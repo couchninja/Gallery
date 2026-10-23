@@ -53,6 +53,8 @@ import org.fossify.gallery.helpers.EXTRA_METADATA_XMP_CHANGED
 import org.fossify.gallery.helpers.DIRECTORY
 import org.fossify.gallery.helpers.RECYCLE_BIN
 import org.fossify.gallery.helpers.TEMP_FOLDER_NAME
+import org.fossify.gallery.helpers.THUMBNAIL_GRID_VIEW_SHORTCUT_ID
+import org.fossify.gallery.helpers.ThumbnailGridView
 import java.io.*
 import java.util.Locale
 import androidx.core.net.toUri
@@ -961,7 +963,7 @@ fun Activity.handleExcludedFolderPasswordProtection(callback: () -> Unit) {
 
 fun Activity.openRecycleBin() {
     Intent(this, MediaActivity::class.java).apply {
-        putExtra(DIRECTORY, RECYCLE_BIN)
+        putExtra(THUMBNAIL_GRID_VIEW_SHORTCUT_ID, ThumbnailGridView.RECYCLE_BIN.storageId)
         startActivity(this)
     }
 }

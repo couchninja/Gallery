@@ -348,13 +348,6 @@ class DirectoryAdapter(
 
     private fun toggleFoldersVisibility(hide: Boolean) {
         val selectedPaths = getSelectedPaths()
-        if (hide && selectedPaths.contains(RECYCLE_BIN)) {
-            config.showRecycleBinAtFolders = false
-            if (selectedPaths.size == 1) {
-                listener?.refreshItems()
-                finishActMode()
-            }
-        }
 
         if (hide) {
             if (config.wasHideFolderTooltipShown) {
@@ -480,13 +473,6 @@ class DirectoryAdapter(
     private fun tryExcludeFolder() {
         val selectedPaths = getSelectedPaths()
         val paths = selectedPaths.filter { it != PATH && it != RECYCLE_BIN && it != FAVORITES }.toSet()
-        if (selectedPaths.contains(RECYCLE_BIN)) {
-            config.showRecycleBinAtFolders = false
-            if (selectedPaths.size == 1) {
-                listener?.refreshItems()
-                finishActMode()
-            }
-        }
 
         if (paths.size == 1) {
             ExcludeFolderDialog(activity, paths.toMutableList()) {

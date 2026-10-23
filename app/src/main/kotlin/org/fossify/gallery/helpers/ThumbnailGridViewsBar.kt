@@ -124,12 +124,14 @@ class ThumbnailGridViewsBar(
         } else {
             R.id.thumbnail_view_more
         }
-        if (bottomNavigation.selectedItemId == targetId) {
-            return
-        }
         bottomNavigation.setOnItemSelectedListener(null)
         bottomNavigation.setOnItemReselectedListener(null)
-        bottomNavigation.selectedItemId = targetId
+        if (bottomNavigation.selectedItemId != targetId) {
+            bottomNavigation.selectedItemId = targetId
+        } else {
+            // Re-apply checked state when switching between two overflow-only views.
+            bottomNavigation.menu.findItem(targetId)?.isChecked = true
+        }
         bottomNavigation.setOnItemSelectedListener(itemSelectedListener)
         bottomNavigation.setOnItemReselectedListener(itemReselectedListener)
     }

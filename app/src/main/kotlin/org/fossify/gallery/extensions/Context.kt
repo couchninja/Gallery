@@ -174,13 +174,6 @@ fun Context.movePinnedDirectoriesToFront(dirs: ArrayList<Directory>): ArrayList<
         }
     }
 
-    if (config.showRecycleBinAtFolders && config.showRecycleBinLast) {
-        val binIndex = dirs.indexOfFirst { it.isRecycleBin() }
-        if (binIndex != -1) {
-            val bin = dirs.removeAt(binIndex)
-            dirs.add(bin)
-        }
-    }
     return dirs
 }
 
@@ -855,9 +848,7 @@ fun Context.getCachedDirectories(
             ArrayList()
         }
 
-        if (!config.showRecycleBinAtFolders) {
-            directories.removeAll { it.isRecycleBin() }
-        }
+        directories.removeAll { it.isRecycleBin() }
 
         val shouldShowHidden = config.shouldShowHidden || forceShowHidden
         val excludedPaths = if (config.temporarilyShowExcluded || forceShowExcluded) {

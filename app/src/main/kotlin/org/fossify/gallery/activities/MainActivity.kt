@@ -297,10 +297,8 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
             config.wereFavoritesPinned = true
         }
 
-        if (!config.wasRecycleBinPinned) {
-            config.addPinnedFolders(hashSetOf(RECYCLE_BIN))
-            config.wasRecycleBinPinned = true
-            config.saveFolderGrouping(SHOW_ALL, GROUP_BY_DATE_TAKEN_DAILY or GROUP_DESCENDING)
+        if (config.pinnedFolders.contains(RECYCLE_BIN)) {
+            config.removePinnedFolders(setOf(RECYCLE_BIN))
         }
 
         if (!config.wasSVGShowingHandled) {
@@ -517,8 +515,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
             binding.mainMenu.requireToolbar().menu.apply {
                 findItem(R.id.column_count).isVisible = config.viewTypeFolders == VIEW_TYPE_GRID
                 findItem(R.id.set_as_default_folder).isVisible = !config.defaultFolder.isEmpty()
-                findItem(R.id.open_recycle_bin).isVisible =
-                    config.useRecycleBin && !config.showRecycleBinAtFolders
+                findItem(R.id.open_recycle_bin).isVisible = true
                 findItem(R.id.more_apps_from_us).isVisible =
                     resources.getBoolean(org.fossify.commons.R.bool.is_google_play_build)
             }
@@ -1296,25 +1293,6 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
         val dateTakens = metadataCache.dateTakens
         val exifRatings = if (config.showExifRatings) metadataCache.exifRatings else HashMap()
 
-        if (
-            config.showRecycleBinAtFolders
-            && !config.showRecycleBinLast
-            && !dirs.map { it.path }.contains(RECYCLE_BIN)
-        ) {
-            try {
-                if (mediaDB.getDeletedMediaCount() > 0) {
-                    val recycleBin = Directory().apply {
-                        path = RECYCLE_BIN
-                        name = getString(org.fossify.commons.R.string.recycle_bin)
-                        location = LOCATION_INTERNAL
-                    }
-
-                    dirs.add(0, recycleBin)
-                }
-            } catch (ignored: Exception) {
-            }
-        }
-
         if (dirs.map { it.path }.contains(FAVORITES)) {
             if (mediaDB.getFavoritesCount() > 0) {
                 val favorites = Directory().apply {
@@ -1448,16 +1426,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
         val foldersToScan = mLastMediaFetcher!!.getFoldersToScan()
         foldersToScan.remove(FAVORITES)
         foldersToScan.add(0, FAVORITES)
-        if (config.showRecycleBinAtFolders) {
-            if (foldersToScan.contains(RECYCLE_BIN)) {
-                foldersToScan.remove(RECYCLE_BIN)
-                foldersToScan.add(0, RECYCLE_BIN)
-            } else {
-                foldersToScan.add(0, RECYCLE_BIN)
-            }
-        } else {
-            foldersToScan.remove(RECYCLE_BIN)
-        }
+        foldersToScan.remove(RECYCLE_BIN)
 
         dirs.filterNot { it.path == RECYCLE_BIN || it.path == FAVORITES }.forEach {
             foldersToScan.remove(it.path)
@@ -1740,16 +1709,6 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
             val favoritesFolder = dirs.firstOrNull { it.areFavorites() }
             if (favoritesFolder != null) {
                 invalidDirs.add(favoritesFolder)
-            }
-        }
-
-        if (config.useRecycleBin) {
-            try {
-                val binFolder = dirs.firstOrNull { it.path == RECYCLE_BIN }
-                if (binFolder != null && mediaDB.getDeletedMedia().isEmpty()) {
-                    invalidDirs.add(binFolder)
-                }
-            } catch (ignored: Exception) {
             }
         }
 

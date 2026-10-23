@@ -129,6 +129,9 @@ import org.fossify.gallery.helpers.ThumbnailGridViewsBar
 import org.fossify.gallery.helpers.applyTransparentSystemBarsForThumbnailGrid
 import org.fossify.gallery.helpers.filterMediaForThumbnailGridView
 import org.fossify.gallery.helpers.folderKeyForThumbnailGridViews
+import org.fossify.gallery.helpers.isRecycleBinThumbnailGrid
+import org.fossify.gallery.helpers.thumbnailGridMediaFetchPath
+import org.fossify.gallery.helpers.thumbnailGridMediaFetchShowAll
 import org.fossify.gallery.helpers.setupThumbnailGridUnderChrome
 import org.fossify.gallery.helpers.isJpeg
 import org.fossify.gallery.helpers.setThumbnailGridBottomChromeVisible
@@ -257,8 +260,15 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             mRequireFullMediaRescan = true
             getMedia()
         }
+        var openRecycleBinAsGridView = false
         try {
-            mPath = intent.getStringExtra(DIRECTORY) ?: ""
+            val directory = intent.getStringExtra(DIRECTORY) ?: ""
+            if (directory == RECYCLE_BIN) {
+                mPath = ""
+                openRecycleBinAsGridView = true
+            } else {
+                mPath = directory
+            }
         } catch (e: Exception) {
             showErrorToast(e)
             finish()
@@ -266,14 +276,12 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         }
 
         setupOptionsMenu()
-        refreshMenuItems()
         storeStateVariables()
-        mCurrentThumbnailGridView = if (
-            mShowAll && intent.getBooleanExtra(EXTRA_RESET_THUMBNAIL_GRID_TO_ALL, false)
-        ) {
-            ThumbnailGridView.ALL
-        } else {
-            ThumbnailGridViewConfig.getSelectedView(
+        refreshMenuItems()
+        mCurrentThumbnailGridView = when {
+            openRecycleBinAsGridView -> ThumbnailGridView.RECYCLE_BIN
+            mShowAll && intent.getBooleanExtra(EXTRA_RESET_THUMBNAIL_GRID_TO_ALL, false) -> ThumbnailGridView.ALL
+            else -> ThumbnailGridViewConfig.getSelectedView(
                 this,
                 folderKeyForThumbnailGridViews(mPath, mShowAll),
             )
@@ -543,16 +551,16 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         binding.mediaMenu.requireToolbar().menu.apply {
             findItem(R.id.group).isVisible = !config.scrollHorizontally
 
-            findItem(R.id.empty_recycle_bin).isVisible = mPath == RECYCLE_BIN
-            findItem(R.id.empty_disable_recycle_bin).isVisible = mPath == RECYCLE_BIN
-            findItem(R.id.restore_all_files).isVisible = mPath == RECYCLE_BIN
+            findItem(R.id.empty_recycle_bin).isVisible = isShowingRecycleBinGrid()
+            findItem(R.id.empty_disable_recycle_bin).isVisible = isShowingRecycleBinGrid()
+            findItem(R.id.restore_all_files).isVisible = isShowingRecycleBinGrid()
 
             findItem(R.id.folder_view).isVisible = mShowAll
-            findItem(R.id.open_camera).isVisible = mShowAll
+            findItem(R.id.open_camera).isVisible = mShowAll && !isShowingRecycleBinGrid()
             findItem(R.id.about).isVisible = mShowAll
             findItem(R.id.create_new_folder).isVisible =
                 !mShowAll && mPath != RECYCLE_BIN && mPath != FAVORITES
-            findItem(R.id.open_recycle_bin).isVisible = config.useRecycleBin && mPath != RECYCLE_BIN
+            findItem(R.id.open_recycle_bin).isVisible = false
 
             findItem(R.id.temporarily_show_hidden).isVisible = !config.shouldShowHidden
             findItem(R.id.stop_showing_hidden).isVisible =
@@ -643,8 +651,24 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             mStoredShouldShowHidden = shouldShowHidden
             // Non-empty DIRECTORY always means a single folder/album, even when config.showAll is on
             // (e.g. "Open folder" from the viewer while browsing all photos).
-            mShowAll = showAll && mPath.isEmpty() && mPath != RECYCLE_BIN
+            mShowAll = showAll && mPath.isEmpty()
         }
+    }
+
+    private fun isShowingRecycleBinGrid(): Boolean {
+        return isRecycleBinThumbnailGrid(mShowAll, mPath, mCurrentThumbnailGridView)
+    }
+
+    private fun mediaFetchPath(): String {
+        return thumbnailGridMediaFetchPath(mShowAll, mPath, mCurrentThumbnailGridView)
+    }
+
+    private fun mediaFetchShowAll(): Boolean {
+        return thumbnailGridMediaFetchShowAll(mShowAll, mPath, mCurrentThumbnailGridView)
+    }
+
+    private fun mediaGroupingPath(): String {
+        return if (isShowingRecycleBinGrid()) RECYCLE_BIN else mPath
     }
 
     private fun searchQueryChanged(text: String) {
@@ -661,11 +685,11 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                     .filter { it.name.contains(text, true) } as ArrayList
                 filtered.sortBy { !it.name.startsWith(text, true) }
                 val grouped = MediaFetcher(applicationContext).groupMedia(
-                    media = filtered as ArrayList<Medium>, path = mPath
+                    media = filtered as ArrayList<Medium>, path = mediaGroupingPath()
                 ).withFolderPathHeader(
-                    showAll = mShowAll,
-                    path = mPath,
-                    humanizedPath = humanizePath(mPath).trimEnd('/'),
+                    showAll = mShowAll && !isShowingRecycleBinGrid(),
+                    path = mediaGroupingPath(),
+                    humanizedPath = humanizePath(mediaGroupingPath()).trimEnd('/'),
                 )
                 runOnUiThread {
                     if (grouped.isEmpty()) {
@@ -688,14 +712,15 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
 
     private fun tryLoadGallery() {
         requestMediaPermissions {
-            val dirName = when (mPath) {
-                FAVORITES -> getString(org.fossify.commons.R.string.favorites)
-                RECYCLE_BIN -> getString(org.fossify.commons.R.string.recycle_bin)
-                config.OTGPath -> getString(org.fossify.commons.R.string.usb)
+            val dirName = when {
+                isShowingRecycleBinGrid() -> getString(org.fossify.commons.R.string.recycle_bin)
+                mPath == FAVORITES -> getString(org.fossify.commons.R.string.favorites)
+                mPath == RECYCLE_BIN -> getString(org.fossify.commons.R.string.recycle_bin)
+                mPath == config.OTGPath -> getString(org.fossify.commons.R.string.usb)
                 else -> getHumanizedFilename(mPath)
             }
 
-            val searchHint = if (mShowAll) {
+            val searchHint = if (mShowAll && !isShowingRecycleBinGrid()) {
                 getString(org.fossify.commons.R.string.search_files)
             } else {
                 getString(org.fossify.commons.R.string.search_in_placeholder, dirName)
@@ -735,7 +760,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                 listener = this,
                 isAGetIntent = mIsGetImageIntent || mIsGetVideoIntent || mIsGetAnyIntent,
                 allowMultiplePicks = mAllowPickingMultiple,
-                path = mPath,
+                path = mediaGroupingPath(),
                 recyclerView = binding.mediaGrid
             ) {
                 if (it is Medium && !isFinishing) {
@@ -796,12 +821,12 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                 val getVideosOnly = mIsGetVideoIntent && !mIsGetImageIntent
                 val getImagesOnly = mIsGetImageIntent && !mIsGetVideoIntent
                 applicationContext.pruneStaleCachedMedia(
-                    path = mPath,
-                    getVideosOnly = getVideosOnly,
-                    getImagesOnly = getImagesOnly,
-                )
+                path = mediaFetchPath(),
+                getVideosOnly = getVideosOnly,
+                getImagesOnly = getImagesOnly,
+            )
                 val sorted = applicationContext.buildGroupedMediaFromCache(
-                    path = mPath,
+                    path = mediaFetchPath(),
                     getVideosOnly = getVideosOnly,
                     getImagesOnly = getImagesOnly,
                     group = false,
@@ -862,7 +887,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     private fun emptyRecycleBin() {
         showRecycleBinEmptyingDialog {
             emptyTheRecycleBin {
-                finish()
+                leaveRecycleBinAfterEmptied()
             }
         }
     }
@@ -870,8 +895,16 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     private fun emptyAndDisableRecycleBin() {
         showRecycleBinEmptyingDialog {
             emptyAndDisableTheRecycleBin {
-                finish()
+                leaveRecycleBinAfterEmptied()
             }
+        }
+    }
+
+    private fun leaveRecycleBinAfterEmptied() {
+        if (isShowingRecycleBinGrid()) {
+            commitThumbnailGridView(ThumbnailGridView.ALL)
+        } else {
+            finish()
         }
     }
 
@@ -882,7 +915,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                 ensureBackgroundThread {
                     directoryDB.deleteDirPath(RECYCLE_BIN)
                 }
-                finish()
+                leaveRecycleBinAfterEmptied()
             }
         }
     }
@@ -993,7 +1026,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             startAsyncTask()
         } else {
             getCachedMedia(
-                mPath,
+                mediaFetchPath(),
                 mIsGetVideoIntent && !mIsGetImageIntent,
                 mIsGetImageIntent && !mIsGetVideoIntent,
                 onStatus = { updateLoadingStatus(it) },
@@ -1069,8 +1102,8 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     private fun refreshDisplayedExifRatings() {
         mergeExifRatingsIntoMediaAsync(
             media = mRawMedia.filterIsInstance<Medium>(),
-            folderPath = mPath,
-            treatAsShowAll = mShowAll,
+            folderPath = mediaFetchPath(),
+            treatAsShowAll = mediaFetchShowAll(),
         ) { changedPaths ->
             runOnUiThread {
                 syncRawRatingsToDisplayedMedia()
@@ -1090,10 +1123,10 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         mCurrAsyncTask?.stopFetching()
         mCurrAsyncTask = GetMediaAsynctask(
             context = applicationContext,
-            mPath = mPath,
+            mPath = mediaFetchPath(),
             isPickImage = mIsGetImageIntent && !mIsGetVideoIntent,
             isPickVideo = mIsGetVideoIntent && !mIsGetImageIntent,
-            showAll = mShowAll,
+            showAll = mediaFetchShowAll(),
             onStatus = { updateLoadingStatus(it) },
             group = false,
         ) {
@@ -1137,7 +1170,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                 }
             }
 
-            if (mPath == RECYCLE_BIN) {
+            if (mPath == RECYCLE_BIN || isShowingRecycleBinGrid()) {
                 binding.mediaEmptyTextPlaceholder.setText(org.fossify.commons.R.string.no_items_found)
                 binding.mediaEmptyTextPlaceholder.beVisible()
                 binding.mediaEmptyTextPlaceholder2.beGone()
@@ -1498,12 +1531,32 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         if (mShowAll && shouldShowThumbnailGridViewsBar()) {
             LoadTimer.resetSession("viewSwitch:${view.storageId}")
         }
+        val previousView = mCurrentThumbnailGridView
         mCurrentThumbnailGridView = view
         if (view != ThumbnailGridView.TAGS) {
             mThumbnailGridTagFilter = null
             ThumbnailGridViewConfig.setSelectedView(this, folderKeyForThumbnailGridViews(mPath, mShowAll), view)
         }
-        mStickyUnratedPaths = if (view == ThumbnailGridView.UNRATED) {
+        val recycleBinSourceChanged = (view == ThumbnailGridView.RECYCLE_BIN) !=
+            (previousView == ThumbnailGridView.RECYCLE_BIN)
+        refreshMenuItems()
+        if (::mThumbnailGridViewsBar.isInitialized) {
+            mThumbnailGridViewsBar.updateSelection(mCurrentThumbnailGridView)
+        }
+        if (recycleBinSourceChanged) {
+            mCurrAsyncTask?.stopFetching()
+            mIsGettingMedia = false
+            mLoadedInitialPhotos = false
+            binding.mediaGrid.adapter = null
+            getMedia()
+        } else {
+            refreshStickyUnratedPathsFromRawMedia()
+            applyCurrentThumbnailGridView()
+        }
+    }
+
+    private fun refreshStickyUnratedPathsFromRawMedia() {
+        mStickyUnratedPaths = if (mCurrentThumbnailGridView == ThumbnailGridView.UNRATED) {
             mRawMedia.filterIsInstance<Medium>()
                 .filter { it.isJpeg() && it.exifRating == 0 }
                 .map { it.path }
@@ -1511,7 +1564,6 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         } else {
             null
         }
-        applyCurrentThumbnailGridView()
     }
 
     private fun applyCurrentThumbnailGridView() {
@@ -1547,11 +1599,11 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             )
         }
         return LoadTimer.section("groupMedia") {
-            MediaFetcher(applicationContext).groupMedia(filtered, mPath)
+            MediaFetcher(applicationContext).groupMedia(filtered, mediaGroupingPath())
                 .withFolderPathHeader(
-                    showAll = mShowAll,
-                    path = mPath,
-                    humanizedPath = humanizePath(mPath).trimEnd('/'),
+                    showAll = mShowAll && !isShowingRecycleBinGrid(),
+                    path = mediaGroupingPath(),
+                    humanizedPath = humanizePath(mediaGroupingPath()).trimEnd('/'),
                 )
         }
     }
@@ -1562,7 +1614,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             putExtra(PATH, path)
             putExtra(SHOW_ALL, mShowAll)
             putExtra(SHOW_FAVORITES, mPath == FAVORITES)
-            putExtra(SHOW_RECYCLE_BIN, mPath == RECYCLE_BIN)
+            putExtra(SHOW_RECYCLE_BIN, isShowingRecycleBinGrid() || mPath == RECYCLE_BIN)
             putExtra(IS_FROM_GALLERY, true)
             startActivity(this)
         }
@@ -1583,6 +1635,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         mIsGettingMedia = false
         checkLastMediaChanged()
         mRawMedia = media
+        refreshStickyUnratedPathsFromRawMedia()
         mMedia = buildGroupedMediaForCurrentView()
 
         runOnUiThread {
@@ -1597,6 +1650,9 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             }
             binding.mediaFastscroller.beVisibleIf(binding.mediaEmptyTextPlaceholder.isGone())
             setupAdapter()
+            if (::mThumbnailGridViewsBar.isInitialized) {
+                mThumbnailGridViewsBar.updateSelection(mCurrentThumbnailGridView)
+            }
             if (mShowAll) {
                 if (isFromCache && !mLoggedCachePaint) {
                     mLoggedCachePaint = true
@@ -1686,9 +1742,13 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             }
 
             if (mMedia.none { it is Medium }) {
-                deleteDirectoryIfEmpty()
-                deleteDBDirectory()
-                finish()
+                if (isShowingRecycleBinGrid()) {
+                    applyCurrentThumbnailGridView()
+                } else {
+                    deleteDirectoryIfEmpty()
+                    deleteDBDirectory()
+                    finish()
+                }
             }
         }
     }

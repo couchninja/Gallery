@@ -51,6 +51,12 @@ enum class ThumbnailGridView(
         labelRes = R.string.thumbnail_grid_view_cards,
         iconRes = R.drawable.ic_cards_vector,
     ),
+    RECYCLE_BIN(
+        storageId = "recycle_bin",
+        menuItemId = R.id.thumbnail_view_recycle_bin,
+        labelRes = org.fossify.commons.R.string.recycle_bin,
+        iconRes = org.fossify.commons.R.drawable.ic_delete_vector,
+    ),
     ;
 
     private val cardTagNamesLowercase = setOf("klantenkaart", "card")
@@ -69,6 +75,7 @@ enum class ThumbnailGridView(
             TOP_RATED -> medium.isJpeg() && medium.exifRating >= 4
             TAGS -> selectedTagPaths != null && medium.path in selectedTagPaths
             CARDS -> mediumHasCardTag(medium)
+            RECYCLE_BIN -> true
         }
     }
 
@@ -171,4 +178,21 @@ fun folderKeyForThumbnailGridViews(path: String, showAll: Boolean): String {
     } else {
         path.lowercase(Locale.getDefault())
     }
+}
+
+fun isRecycleBinThumbnailGrid(showAll: Boolean, mediaPath: String, view: ThumbnailGridView): Boolean {
+    return showAll && mediaPath.isEmpty() && view == ThumbnailGridView.RECYCLE_BIN
+}
+
+/** Path passed to [org.fossify.gallery.asynctasks.GetMediaAsynctask] and media cache helpers. */
+fun thumbnailGridMediaFetchPath(showAll: Boolean, mediaPath: String, view: ThumbnailGridView): String {
+    return when {
+        isRecycleBinThumbnailGrid(showAll, mediaPath, view) -> RECYCLE_BIN
+        showAll && mediaPath.isEmpty() -> ""
+        else -> mediaPath
+    }
+}
+
+fun thumbnailGridMediaFetchShowAll(showAll: Boolean, mediaPath: String, view: ThumbnailGridView): Boolean {
+    return showAll && mediaPath.isEmpty() && view != ThumbnailGridView.RECYCLE_BIN
 }

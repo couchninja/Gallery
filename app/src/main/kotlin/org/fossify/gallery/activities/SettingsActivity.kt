@@ -120,11 +120,8 @@ class SettingsActivity : SimpleActivity() {
         setupShowExtendedDetails()
         setupHideExtendedDetails()
         setupManageExtendedDetails()
-        setupSkipDeleteConfirmation()
         setupManageBottomActions()
         setupUseRecycleBin()
-        setupShowRecycleBin()
-        setupShowRecycleBinLast()
         setupEmptyRecycleBin()
         updateTextColors(binding.settingsHolder)
         setupClearCache()
@@ -774,14 +771,6 @@ class SettingsActivity : SimpleActivity() {
         binding.settingsHideExtendedDetailsHolder.beVisibleIf(config.showExtendedDetails)
     }
 
-    private fun setupSkipDeleteConfirmation() {
-        binding.settingsSkipDeleteConfirmation.isChecked = config.skipDeleteConfirmation
-        binding.settingsSkipDeleteConfirmationHolder.setOnClickListener {
-            binding.settingsSkipDeleteConfirmation.toggle()
-            config.skipDeleteConfirmation = binding.settingsSkipDeleteConfirmation.isChecked
-        }
-    }
-
     private fun setupScreenRotation() {
         binding.settingsScreenRotation.text = getScreenRotationText()
         binding.settingsScreenRotationHolder.setOnClickListener {
@@ -838,30 +827,8 @@ class SettingsActivity : SimpleActivity() {
         }
     }
 
-    private fun setupShowRecycleBin() {
-        binding.settingsShowRecycleBin.isChecked = config.showRecycleBinAtFolders
-        binding.settingsShowRecycleBinHolder.setOnClickListener {
-            binding.settingsShowRecycleBin.toggle()
-            config.showRecycleBinAtFolders = binding.settingsShowRecycleBin.isChecked
-            updateRecycleBinButtons()
-        }
-    }
-
-    private fun setupShowRecycleBinLast() {
-        binding.settingsShowRecycleBinLast.isChecked = config.showRecycleBinLast
-        binding.settingsShowRecycleBinLastHolder.setOnClickListener {
-            binding.settingsShowRecycleBinLast.toggle()
-            config.showRecycleBinLast = binding.settingsShowRecycleBinLast.isChecked
-            if (config.showRecycleBinLast) {
-                config.removePinnedFolders(setOf(RECYCLE_BIN))
-            }
-        }
-    }
-
     private fun updateRecycleBinButtons() {
-        binding.settingsShowRecycleBinLastHolder.beVisibleIf(config.useRecycleBin && config.showRecycleBinAtFolders)
         binding.settingsEmptyRecycleBinHolder.beVisibleIf(config.useRecycleBin)
-        binding.settingsShowRecycleBinHolder.beVisibleIf(config.useRecycleBin)
     }
 
     private fun setupEmptyRecycleBin() {
