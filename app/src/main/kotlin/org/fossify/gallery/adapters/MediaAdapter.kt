@@ -61,7 +61,6 @@ import org.fossify.gallery.databinding.PhotoItemListBinding
 import org.fossify.gallery.databinding.ThumbnailSectionBinding
 import org.fossify.gallery.databinding.VideoItemGridBinding
 import org.fossify.gallery.databinding.VideoItemListBinding
-import org.fossify.gallery.dialogs.DeleteWithRememberDialog
 import org.fossify.gallery.extensions.config
 import org.fossify.gallery.extensions.fixDateTaken
 import org.fossify.gallery.extensions.getShortcutImage
@@ -700,53 +699,20 @@ class MediaAdapter(
 
     private fun checkDeleteConfirmation() {
         activity.handleMediaManagementPrompt {
+            val skipRecycleBin = config.skipRecycleBinWhenDeleting(selectedItemsAreInRecycleBin())
             if (config.isDeletePasswordProtectionOn) {
                 activity.handleDeletePasswordProtection {
-                    deleteFiles(config.tempSkipRecycleBin)
+                    deleteFiles(skipRecycleBin)
                 }
-            } else if (config.tempSkipDeleteConfirmation || config.skipDeleteConfirmation) {
-                deleteFiles(config.tempSkipRecycleBin)
             } else {
-                askConfirmDelete()
+                deleteFiles(skipRecycleBin)
             }
         }
     }
 
-    private fun askConfirmDelete() {
-        val itemsCnt = selectedKeys.size
-        val selectedMedia = getSelectedItems()
-        val firstPath = selectedMedia.first().path
-        val fileDirItem = selectedMedia.first().toFileDirItem()
-        val size = fileDirItem.getProperSize(activity, countHidden = true).formatSize()
-        val itemsAndSize = if (itemsCnt == 1) {
-            fileDirItem.mediaStoreId = selectedMedia.first().mediaStoreId
-            "\"${firstPath.getFilenameFromPath()}\" ($size)"
-        } else {
-            val fileDirItems = ArrayList<FileDirItem>(selectedMedia.size)
-            selectedMedia.forEach { medium ->
-                val curFileDirItem = medium.toFileDirItem()
-                fileDirItems.add(curFileDirItem)
-            }
-            val fileSize = fileDirItems.sumByLong { it.getProperSize(activity, countHidden = true) }.formatSize()
-            val deleteItemsString = resources.getQuantityString(org.fossify.commons.R.plurals.delete_items, itemsCnt, itemsCnt)
-            "$deleteItemsString ($fileSize)"
-        }
-
-        val isRecycleBin = firstPath.startsWith(activity.recycleBinPath)
-        val baseString =
-            if (config.useRecycleBin && !config.tempSkipRecycleBin && !isRecycleBin) org.fossify.commons.R.string.move_to_recycle_bin_confirmation else org.fossify.commons.R.string.deletion_confirmation
-        val question = String.format(resources.getString(baseString), itemsAndSize)
-        val showSkipRecycleBinOption = config.useRecycleBin && !isRecycleBin
-
-        DeleteWithRememberDialog(activity, question, showSkipRecycleBinOption) { remember, skipRecycleBin ->
-            config.tempSkipDeleteConfirmation = remember
-
-            if (remember) {
-                config.tempSkipRecycleBin = skipRecycleBin
-            }
-
-            deleteFiles(skipRecycleBin)
-        }
+    private fun selectedItemsAreInRecycleBin(): Boolean {
+        val firstPath = getSelectedItems().firstOrNull()?.path ?: return false
+        return firstPath.startsWith(activity.recycleBinPath)
     }
 
     private fun deleteFiles(skipRecycleBin: Boolean) {

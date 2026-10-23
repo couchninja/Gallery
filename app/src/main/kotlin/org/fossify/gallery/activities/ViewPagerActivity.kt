@@ -99,7 +99,6 @@ import org.fossify.gallery.R
 import org.fossify.gallery.adapters.MyPagerAdapter
 import org.fossify.gallery.asynctasks.GetMediaAsynctask
 import org.fossify.gallery.databinding.ActivityMediumBinding
-import org.fossify.gallery.dialogs.DeleteWithRememberDialog
 import org.fossify.gallery.dialogs.SaveAsDialog
 import org.fossify.gallery.dialogs.SlideshowDialog
 import org.fossify.gallery.extensions.config
@@ -1444,42 +1443,14 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
         }
 
         handleMediaManagementPrompt {
+            val skipRecycleBin = config.skipRecycleBinWhenDeleting(getCurrentMedium()!!.getIsInRecycleBin())
             if (config.isDeletePasswordProtectionOn) {
                 handleDeletePasswordProtection {
-                    deleteConfirmed(config.tempSkipRecycleBin)
+                    deleteConfirmed(skipRecycleBin)
                 }
-            } else if (config.tempSkipDeleteConfirmation || config.skipDeleteConfirmation) {
-                deleteConfirmed(config.tempSkipRecycleBin)
             } else {
-                askConfirmDelete()
+                deleteConfirmed(skipRecycleBin)
             }
-        }
-    }
-
-    private fun askConfirmDelete() {
-        val fileDirItem = getCurrentMedium()?.toFileDirItem() ?: return
-        val size = fileDirItem.getProperSize(this, countHidden = true).formatSize()
-        val filename = "\"${getCurrentPath().getFilenameFromPath()}\""
-        val filenameAndSize = "$filename ($size)"
-        val isInRecycleBin = getCurrentMedium()!!.getIsInRecycleBin()
-
-        val baseString = if (config.useRecycleBin && !config.tempSkipRecycleBin && !isInRecycleBin) {
-            org.fossify.commons.R.string.move_to_recycle_bin_confirmation
-        } else {
-            org.fossify.commons.R.string.deletion_confirmation
-        }
-
-        val message = String.format(resources.getString(baseString), filenameAndSize)
-        val showSkipRecycleBinOption = config.useRecycleBin && !isInRecycleBin
-
-        DeleteWithRememberDialog(this, message, showSkipRecycleBinOption) { remember, skipRecycleBin ->
-            config.tempSkipDeleteConfirmation = remember
-
-            if (remember) {
-                config.tempSkipRecycleBin = skipRecycleBin
-            }
-
-            deleteConfirmed(skipRecycleBin)
         }
     }
 

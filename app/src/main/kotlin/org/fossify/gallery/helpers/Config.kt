@@ -422,14 +422,6 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getString(LAST_FILEPICKER_PATH, "")!!
         set(lastFilepickerPath) = prefs.edit().putString(LAST_FILEPICKER_PATH, lastFilepickerPath).apply()
 
-    var tempSkipDeleteConfirmation: Boolean
-        get() = prefs.getBoolean(TEMP_SKIP_DELETE_CONFIRMATION, false)
-        set(tempSkipDeleteConfirmation) = prefs.edit().putBoolean(TEMP_SKIP_DELETE_CONFIRMATION, tempSkipDeleteConfirmation).apply()
-
-    var tempSkipRecycleBin: Boolean
-        get() = prefs.getBoolean(TEMP_SKIP_RECYCLE_BIN, false)
-        set(tempSkipRecycleBin) = prefs.edit().putBoolean(TEMP_SKIP_RECYCLE_BIN, tempSkipRecycleBin).apply()
-
     var wereFavoritesPinned: Boolean
         get() = prefs.getBoolean(WERE_FAVORITES_PINNED, false)
         set(wereFavoritesPinned) = prefs.edit().putBoolean(WERE_FAVORITES_PINNED, wereFavoritesPinned).apply()
@@ -449,6 +441,9 @@ class Config(context: Context) : BaseConfig(context) {
     var useRecycleBin: Boolean
         get() = prefs.getBoolean(USE_RECYCLE_BIN, true)
         set(useRecycleBin) = prefs.edit().putBoolean(USE_RECYCLE_BIN, useRecycleBin).apply()
+
+    fun skipRecycleBinWhenDeleting(isInRecycleBin: Boolean = false): Boolean =
+        !useRecycleBin || isInRecycleBin
 
     var bottomActions: Boolean
         get() = prefs.getBoolean(BOTTOM_ACTIONS, true)

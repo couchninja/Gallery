@@ -487,11 +487,9 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     override fun onStop() {
         super.onStop()
 
-        if (config.temporarilyShowHidden || config.tempSkipDeleteConfirmation) {
+        if (config.temporarilyShowHidden) {
             mTempShowHiddenHandler.postDelayed({
                 config.temporarilyShowHidden = false
-                config.tempSkipDeleteConfirmation = false
-                config.tempSkipRecycleBin = false
             }, SHOW_TEMP_HIDDEN_DURATION)
         } else {
             mTempShowHiddenHandler.removeCallbacksAndMessages(null)
@@ -502,8 +500,6 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         super.onDestroy()
         if (config.showAll && !isChangingConfigurations) {
             config.temporarilyShowHidden = false
-            config.tempSkipDeleteConfirmation = false
-            config.tempSkipRecycleBin = false
             unregisterFileUpdateListener()
             GalleryDatabase.destroyInstance()
         }

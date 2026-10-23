@@ -239,8 +239,6 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
         if (savedInstanceState == null) {
             config.temporarilyShowHidden = false
             config.temporarilyShowExcluded = false
-            config.tempSkipDeleteConfirmation = false
-            config.tempSkipRecycleBin = false
             removeTempFolder()
             checkRecycleBinItems()
             startNewPhotoFetcher()
@@ -422,12 +420,10 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
     override fun onStop() {
         super.onStop()
 
-        if (config.temporarilyShowHidden || config.tempSkipDeleteConfirmation || config.temporarilyShowExcluded) {
+        if (config.temporarilyShowHidden || config.temporarilyShowExcluded) {
             mTempShowHiddenHandler.postDelayed({
                 config.temporarilyShowHidden = false
                 config.temporarilyShowExcluded = false
-                config.tempSkipDeleteConfirmation = false
-                config.tempSkipRecycleBin = false
             }, SHOW_TEMP_HIDDEN_DURATION)
         } else {
             mTempShowHiddenHandler.removeCallbacksAndMessages(null)
@@ -439,8 +435,6 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
         if (!isChangingConfigurations) {
             config.temporarilyShowHidden = false
             config.temporarilyShowExcluded = false
-            config.tempSkipDeleteConfirmation = false
-            config.tempSkipRecycleBin = false
             mTempShowHiddenHandler.removeCallbacksAndMessages(null)
             removeTempFolder()
             unregisterFileUpdateListener()
@@ -912,7 +906,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
             }
 
             else -> {
-                val baseString = if (config.useRecycleBin && !config.tempSkipRecycleBin) {
+                val baseString = if (config.useRecycleBin) {
                     org.fossify.commons.R.plurals.moving_items_into_bin
                 } else {
                     org.fossify.commons.R.plurals.delete_items
@@ -942,7 +936,7 @@ class MainActivity : SimpleActivity(), DirectoryOperationsListener {
             }?.mapTo(itemsToDelete) { it.toFileDirItem(applicationContext) }
         }
 
-        if (config.useRecycleBin && !config.tempSkipRecycleBin) {
+        if (config.useRecycleBin) {
             val pathsToDelete = ArrayList<String>()
             itemsToDelete.mapTo(pathsToDelete) { it.path }
 
