@@ -13,6 +13,7 @@ import org.fossify.gallery.R
 import org.fossify.gallery.adapters.ManageThumbnailGridViewsAdapter
 import org.fossify.gallery.helpers.ThumbnailGridView
 import org.fossify.gallery.helpers.ThumbnailGridViewConfig
+import kotlin.math.min
 
 class ManageThumbnailGridViewsDialog(
     private val activity: BaseSimpleActivity,
@@ -22,16 +23,17 @@ class ManageThumbnailGridViewsDialog(
         val views = ThumbnailGridViewConfig.getViewsInOrder(activity).toMutableList()
         val horizontalPadding = activity.resources.getDimension(org.fossify.commons.R.dimen.activity_margin).toInt()
         val rowHeight = activity.resources.getDimensionPixelSize(R.dimen.manage_thumbnail_grid_view_row_height)
+        val maxListHeight = activity.resources.getDimensionPixelSize(R.dimen.manage_thumbnail_grid_view_list_max_height)
+        val listHeight = min(rowHeight * views.size, maxListHeight)
         val adapter = ManageThumbnailGridViewsAdapter(activity, views)
 
         val recyclerView = RecyclerView(activity).apply {
             layoutManager = LinearLayoutManager(activity)
             this.adapter = adapter
             overScrollMode = RecyclerView.OVER_SCROLL_NEVER
-            isNestedScrollingEnabled = false
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                rowHeight * views.size,
+                listHeight,
             )
         }
 

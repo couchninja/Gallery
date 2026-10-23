@@ -45,14 +45,17 @@ class ManageThumbnailGridViewsAdapter(
         val startDragOnTouch = View.OnTouchListener { _, event ->
             if (event.actionMasked == MotionEvent.ACTION_DOWN) {
                 startDragListener?.invoke(holder)
+                true
+            } else {
+                false
             }
-            false
         }
         with(holder.binding) {
-            root.setOnTouchListener(startDragOnTouch)
-            manageThumbnailGridViewDragHandle.setOnTouchListener(startDragOnTouch)
-            manageThumbnailGridViewIcon.setOnTouchListener(startDragOnTouch)
-            manageThumbnailGridViewLabel.setOnTouchListener(startDragOnTouch)
+            root.setOnTouchListener(null)
+            manageThumbnailGridViewIcon.setOnTouchListener(null)
+            manageThumbnailGridViewLabel.setOnTouchListener(null)
+            manageThumbnailGridViewDragHandle.setOnTouchListener(null)
+            manageThumbnailGridViewDragHandleTouchTarget.setOnTouchListener(startDragOnTouch)
         }
     }
 
