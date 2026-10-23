@@ -170,7 +170,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_below="@+id/settings_metadata_index_label"
-                    android:minLines="2"
+                    android:minLines="6"
                     tools:text="@string/metadata_index_schedule" />
 
                 <com.google.android.material.progressindicator.LinearProgressIndicator
