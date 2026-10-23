@@ -2,6 +2,7 @@ package org.fossify.gallery.adapters
 
 import android.view.LayoutInflater
 import android.view.MotionEvent
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import org.fossify.commons.activities.BaseSimpleActivity
@@ -34,13 +35,24 @@ class ManageThumbnailGridViewsAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val view = views[position]
+        val textColor = activity.getProperTextColor()
         holder.binding.manageThumbnailGridViewLabel.text = activity.getString(view.labelRes)
-        holder.binding.manageThumbnailGridViewDragHandle.applyColorFilter(activity.getProperTextColor())
-        holder.binding.manageThumbnailGridViewDragHandle.setOnTouchListener { _, event ->
+        holder.binding.manageThumbnailGridViewDragHandle.applyColorFilter(textColor)
+        holder.binding.manageThumbnailGridViewIcon.apply {
+            setImageResource(view.iconRes)
+            applyColorFilter(textColor)
+        }
+        val startDragOnTouch = View.OnTouchListener { _, event ->
             if (event.actionMasked == MotionEvent.ACTION_DOWN) {
                 startDragListener?.invoke(holder)
             }
             false
+        }
+        with(holder.binding) {
+            root.setOnTouchListener(startDragOnTouch)
+            manageThumbnailGridViewDragHandle.setOnTouchListener(startDragOnTouch)
+            manageThumbnailGridViewIcon.setOnTouchListener(startDragOnTouch)
+            manageThumbnailGridViewLabel.setOnTouchListener(startDragOnTouch)
         }
     }
 

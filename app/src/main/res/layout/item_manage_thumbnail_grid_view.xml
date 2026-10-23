@@ -12,8 +12,17 @@
         android:layout_width="@dimen/drag_handle_size"
         android:layout_height="@dimen/drag_handle_size"
         android:contentDescription="@string/reorder_by_dragging"
+        android:importantForAccessibility="no"
         android:scaleType="centerInside"
         android:src="@drawable/ic_manage_view_drag_dots_vector" />
+
+    <ImageView
+        android:id="@+id/manage_thumbnail_grid_view_icon"
+        android:layout_width="@dimen/thumbnail_grid_bottom_nav_icon_size"
+        android:layout_height="@dimen/thumbnail_grid_bottom_nav_icon_size"
+        android:layout_marginStart="@dimen/small_margin"
+        android:importantForAccessibility="no"
+        android:scaleType="centerInside" />
 
     <org.fossify.commons.views.MyTextView
         android:id="@+id/manage_thumbnail_grid_view_label"
