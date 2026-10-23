@@ -31,7 +31,7 @@ enum class ThumbnailGridView(
         storageId = "videos",
         menuItemId = R.id.thumbnail_view_videos,
         labelRes = R.string.thumbnail_grid_view_videos,
-        iconRes = org.fossify.commons.R.drawable.ic_play_vector,
+        iconRes = R.drawable.ic_videos_nav_vector,
     ),
     TOP_RATED(
         storageId = "top_rated",
@@ -55,7 +55,7 @@ enum class ThumbnailGridView(
         storageId = "favorites",
         menuItemId = R.id.thumbnail_view_favorites,
         labelRes = R.string.thumbnail_grid_view_favorites,
-        iconRes = R.drawable.ic_xmp_tag_favorite_vector,
+        iconRes = R.drawable.ic_xmp_tag_favorite_nav_vector,
     ),
     RECYCLE_BIN(
         storageId = "recycle_bin",
