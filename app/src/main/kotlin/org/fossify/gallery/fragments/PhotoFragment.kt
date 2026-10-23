@@ -746,6 +746,9 @@ class PhotoFragment : ViewPagerFragment() {
     }
 
     private fun addZoomableView() {
+        if (!mIsFragmentVisible || !isAdded) {
+            return
+        }
         SwipeFrameMonitor.mark("add zoomable view ${mMedium.name}")
         val rotation = degreesForRotation(mImageOrientation)
         mIsSubsamplingVisible = true
@@ -756,6 +759,8 @@ class PhotoFragment : ViewPagerFragment() {
         val bitmapDecoder = object : DecoderFactory<ImageDecoder> {
             override fun make() = MyGlideImageDecoder(rotation, mMedium.getKey(), mImageOrientation)
         }
+
+        val imagePath = getFilePathToShow()
 
         val regionDecoder = object : DecoderFactory<ImageRegionDecoder> {
             override fun make() = PicassoRegionDecoder(showHighestQuality, mScreenWidth, mScreenHeight, minTileDpi)
@@ -777,10 +782,14 @@ class PhotoFragment : ViewPagerFragment() {
             rotationEnabled = config.allowRotatingWithGestures
             isOneToOneZoomEnabled = config.allowOneToOneZoom
             orientation = newOrientation
-            setImage(getFilePathToShow())
+            setImage(imagePath)
 
             onImageEventListener = object : SubsamplingScaleImageView.OnImageEventListener {
                 override fun onReady() {
+                    if (!mIsFragmentVisible) {
+                        hideZoomableView()
+                        return
+                    }
                     background = ColorDrawable(
                         if (config.blackBackground) {
                             Color.BLACK
@@ -942,9 +951,12 @@ class PhotoFragment : ViewPagerFragment() {
     private fun hideZoomableView() {
         if (context?.config?.allowZoomingImages == true) {
             mIsSubsamplingVisible = false
-            binding.subsamplingView.recycle()
-            binding.subsamplingView.beGone()
             mLoadZoomableViewHandler.removeCallbacksAndMessages(null)
+            binding.subsamplingView.apply {
+                onImageEventListener = null
+                recycle()
+                beGone()
+            }
         }
     }
 

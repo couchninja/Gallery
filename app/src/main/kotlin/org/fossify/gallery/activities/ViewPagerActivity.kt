@@ -1196,7 +1196,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
             currentTags + XmpTagDisplay.FAVORITE_METADATA_TAG
         }
         handleMediaManagementPrompt {
-            ensureBackgroundThread {
+            runViewerXmpIo {
                 if (setXmpTags(medium.path, newTags)) {
                     val writtenPath = medium.path
                     runOnUiThread {
@@ -1220,7 +1220,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
             .ifEmpty { readXmpMetadataFromPath(medium.path).tags }
         EditXmpTagsDialog(this, initialTags, onTags = { tags ->
             handleMediaManagementPrompt {
-                ensureBackgroundThread {
+                runViewerXmpIo {
                     if (setXmpTags(medium.path, tags)) {
                         val writtenPath = medium.path
                         runOnUiThread {
@@ -1244,7 +1244,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
             return
         }
         handleMediaManagementPrompt {
-            ensureBackgroundThread {
+            runViewerXmpIo {
                 if (setExifRating(medium.path, newRating)) {
                     medium.exifRating = newRating
                     syncExifRatingOnGalleryMedia(medium.path, newRating)
@@ -1288,6 +1288,10 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
         }
         mXmpMetadataLoadRunnable = Runnable { loadXmpMetadataAsync(medium, generation) }
         binding.viewPager.postDelayed(mXmpMetadataLoadRunnable, XMP_METADATA_LOAD_DELAY_MS)
+    }
+
+    private fun runViewerXmpIo(block: () -> Unit) {
+        mXmpMetadataExecutor.execute(block)
     }
 
     private fun loadXmpMetadataAsync(medium: Medium, generation: Int) {

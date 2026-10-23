@@ -9,7 +9,7 @@ class PicassoRegionDecoder(
     val showHighestQuality: Boolean,
     val screenWidth: Int,
     val screenHeight: Int,
-    val minTileDpi: Int
+    val minTileDpi: Int,
 ) : ImageRegionDecoder {
     private var decoder: BitmapRegionDecoder? = null
     private val decoderLock = Any()

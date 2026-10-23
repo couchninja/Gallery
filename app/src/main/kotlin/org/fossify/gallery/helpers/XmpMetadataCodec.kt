@@ -6,10 +6,16 @@ import java.io.DataInputStream
 import java.io.EOFException
 import java.io.File
 import java.io.FileInputStream
-import java.io.RandomAccessFile
 import java.nio.charset.Charset
+import java.util.concurrent.ConcurrentHashMap
 
 private const val HEADER_READ_BUFFER_SIZE = 64 * 1024
+
+private val xmpWriteLocks = ConcurrentHashMap<String, Any>()
+
+private fun xmpWriteLock(path: String): Any {
+    return xmpWriteLocks.getOrPut(File(path).absolutePath.lowercase()) { Any() }
+}
 
 /** Adobe XAP namespace for Basic `Rating` (canonical). */
 const val CANONICAL_XAP_NS = "http://ns.adobe.com/xap/1.0/"
@@ -212,42 +218,54 @@ fun writeXmpMetadataToJpegFile(path: String, metadata: XmpMetadata): Boolean {
     if (!path.isJpegPath()) {
         return false
     }
-    val rating = metadata.rating.coerceIn(0, 5)
-    val tags = normalizeXmpTags(metadata.tags)
-    if (rating == 0 && tags.isEmpty()) {
+    synchronized(xmpWriteLock(path)) {
+        val rating = metadata.rating.coerceIn(0, 5)
+        val tags = normalizeXmpTags(metadata.tags)
+        if (rating == 0 && tags.isEmpty()) {
+            return try {
+                val jpeg = File(path).readBytes()
+                val existing = extractXmpPacketFromJpeg(jpeg) ?: return true
+                val cleared = setMetadataInXmpPacket(existing, XmpMetadata.EMPTY)
+                if (cleared.contentEquals(existing)) {
+                    return true
+                }
+                writeJpegWithXmpPacket(path, jpeg, cleared)
+                true
+            } catch (_: Exception) {
+                false
+            }
+        }
         return try {
             val jpeg = File(path).readBytes()
-            val existing = extractXmpPacketFromJpeg(jpeg) ?: return true
-            val cleared = setMetadataInXmpPacket(existing, XmpMetadata.EMPTY)
-            if (cleared.contentEquals(existing)) {
-                return true
+            val existing = extractXmpPacketFromJpeg(jpeg)
+            val newPacket = if (existing != null) {
+                setMetadataInXmpPacket(existing, XmpMetadata(rating, tags))
+            } else {
+                buildMinimalXmpPacket(rating, tags)
             }
-            writeJpegWithXmpPacket(path, jpeg, cleared)
+            writeJpegWithXmpPacket(path, jpeg, newPacket)
             true
         } catch (_: Exception) {
             false
         }
     }
-    return try {
-        val jpeg = File(path).readBytes()
-        val existing = extractXmpPacketFromJpeg(jpeg)
-        val newPacket = if (existing != null) {
-            setMetadataInXmpPacket(existing, XmpMetadata(rating, tags))
-        } else {
-            buildMinimalXmpPacket(rating, tags)
-        }
-        writeJpegWithXmpPacket(path, jpeg, newPacket)
-        true
-    } catch (_: Exception) {
-        false
-    }
 }
 
+/** Replace via temp file so decoders never see a truncated JPEG mid-write. */
 private fun writeJpegWithXmpPacket(path: String, jpeg: ByteArray, newPacket: ByteArray) {
     val updated = replaceOrInsertXmpInJpeg(jpeg, newPacket)
-    RandomAccessFile(path, "rw").use { raf ->
-        raf.setLength(0)
-        raf.write(updated)
+    val target = File(path)
+    val parent = target.parentFile ?: throw IllegalStateException("Missing parent for $path")
+    val temp = File(parent, "${target.name}.gallery-xmp-${Thread.currentThread().id}.tmp")
+    try {
+        temp.writeBytes(updated)
+        if (!temp.renameTo(target)) {
+            target.writeBytes(updated)
+        }
+    } finally {
+        if (temp.exists()) {
+            temp.delete()
+        }
     }
 }
 
