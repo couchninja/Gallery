@@ -252,6 +252,8 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         var mMedia = ArrayList<ThumbnailItem>()
         val pendingExifRatingRefreshPaths = LinkedHashSet<String>()
         val pendingXmpTagRefreshPaths = LinkedHashSet<String>()
+        /** Paths removed optimistically until DB/cache catches up (grid + viewer deletes). */
+        val pendingRemovedMediaPaths = LinkedHashSet<String>()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -445,6 +447,10 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             val tagPaths = pendingXmpTagRefreshPaths.toList()
             pendingXmpTagRefreshPaths.clear()
             mWasFullscreenViewOpen = false
+            if (pendingRemovedMediaPaths.isNotEmpty()) {
+                applyPendingRemovedMediaFilter()
+                applyCurrentThumbnailGridView()
+            }
             if (ratingPaths.isNotEmpty()) {
                 notifyGridExifRatingsChanged(ratingPaths)
             }
@@ -1673,6 +1679,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
         mIsGettingMedia = false
         checkLastMediaChanged()
         mRawMedia = media
+        applyPendingRemovedMediaFilter()
         refreshStickyUnratedPathsFromRawMedia()
         mMedia = buildGroupedMediaForCurrentView()
 
@@ -1724,6 +1731,9 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
             return
         }
 
+        val deletedPaths = filtered.map { it.path }
+        removePathsFromMediaLists(deletedPaths)
+
         if (
             config.useRecycleBin
             && !skipRecycleBin
@@ -1740,7 +1750,9 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                 if (it) {
                     deleteFilteredFiles(filtered)
                 } else {
+                    revertPendingRemovedMediaPaths(deletedPaths)
                     toast(org.fossify.commons.R.string.unknown_error_occurred)
+                    refreshItems()
                 }
             }
         } else {
@@ -1759,13 +1771,14 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
     }
 
     private fun deleteFilteredFiles(filtered: ArrayList<FileDirItem>) {
+        val deletedPaths = filtered.map { it.path }
         deleteFiles(filtered) {
             if (!it) {
+                revertPendingRemovedMediaPaths(deletedPaths)
                 toast(org.fossify.commons.R.string.unknown_error_occurred)
+                refreshItems()
                 return@deleteFiles
             }
-
-            mMedia.removeAll { filtered.map { it.path }.contains((it as? Medium)?.path) }
 
             ensureBackgroundThread {
                 val useRecycleBin = config.useRecycleBin
@@ -1773,6 +1786,9 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                     if (it.path.startsWith(recycleBinPath) || !useRecycleBin) {
                         deleteDBPath(it.path)
                     }
+                }
+                runOnUiThread {
+                    clearPendingRemovedMediaPaths(deletedPaths)
                 }
             }
 
@@ -1786,6 +1802,39 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                 }
             }
         }
+    }
+
+    private fun removePathsFromMediaLists(paths: Collection<String>) {
+        if (paths.isEmpty()) {
+            return
+        }
+
+        val pathSet = paths.toHashSet()
+        pendingRemovedMediaPaths.addAll(pathSet)
+        applyPendingRemovedMediaFilter()
+        refreshStickyUnratedPathsFromRawMedia()
+        mMedia = buildGroupedMediaForCurrentView()
+        runOnUiThread {
+            if (mLastSearchedText.isEmpty()) {
+                getMediaAdapter()?.updateMedia(mMedia) ?: applyCurrentThumbnailGridView()
+            }
+        }
+    }
+
+    private fun applyPendingRemovedMediaFilter() {
+        if (pendingRemovedMediaPaths.isEmpty()) {
+            return
+        }
+
+        mRawMedia.removeAll { (it as? Medium)?.path in pendingRemovedMediaPaths }
+    }
+
+    private fun revertPendingRemovedMediaPaths(paths: Collection<String>) {
+        pendingRemovedMediaPaths.removeAll(paths.toSet())
+    }
+
+    private fun clearPendingRemovedMediaPaths(paths: Collection<String>) {
+        pendingRemovedMediaPaths.removeAll(paths.toSet())
     }
 
     override fun refreshItems() {

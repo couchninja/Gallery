@@ -471,6 +471,11 @@ fun BaseSimpleActivity.restoreRecycleBinPaths(paths: ArrayList<String>, callback
             }
         }
 
+        paths.forEach { binPath ->
+            MediaActivity.pendingRemovedMediaPaths.remove(binPath.removePrefix(recycleBinPath))
+        }
+        newPaths.forEach { MediaActivity.pendingRemovedMediaPaths.remove(it) }
+
         runOnUiThread {
             callback()
         }

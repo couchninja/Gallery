@@ -1469,6 +1469,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
                 }
 
                 mIgnoredPaths.add(fileDirItem.path)
+                MediaActivity.pendingRemovedMediaPaths.add(fileDirItem.path)
                 val media = mMediaFiles.filter { !mIgnoredPaths.contains(it.path) } as ArrayList<Medium>
                 if (media.isNotEmpty()) {
                     runOnUiThread {
@@ -1482,14 +1483,18 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
 
                 movePathsInRecycleBin(arrayListOf(path)) {
                     if (it) {
-                        tryDeleteFileDirItem(fileDirItem, false, false) {
+                        tryDeleteFileDirItem(fileDirItem, false, false) { wasSuccess ->
                             mIgnoredPaths.remove(fileDirItem.path)
+                            if (!wasSuccess) {
+                                MediaActivity.pendingRemovedMediaPaths.remove(fileDirItem.path)
+                            }
                             if (media.isEmpty()) {
                                 deleteDirectoryIfEmpty()
                                 finish()
                             }
                         }
                     } else {
+                        MediaActivity.pendingRemovedMediaPaths.remove(fileDirItem.path)
                         toast(org.fossify.commons.R.string.unknown_error_occurred)
                     }
                 }
@@ -1506,6 +1511,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
             }
 
             mIgnoredPaths.add(fileDirItem.path)
+            MediaActivity.pendingRemovedMediaPaths.add(fileDirItem.path)
             val media = mMediaFiles.filter { !mIgnoredPaths.contains(it.path) } as ArrayList<Medium>
             if (media.isNotEmpty()) {
                 runOnUiThread {
@@ -1517,8 +1523,11 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
                 onPageSelected(0)
             }
 
-            tryDeleteFileDirItem(fileDirItem, false, true) {
+            tryDeleteFileDirItem(fileDirItem, false, true) { wasSuccess ->
                 mIgnoredPaths.remove(fileDirItem.path)
+                if (!wasSuccess) {
+                    MediaActivity.pendingRemovedMediaPaths.remove(fileDirItem.path)
+                }
                 if (media.isEmpty()) {
                     deleteDirectoryIfEmpty()
                     finish()
