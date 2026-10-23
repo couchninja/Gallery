@@ -357,8 +357,9 @@ class ThumbnailGridViewsBar(
     /** Popup menus use the vector intrinsic size (24dp); the bar uses [R.dimen.thumbnail_grid_bottom_nav_icon_size]. */
     private fun navBarSizedMenuIcon(@DrawableRes iconRes: Int): Drawable {
         val sizePx = activity.resources.getDimensionPixelSize(R.dimen.thumbnail_grid_bottom_nav_icon_size)
+        val paddingStartPx = activity.resources.getDimensionPixelSize(R.dimen.thumbnail_grid_more_menu_icon_padding_start)
         val source = requireNotNull(AppCompatResources.getDrawable(activity, iconRes)).mutate()
-        return NavBarSizedMenuIconDrawable(source, sizePx)
+        return NavBarSizedMenuIconDrawable(source, sizePx, paddingStartPx)
     }
 
     private fun findMoreMenuAnchor(): View {
@@ -388,9 +389,13 @@ class ThumbnailGridViewsBar(
     private class NavBarSizedMenuIconDrawable(
         private val wrapped: Drawable,
         private val sizePx: Int,
+        private val paddingStartPx: Int,
     ) : Drawable() {
         override fun draw(canvas: Canvas) {
-            wrapped.bounds = bounds
+            val iconLeft = bounds.left + paddingStartPx
+            val iconRight = iconLeft + sizePx.coerceAtMost(bounds.width() - paddingStartPx)
+            val iconBottom = bounds.top + sizePx.coerceAtMost(bounds.height())
+            wrapped.setBounds(iconLeft, bounds.top, iconRight, iconBottom)
             wrapped.draw(canvas)
         }
 
@@ -405,7 +410,7 @@ class ThumbnailGridViewsBar(
         @Deprecated("Deprecated in Java")
         override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
 
-        override fun getIntrinsicWidth(): Int = sizePx
+        override fun getIntrinsicWidth(): Int = sizePx + paddingStartPx
 
         override fun getIntrinsicHeight(): Int = sizePx
     }

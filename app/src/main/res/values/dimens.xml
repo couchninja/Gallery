@@ -37,6 +37,7 @@
     <dimen name="directory_picker_dialog_max_height">560dp</dimen>
     <dimen name="smaller_icon_size">36dp</dimen>
     <dimen name="thumbnail_grid_bottom_nav_icon_size">22dp</dimen>
+    <dimen name="thumbnail_grid_more_menu_icon_padding_start">8dp</dimen>
     <dimen name="thumbnail_grid_bottom_nav_item_padding_top">2dp</dimen>
     <dimen name="thumbnail_grid_bottom_nav_item_padding_bottom">0dp</dimen>
     <dimen name="thumbnail_grid_bottom_nav_label_text_size">10sp</dimen>
