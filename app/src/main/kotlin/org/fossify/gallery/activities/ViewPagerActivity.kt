@@ -1008,6 +1008,11 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
     private fun getViewerExifFavoriteHeart() =
         binding.viewerExifRating.root.findViewById<android.widget.ImageView>(R.id.viewer_rating_favorite)
 
+    private fun starsTouchRowParentDisallowIntercept(disallow: Boolean) {
+        getViewerExifRatingBar().findViewById<View>(R.id.viewer_rating_stars_touch_row)?.parent
+            ?.requestDisallowInterceptTouchEvent(disallow)
+    }
+
     private fun initBottomActionButtons() {
         val currentMedium = getCurrentMedium()
         val visibleBottomActions = if (config.bottomActions) config.visibleBottomActions else 0
@@ -1160,15 +1165,19 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
         if (!mExifRatingBarInitialized) {
             mExifRatingBarInitialized = true
             val bar = getViewerExifRatingBar()
+            val starsTouchRow = bar.findViewById<View>(R.id.viewer_rating_stars_touch_row)
             setupViewerExifRatingInput(
-                bar = bar,
+                bar = starsTouchRow,
                 getRating = { getCurrentMedium()?.exifRating ?: 0 },
                 onCommit = { rating, fromTap -> onViewerRatingCommitted(rating, fromTap) },
             )
         }
         if (!mExifFavoriteHeartInitialized) {
             mExifFavoriteHeartInitialized = true
-            getViewerExifFavoriteHeart()?.setOnClickListener { toggleViewerFavoriteTag() }
+            getViewerExifFavoriteHeart()?.setOnClickListener {
+                starsTouchRowParentDisallowIntercept(false)
+                toggleViewerFavoriteTag()
+            }
         }
         updateXmpMetadataViews()
     }
@@ -1189,9 +1198,13 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
         handleMediaManagementPrompt {
             ensureBackgroundThread {
                 if (setXmpTags(medium.path, newTags)) {
+                    val writtenPath = medium.path
                     runOnUiThread {
+                        if (getCurrentMedium()?.path != writtenPath) {
+                            return@runOnUiThread
+                        }
                         bindViewerExifFavoriteHeart(getViewerExifFavoriteHeart(), newTags)
-                        bindViewerXmpTags(newTags, medium.path)
+                        bindViewerXmpTags(newTags, writtenPath, animateIn = false)
                     }
                 }
             }
@@ -1209,8 +1222,12 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
             handleMediaManagementPrompt {
                 ensureBackgroundThread {
                     if (setXmpTags(medium.path, tags)) {
+                        val writtenPath = medium.path
                         runOnUiThread {
-                            bindViewerXmpTags(tags, medium.path)
+                            if (getCurrentMedium()?.path != writtenPath) {
+                                return@runOnUiThread
+                            }
+                            bindViewerXmpTags(tags, writtenPath, animateIn = false)
                         }
                     }
                 }
@@ -1231,7 +1248,11 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
                 if (setExifRating(medium.path, newRating)) {
                     medium.exifRating = newRating
                     syncExifRatingOnGalleryMedia(medium.path, newRating)
+                    val writtenPath = medium.path
                     runOnUiThread {
+                        if (getCurrentMedium()?.path != writtenPath) {
+                            return@runOnUiThread
+                        }
                         bindViewerExifRating(getViewerExifRatingBar(), newRating)
                         if (config.goToNextAfterExifRating && fromTap) {
                             goToNextItemAnimated()
@@ -1290,7 +1311,11 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
     }
 
     // INVISIBLE rather than GONE, and skip rebuild when tags unchanged, so swiping doesn't trigger a relayout.
-    private fun bindViewerXmpTags(tags: List<String>, mediumPath: String? = null) {
+    private fun bindViewerXmpTags(
+        tags: List<String>,
+        mediumPath: String? = null,
+        animateIn: Boolean = true,
+    ) {
         val view = binding.viewerXmpTags.viewerXmpTagsBar
         view.animate().cancel()
         val normalized = normalizeXmpTags(tags)
@@ -1305,12 +1330,20 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
             }
             return
         }
+        val wasInvisible = view.visibility != View.VISIBLE
         mViewerXmpTagsPath = mediumPath ?: getCurrentMedium()?.path
         if (normalized != mViewerXmpTagsShown) {
             mViewerXmpTagsShown = normalized
             bindViewerXmpTagsOverlay(view, normalized)
         }
-        val fadeIn = view.visibility != View.VISIBLE
+        if (!animateIn) {
+            if (wasInvisible) {
+                view.visibility = View.VISIBLE
+            }
+            view.alpha = if (mIsFullScreen) 0f else 1f
+            return
+        }
+        val fadeIn = wasInvisible
         if (view.visibility != View.VISIBLE) {
             view.visibility = View.VISIBLE
         }

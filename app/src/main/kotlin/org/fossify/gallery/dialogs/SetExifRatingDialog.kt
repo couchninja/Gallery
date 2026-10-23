@@ -20,8 +20,9 @@ class SetExifRatingDialog(
         bar.visibility = View.VISIBLE
         updateStars(bar)
 
+        val starsTouchRow = bar.findViewById<View>(R.id.viewer_rating_stars_touch_row)
         setupViewerExifRatingInput(
-            bar = bar,
+            bar = starsTouchRow,
             getRating = { selectedRating },
             onCommit = { rating, _ -> selectedRating = rating },
         )
