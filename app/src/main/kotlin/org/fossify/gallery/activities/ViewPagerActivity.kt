@@ -145,8 +145,10 @@ import org.fossify.gallery.helpers.BOTTOM_ACTION_SHARE
 import org.fossify.gallery.helpers.BOTTOM_ACTION_SHOW_ON_MAP
 import org.fossify.gallery.helpers.BOTTOM_ACTION_SLIDESHOW
 import org.fossify.gallery.helpers.BOTTOM_ACTION_TOGGLE_VISIBILITY
+import org.fossify.gallery.helpers.bindViewerExifFavoriteHeart
 import org.fossify.gallery.helpers.bindViewerExifRating
 import org.fossify.gallery.helpers.setupViewerExifRatingInput
+import org.fossify.gallery.helpers.XmpTagDisplay
 import org.fossify.gallery.helpers.loadXmpMetadata
 import org.fossify.gallery.helpers.readXmpMetadataFromPath
 import org.fossify.gallery.helpers.isJpeg
@@ -584,6 +586,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
     }
 
     private var mExifRatingBarInitialized = false
+    private var mExifFavoriteHeartInitialized = false
     private var mPagerScrollState = ViewPager.SCROLL_STATE_IDLE
 
     @Volatile
@@ -1002,6 +1005,9 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
 
     private fun getViewerExifRatingBar() = binding.viewerExifRating.root
 
+    private fun getViewerExifFavoriteHeart() =
+        binding.viewerExifRating.root.findViewById<android.widget.ImageView>(R.id.viewer_rating_favorite)
+
     private fun initBottomActionButtons() {
         val currentMedium = getCurrentMedium()
         val visibleBottomActions = if (config.bottomActions) config.visibleBottomActions else 0
@@ -1160,7 +1166,36 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
                 onCommit = { rating, fromTap -> onViewerRatingCommitted(rating, fromTap) },
             )
         }
+        if (!mExifFavoriteHeartInitialized) {
+            mExifFavoriteHeartInitialized = true
+            getViewerExifFavoriteHeart()?.setOnClickListener { toggleViewerFavoriteTag() }
+        }
         updateXmpMetadataViews()
+    }
+
+    private fun toggleViewerFavoriteTag() {
+        val medium = getCurrentMedium() ?: return
+        if (!medium.isJpeg()) {
+            return
+        }
+        val currentTags = XmpTagIndex.getTags(medium.path)
+            .ifEmpty { readXmpMetadataFromPath(medium.path).tags }
+        val hasFavorite = XmpTagDisplay.mediumHasFavoriteTag(currentTags)
+        val newTags = if (hasFavorite) {
+            currentTags.filterNot { XmpTagDisplay.isFavoriteTag(it) }
+        } else {
+            currentTags + XmpTagDisplay.FAVORITE_METADATA_TAG
+        }
+        handleMediaManagementPrompt {
+            ensureBackgroundThread {
+                if (setXmpTags(medium.path, newTags)) {
+                    runOnUiThread {
+                        bindViewerExifFavoriteHeart(getViewerExifFavoriteHeart(), newTags)
+                        bindViewerXmpTags(newTags, medium.path)
+                    }
+                }
+            }
+        }
     }
 
     private fun openEditXmpTagsDialog() {
@@ -1222,6 +1257,10 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
 
         if (showBar) {
             bindViewerExifRating(getViewerExifRatingBar(), medium.exifRating)
+            bindViewerExifFavoriteHeart(
+                getViewerExifFavoriteHeart(),
+                XmpTagIndex.getTags(medium.path),
+            )
         }
         if (mViewerXmpTagsPath != medium.path) {
             bindViewerXmpTags(emptyList())
@@ -1243,6 +1282,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
                 }
                 if (config.bottomActions) {
                     bindViewerExifRating(getViewerExifRatingBar(), metadata.rating)
+                    bindViewerExifFavoriteHeart(getViewerExifFavoriteHeart(), metadata.tags)
                 }
                 bindViewerXmpTags(metadata.tags, medium.path)
             }

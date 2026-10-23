@@ -33,6 +33,21 @@ fun bindThumbnailExifRating(bar: LinearLayout?, rating: Int, visible: Boolean) {
     }
 }
 
+fun bindViewerExifFavoriteHeart(heart: ImageView?, tags: List<String>) {
+    if (heart == null) {
+        return
+    }
+    val active = tags.any { XmpTagDisplay.isFavoriteTag(it) }
+    heart.setImageResource(
+        if (active) {
+            R.drawable.ic_xmp_tag_favorite_vector
+        } else {
+            R.drawable.ic_xmp_tag_favorite_outline_vector
+        },
+    )
+    heart.isSelected = active
+}
+
 fun bindViewerExifRating(bar: View, rating: Int) {
     val stars = arrayOf(
         bar.findViewById<ImageView>(R.id.viewer_rating_star_1),

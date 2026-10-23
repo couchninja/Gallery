@@ -56,4 +56,14 @@
         android:padding="@dimen/normal_margin"
         android:src="@drawable/ic_star_outline_vector" />
 
+    <ImageView
+        android:id="@+id/viewer_rating_favorite"
+        android:layout_width="@dimen/list_touch_target_min"
+        android:layout_height="@dimen/list_touch_target_min"
+        android:layout_marginStart="@dimen/normal_margin"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/toggle_favorite"
+        android:padding="@dimen/normal_margin"
+        android:src="@drawable/ic_xmp_tag_favorite_outline_vector" />
+
 </LinearLayout>

@@ -6,6 +6,7 @@
     <item name="thumbnail_view_top_rated" type="id" />
     <item name="thumbnail_view_tags" type="id" />
     <item name="thumbnail_view_cards" type="id" />
+    <item name="thumbnail_view_favorites" type="id" />
     <item name="thumbnail_view_recycle_bin" type="id" />
     <item name="thumbnail_view_more" type="id" />
     <item name="thumbnail_view_customize" type="id" />

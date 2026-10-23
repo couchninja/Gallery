@@ -51,6 +51,12 @@ enum class ThumbnailGridView(
         labelRes = R.string.thumbnail_grid_view_cards,
         iconRes = R.drawable.ic_cards_vector,
     ),
+    FAVORITES(
+        storageId = "favorites",
+        menuItemId = R.id.thumbnail_view_favorites,
+        labelRes = R.string.thumbnail_grid_view_favorites,
+        iconRes = R.drawable.ic_xmp_tag_favorite_vector,
+    ),
     RECYCLE_BIN(
         storageId = "recycle_bin",
         menuItemId = R.id.thumbnail_view_recycle_bin,
@@ -73,12 +79,17 @@ enum class ThumbnailGridView(
             TOP_RATED -> medium.isJpeg() && medium.exifRating >= 4
             TAGS -> selectedTagPaths != null && medium.path in selectedTagPaths
             CARDS -> mediumHasCardTag(medium)
+            FAVORITES -> mediumHasFavoriteTag(medium)
             RECYCLE_BIN -> true
         }
     }
 
     private fun mediumHasCardTag(medium: Medium): Boolean {
         return XmpTagDisplay.mediumHasCardTag(XmpTagIndex.getTags(medium.path))
+    }
+
+    private fun mediumHasFavoriteTag(medium: Medium): Boolean {
+        return XmpTagDisplay.mediumHasFavoriteTag(XmpTagIndex.getTags(medium.path))
     }
 
     companion object {
