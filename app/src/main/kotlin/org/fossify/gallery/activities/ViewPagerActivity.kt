@@ -155,6 +155,8 @@ import org.fossify.gallery.helpers.setExifRating
 import org.fossify.gallery.helpers.setXmpTags
 import org.fossify.gallery.helpers.syncExifRatingOnGalleryMedia
 import org.fossify.gallery.helpers.XmpTagIndex
+import org.fossify.gallery.helpers.bindViewerXmpTagsOverlay
+import org.fossify.gallery.helpers.normalizeXmpTags
 import org.fossify.gallery.helpers.DIRECTORY
 import org.fossify.gallery.helpers.ColorModeHelper
 import org.fossify.gallery.helpers.DefaultPageTransformer
@@ -588,6 +590,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
     private var mXmpMetadataGeneration = 0
     private var mXmpMetadataLoadRunnable = Runnable {}
     private var mViewerXmpTagsPath: String? = null
+    private var mViewerXmpTagsShown: List<String> = emptyList()
     private val mXmpMetadataExecutor = Executors.newSingleThreadExecutor { runnable ->
         Thread(runnable, "viewer-xmp-metadata").apply { priority = Thread.MIN_PRIORITY }
     }
@@ -1246,15 +1249,16 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
         }
     }
 
-    // INVISIBLE rather than GONE, and no setText when unchanged, so swiping doesn't trigger a relayout.
+    // INVISIBLE rather than GONE, and skip rebuild when tags unchanged, so swiping doesn't trigger a relayout.
     private fun bindViewerXmpTags(tags: List<String>, mediumPath: String? = null) {
-        val view = binding.viewerXmpTags.root
-        val textView = binding.viewerXmpTags.viewerXmpTagsText
+        val view = binding.viewerXmpTags.viewerXmpTagsBar
         view.animate().cancel()
-        if (tags.isEmpty()) {
+        val normalized = normalizeXmpTags(tags)
+        if (normalized.isEmpty()) {
             mViewerXmpTagsPath = null
-            if (textView.text.isNotEmpty()) {
-                textView.text = ""
+            mViewerXmpTagsShown = emptyList()
+            if (view.childCount > 0) {
+                bindViewerXmpTagsOverlay(view, emptyList())
             }
             if (view.visibility != View.INVISIBLE) {
                 view.visibility = View.INVISIBLE
@@ -1262,9 +1266,9 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
             return
         }
         mViewerXmpTagsPath = mediumPath ?: getCurrentMedium()?.path
-        val text = tags.joinToString("\n")
-        if (textView.text.toString() != text) {
-            textView.text = text
+        if (normalized != mViewerXmpTagsShown) {
+            mViewerXmpTagsShown = normalized
+            bindViewerXmpTagsOverlay(view, normalized)
         }
         val fadeIn = view.visibility != View.VISIBLE
         if (view.visibility != View.VISIBLE) {
