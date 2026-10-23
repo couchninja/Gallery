@@ -334,12 +334,12 @@ class ThumbnailGridViewsBar(
 
         PopupMenu(contextTheme, anchor, Gravity.END).apply {
             var order = 0
+            menu.add(0, R.id.thumbnail_view_customize, order++, activity.getString(R.string.thumbnail_grid_view_manage))
+                .setIcon(navBarSizedMenuIcon(org.fossify.commons.R.drawable.ic_settings_cog_vector))
             overflowViews.forEach { view ->
                 menu.add(0, view.menuItemId, order++, activity.getString(view.labelRes))
                     .setIcon(navBarSizedMenuIcon(view.iconRes))
             }
-            menu.add(0, R.id.thumbnail_view_customize, order, activity.getString(R.string.thumbnail_grid_view_manage))
-                .setIcon(navBarSizedMenuIcon(org.fossify.commons.R.drawable.ic_settings_cog_vector))
 
             (menu as? MenuBuilder)?.setOptionalIconsVisible(true)
 
