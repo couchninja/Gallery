@@ -323,14 +323,9 @@ class ThumbnailGridViewsBar(
         val visibleViews = ThumbnailGridViewConfig.getVisibleViewsInOrder(activity)
         val maxPrimary = maxPrimaryNavItems()
         val overflowViews = visibleViews.drop(maxPrimary)
-        val onTagsView = currentView() == ThumbnailGridView.TAGS
 
         PopupMenu(contextTheme, anchor, Gravity.END).apply {
             var order = 0
-            if (onTagsView) {
-                menu.add(0, R.id.thumbnail_view_tags_pick, order++, activity.getString(R.string.thumbnail_grid_view_tags_pick))
-                    .setIcon(ThumbnailGridView.TAGS.iconRes)
-            }
             overflowViews.forEach { view ->
                 menu.add(0, view.menuItemId, order++, activity.getString(view.labelRes))
                     .setIcon(view.iconRes)
@@ -342,7 +337,6 @@ class ThumbnailGridViewsBar(
 
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
-                    R.id.thumbnail_view_tags_pick -> onViewReselected?.invoke(ThumbnailGridView.TAGS)
                     R.id.thumbnail_view_customize -> ManageThumbnailGridViewsDialog(activity) { buildMenu() }
                     else -> ThumbnailGridView.fromMenuItemId(item.itemId)?.let(onViewSelected)
                 }

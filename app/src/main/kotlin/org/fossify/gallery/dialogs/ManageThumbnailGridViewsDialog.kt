@@ -1,15 +1,16 @@
 package org.fossify.gallery.dialogs
 
 import android.view.ViewGroup
-import android.widget.ImageButton
 import android.widget.LinearLayout
+import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import org.fossify.commons.activities.BaseSimpleActivity
 import org.fossify.commons.extensions.getAlertDialogBuilder
 import org.fossify.commons.extensions.setupDialogStuff
-import org.fossify.commons.views.MyAppCompatCheckbox
 import org.fossify.commons.views.MyTextView
 import org.fossify.gallery.R
-import org.fossify.gallery.extensions.config
+import org.fossify.gallery.adapters.ManageThumbnailGridViewsAdapter
 import org.fossify.gallery.helpers.ThumbnailGridView
 import org.fossify.gallery.helpers.ThumbnailGridViewConfig
 
@@ -17,94 +18,85 @@ class ManageThumbnailGridViewsDialog(
     private val activity: BaseSimpleActivity,
     private val callback: () -> Unit,
 ) {
-    private data class Row(
-        val view: ThumbnailGridView,
-        var visible: Boolean,
-    )
-
     init {
-        val hidden = activity.config.hiddenThumbnailGridViews.split("|").filter { it.isNotEmpty() }.toSet()
-        val order = ThumbnailGridViewConfig.getVisibleViewsInOrder(activity)
-        val orderedViews = (order + ThumbnailGridView.entries.filter { it !in order }).distinct()
-        val rows = orderedViews.map { Row(it, it.storageId !in hidden) }.toMutableList()
-
+        val views = ThumbnailGridViewConfig.getViewsInOrder(activity).toMutableList()
         val horizontalPadding = activity.resources.getDimension(org.fossify.commons.R.dimen.activity_margin).toInt()
+        val rowHeight = activity.resources.getDimensionPixelSize(R.dimen.manage_thumbnail_grid_view_row_height)
+        val adapter = ManageThumbnailGridViewsAdapter(activity, views)
+
+        val recyclerView = RecyclerView(activity).apply {
+            layoutManager = LinearLayoutManager(activity)
+            this.adapter = adapter
+            overScrollMode = RecyclerView.OVER_SCROLL_NEVER
+            isNestedScrollingEnabled = false
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                rowHeight * views.size,
+            )
+        }
+
+        val itemTouchHelper = ItemTouchHelper(
+            object : ItemTouchHelper.Callback() {
+                override fun isLongPressDragEnabled(): Boolean = false
+
+                override fun isItemViewSwipeEnabled(): Boolean = false
+
+                override fun getMovementFlags(
+                    recyclerView: RecyclerView,
+                    viewHolder: RecyclerView.ViewHolder,
+                ): Int {
+                    val dragFlags = ItemTouchHelper.UP or ItemTouchHelper.DOWN
+                    return makeMovementFlags(dragFlags, 0)
+                }
+
+                override fun onMove(
+                    recyclerView: RecyclerView,
+                    viewHolder: RecyclerView.ViewHolder,
+                    target: RecyclerView.ViewHolder,
+                ): Boolean {
+                    val from = viewHolder.bindingAdapterPosition
+                    val to = target.bindingAdapterPosition
+                    if (from == RecyclerView.NO_POSITION || to == RecyclerView.NO_POSITION) {
+                        return false
+                    }
+                    adapter.moveItem(from, to)
+                    return true
+                }
+
+                override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) = Unit
+            },
+        )
+        itemTouchHelper.attachToRecyclerView(recyclerView)
+        adapter.setStartDragListener { holder -> itemTouchHelper.startDrag(holder) }
+
+        val resetButton = MyTextView(activity).apply {
+            text = activity.getString(R.string.thumbnail_grid_view_manage_reset)
+            setPadding(0, horizontalPadding, 0, 0)
+            setOnClickListener {
+                views.clear()
+                views.addAll(ThumbnailGridView.defaultOrder)
+                adapter.notifyDataSetChanged()
+            }
+        }
+
+        val hint = MyTextView(activity).apply {
+            text = activity.getString(R.string.thumbnail_grid_view_manage_hint)
+            alpha = 0.75f
+            setPadding(0, horizontalPadding, 0, horizontalPadding)
+        }
+
         val holder = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(horizontalPadding, horizontalPadding, horizontalPadding, 0)
+            addView(recyclerView)
+            addView(resetButton)
+            addView(hint)
         }
-
-        fun refreshRows() {
-            holder.removeAllViews()
-            rows.forEachIndexed { index, row ->
-                val rowLayout = LinearLayout(activity).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    layoutParams = LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                    )
-                }
-
-                val checkbox = MyAppCompatCheckbox(activity).apply {
-                    isChecked = row.visible
-                    text = activity.getString(row.view.labelRes)
-                    layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                    setOnCheckedChangeListener { _, isChecked -> row.visible = isChecked }
-                }
-
-                val up = ImageButton(activity).apply {
-                    setImageResource(org.fossify.commons.R.drawable.ic_chevron_up_vector)
-                    background = null
-                    contentDescription = activity.getString(row.view.labelRes)
-                    isEnabled = index > 0
-                    setOnClickListener {
-                        if (index > 0) {
-                            rows.removeAt(index)
-                            rows.add(index - 1, row)
-                            refreshRows()
-                        }
-                    }
-                }
-
-                val down = ImageButton(activity).apply {
-                    setImageResource(org.fossify.commons.R.drawable.ic_chevron_down_vector)
-                    background = null
-                    contentDescription = activity.getString(row.view.labelRes)
-                    isEnabled = index < rows.lastIndex
-                    setOnClickListener {
-                        if (index < rows.lastIndex) {
-                            rows.removeAt(index)
-                            rows.add(index + 1, row)
-                            refreshRows()
-                        }
-                    }
-                }
-
-                rowLayout.addView(checkbox)
-                rowLayout.addView(up)
-                rowLayout.addView(down)
-                holder.addView(rowLayout)
-            }
-
-            val hint = MyTextView(activity).apply {
-                text = activity.getString(R.string.thumbnail_grid_view_manage_hint)
-                alpha = 0.75f
-                setPadding(0, horizontalPadding, 0, horizontalPadding)
-            }
-            holder.addView(hint)
-        }
-
-        refreshRows()
 
         activity.getAlertDialogBuilder()
             .setTitle(R.string.thumbnail_grid_view_manage)
             .setPositiveButton(org.fossify.commons.R.string.ok) { _, _ ->
-                val visible = rows.filter { it.visible }.map { it.view }
-                val hiddenViews = rows.filter { !it.visible }.map { it.view }.toSet()
-                if (visible.isEmpty()) {
-                    return@setPositiveButton
-                }
-                ThumbnailGridViewConfig.saveVisibleOrder(activity, visible, hiddenViews)
+                ThumbnailGridViewConfig.saveViewOrder(activity, views)
                 callback()
             }
             .setNegativeButton(org.fossify.commons.R.string.cancel, null)

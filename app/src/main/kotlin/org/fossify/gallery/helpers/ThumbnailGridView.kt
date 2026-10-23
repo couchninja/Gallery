@@ -94,22 +94,33 @@ enum class ThumbnailGridView(
 object ThumbnailGridViewConfig {
     private const val ORDER_SEPARATOR = "|"
 
-    fun getVisibleViewsInOrder(context: Context): List<ThumbnailGridView> {
+    fun getViewsInOrder(context: Context): List<ThumbnailGridView> {
         val config = context.config
-        val hidden = config.hiddenThumbnailGridViews
-        val order = config.thumbnailGridViewOrder
+        val hiddenIds = config.hiddenThumbnailGridViews
+            .split(ORDER_SEPARATOR)
+            .filter { it.isNotEmpty() }
+            .toSet()
+        val savedOrder = config.thumbnailGridViewOrder
             .split(ORDER_SEPARATOR)
             .mapNotNull { token ->
                 ThumbnailGridView.entries.firstOrNull { it.storageId == token }
             }
-            .ifEmpty { ThumbnailGridView.defaultOrder }
-
-        return order.filter { it.storageId !in hidden }
+        val base = if (savedOrder.isEmpty()) {
+            ThumbnailGridView.defaultOrder
+        } else {
+            (savedOrder + ThumbnailGridView.defaultOrder.filter { it !in savedOrder }).distinct()
+        }
+        val hiddenViews = hiddenIds.mapNotNull { id ->
+            ThumbnailGridView.entries.firstOrNull { it.storageId == id }
+        }
+        return (base + hiddenViews.filter { it !in base }).distinct()
     }
 
-    fun saveVisibleOrder(context: Context, visibleInOrder: List<ThumbnailGridView>, hidden: Set<ThumbnailGridView>) {
-        context.config.thumbnailGridViewOrder = visibleInOrder.joinToString(ORDER_SEPARATOR) { it.storageId }
-        context.config.hiddenThumbnailGridViews = hidden.joinToString(ORDER_SEPARATOR) { it.storageId }
+    fun getVisibleViewsInOrder(context: Context): List<ThumbnailGridView> = getViewsInOrder(context)
+
+    fun saveViewOrder(context: Context, viewsInOrder: List<ThumbnailGridView>) {
+        context.config.thumbnailGridViewOrder = viewsInOrder.joinToString(ORDER_SEPARATOR) { it.storageId }
+        context.config.hiddenThumbnailGridViews = ""
     }
 
     fun getSelectedView(context: Context, folderKey: String): ThumbnailGridView {
