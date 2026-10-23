@@ -539,7 +539,9 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
             gotMedia(mMediaFiles as ArrayList<ThumbnailItem>, refetchViewPagerPosition = true)
         }
 
-        refreshViewPager(true)
+        if (!shouldSkipInitialRefreshViewPager()) {
+            refreshViewPager(true)
+        }
         binding.viewPager.offscreenPageLimit = 2
 
         if (config.blackBackground) {
@@ -1592,6 +1594,17 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
         }
     }
 
+    /** Grid open already cloned [MediaActivity.mMedia]; rescanning rebuilds the pager and reloads the photo. */
+    private fun shouldSkipInitialRefreshViewPager(): Boolean {
+        if (!intent.getBooleanExtra(IS_FROM_GALLERY, false)) {
+            return false
+        }
+        if (mMediaFiles.isEmpty()) {
+            return false
+        }
+        return mMediaFiles.any { it.path.equals(mPath, ignoreCase = true) }
+    }
+
     private fun refreshViewPager(refetchPosition: Boolean = false) {
         val isRandomSorting = config.getFolderSorting(mDirectory) and SORT_BY_RANDOM != 0
         if (!isRandomSorting || isExternalIntent()) {
@@ -1601,7 +1614,11 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
         }
     }
 
-    private fun gotMedia(thumbnailItems: ArrayList<ThumbnailItem>, ignorePlayingVideos: Boolean = false, refetchViewPagerPosition: Boolean = false) {
+    private fun gotMedia(
+        thumbnailItems: ArrayList<ThumbnailItem>,
+        ignorePlayingVideos: Boolean = false,
+        refetchViewPagerPosition: Boolean = false,
+    ) {
         val media = thumbnailItems.asSequence().filter {
             it is Medium && !mIgnoredPaths.contains(it.path)
         }.map { it as Medium }.toMutableList() as ArrayList<Medium>

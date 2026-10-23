@@ -633,6 +633,7 @@ class MediaActivity : SimpleActivity(), MediaOperationsListener {
                 putExtra(SKIP_AUTHENTICATION, shouldSkipAuthentication())
                 putExtra(PATH, item.path)
                 putExtra(SHOW_ALL, mShowAll)
+                putExtra(IS_FROM_GALLERY, true)
                 putExtra(SLIDESHOW_START_ON_ENTER, true)
                 startActivity(this)
             }
