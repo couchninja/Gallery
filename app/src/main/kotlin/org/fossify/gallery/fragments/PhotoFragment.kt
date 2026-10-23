@@ -997,14 +997,61 @@ class PhotoFragment : ViewPagerFragment() {
         }
     }
 
-    private fun applyProperColorMode(resource: Drawable?) {
-        if (mIsFragmentVisible && activity != null) {
-            ColorModeHelper.setColorModeForImage(
-                activity = requireActivity(),
-                bitmap = (resource as? BitmapDrawable)?.bitmap ?: resource?.toBitmapOrNull(),
-                ultraHdr = context?.config?.ultraHdrRendering ?: true
-            )
+    private fun applyProperColorMode(resource: Drawable?, animateChromeTransition: Boolean = false) {
+        if (!mIsFragmentVisible || activity == null) {
+            return
         }
+        val bitmap = (resource as? BitmapDrawable)?.bitmap ?: resource?.toBitmapOrNull()
+        val ultraHdr = context?.config?.ultraHdrRendering ?: true
+        val viewerActivity = activity as? ViewPagerActivity
+        if (viewerActivity != null) {
+            if (context?.config?.viewerSdrUiForLegibility != true) {
+                ColorModeHelper.setColorModeForImage(
+                    activity = viewerActivity,
+                    bitmap = bitmap,
+                    ultraHdr = ultraHdr,
+                )
+                return
+            }
+            val chromeVisible = listener?.isFullScreen()?.not() ?: true
+            val animateHeadroom = animateChromeTransition && chromeVisible
+            val crossfadeShowChrome = animateHeadroom &&
+                !ColorModeHelper.viewerUsesUltraHdrHeadroomWhenChromeVisible(bitmap, ultraHdr) &&
+                viewerActivity.window.colorMode != ColorModeHelper.requestedViewerWindowColorMode(bitmap, ultraHdr, chromeVisible)
+
+            if (crossfadeShowChrome) {
+                val fadeMs = 150L
+                binding.gesturesView.animate().cancel()
+                binding.gesturesView.animate()
+                    .alpha(0f)
+                    .setDuration(fadeMs)
+                    .withEndAction {
+                        ColorModeHelper.applyViewerWindowColorMode(
+                            activity = viewerActivity,
+                            bitmap = bitmap,
+                            ultraHdr = ultraHdr,
+                            chromeVisible = chromeVisible,
+                            animateTransition = false,
+                        )
+                        binding.gesturesView.animate().alpha(1f).setDuration(fadeMs).start()
+                    }
+                    .start()
+            } else {
+                ColorModeHelper.applyViewerWindowColorMode(
+                    activity = viewerActivity,
+                    bitmap = bitmap,
+                    ultraHdr = ultraHdr,
+                    chromeVisible = chromeVisible,
+                    animateTransition = animateHeadroom,
+                )
+            }
+            return
+        }
+        ColorModeHelper.setColorModeForImage(
+            activity = requireActivity(),
+            bitmap = bitmap,
+            ultraHdr = ultraHdr,
+        )
     }
 
     private fun resetColorModeIfVisible() {
@@ -1013,14 +1060,15 @@ class PhotoFragment : ViewPagerFragment() {
         }
     }
 
-    private fun reapplyColorModeIfNeeded() {
-        if (mWasInit && mIsFragmentVisible) {
-            val drawable = binding.gesturesView.drawable
-            if (drawable != null && binding.gesturesView.isVisible()) {
-                applyProperColorMode(drawable)
-            } else {
-                resetColorModeIfVisible()
-            }
+    fun reapplyColorModeIfNeeded(animateChromeTransition: Boolean = false) {
+        if (!mWasInit || !mIsFragmentVisible) {
+            return
+        }
+        val drawable = binding.gesturesView.drawable
+        if (drawable != null && binding.gesturesView.isVisible()) {
+            applyProperColorMode(drawable, animateChromeTransition)
+        } else {
+            resetColorModeIfVisible()
         }
     }
 }

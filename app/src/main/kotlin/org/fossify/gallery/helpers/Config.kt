@@ -181,6 +181,10 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getBoolean(ULTRA_HDR_RENDERING, true)
         set(ultraHdrRendering) = prefs.edit().putBoolean(ULTRA_HDR_RENDERING, ultraHdrRendering).apply()
 
+    var viewerSdrUiForLegibility: Boolean
+        get() = prefs.getBoolean(VIEWER_SDR_UI_FOR_LEGIBILITY, true)
+        set(viewerSdrUiForLegibility) = prefs.edit().putBoolean(VIEWER_SDR_UI_FOR_LEGIBILITY, viewerSdrUiForLegibility).apply()
+
     var playbackSpeed: Float
         get() = prefs.getFloat(PLAYBACK_SPEED, 1f)
         set(playbackSpeed) = prefs.edit().putFloat(PLAYBACK_SPEED, playbackSpeed).apply()

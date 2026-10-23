@@ -1776,6 +1776,7 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
                 binding.bottomControls.beVisibleIf(newAlpha == 1f)
             }.start()
 
+            getCurrentPhotoFragment()?.reapplyColorModeIfNeeded(animateChromeTransition = true)
             binding.mediumViewerAppbar.animate().alpha(newAlpha).withStartAction {
                 binding.mediumViewerAppbar.beVisible()
             }.withEndAction {

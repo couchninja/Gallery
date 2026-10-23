@@ -90,6 +90,7 @@ class SettingsActivity : SimpleActivity() {
         setupOnVideoTap()
         setupMaxBrightness()
         setupUltraHdrRendering()
+        setupViewerSdrUiForLegibility()
         setupCropThumbnails()
         setupShowExifRatings()
         setupGoToNextAfterExifRating()
@@ -450,6 +451,14 @@ class SettingsActivity : SimpleActivity() {
         binding.settingsUltraHdrRenderingHolder.setOnClickListener {
             binding.settingsUltraHdrRendering.toggle()
             config.ultraHdrRendering = binding.settingsUltraHdrRendering.isChecked
+        }
+    }
+
+    private fun setupViewerSdrUiForLegibility() {
+        binding.settingsViewerSdrUiForLegibility.isChecked = config.viewerSdrUiForLegibility
+        binding.settingsViewerSdrUiForLegibilityHolder.setOnClickListener {
+            binding.settingsViewerSdrUiForLegibility.toggle()
+            config.viewerSdrUiForLegibility = binding.settingsViewerSdrUiForLegibility.isChecked
         }
     }
 
@@ -1028,6 +1037,7 @@ class SettingsActivity : SimpleActivity() {
                 put(ENABLE_PULL_TO_REFRESH, config.enablePullToRefresh)
                 put(MAX_BRIGHTNESS, config.maxBrightness)
                 put(ULTRA_HDR_RENDERING, config.ultraHdrRendering)
+                put(VIEWER_SDR_UI_FOR_LEGIBILITY, config.viewerSdrUiForLegibility)
                 put(BLACK_BACKGROUND, config.blackBackground)
                 put(HIDE_SYSTEM_UI, config.hideSystemUI)
                 put(ALLOW_INSTANT_CHANGE, config.allowInstantChange)
@@ -1176,6 +1186,7 @@ class SettingsActivity : SimpleActivity() {
                 ENABLE_PULL_TO_REFRESH -> config.enablePullToRefresh = value.toBoolean()
                 MAX_BRIGHTNESS -> config.maxBrightness = value.toBoolean()
                 ULTRA_HDR_RENDERING -> config.ultraHdrRendering = value.toBoolean()
+                VIEWER_SDR_UI_FOR_LEGIBILITY -> config.viewerSdrUiForLegibility = value.toBoolean()
                 BLACK_BACKGROUND -> config.blackBackground = value.toBoolean()
                 HIDE_SYSTEM_UI -> config.hideSystemUI = value.toBoolean()
                 ALLOW_INSTANT_CHANGE -> config.allowInstantChange = value.toBoolean()

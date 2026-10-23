@@ -196,6 +196,8 @@
     <string name="animate_gifs">Animate GIFs at thumbnails</string>
     <string name="max_brightness">Max brightness when viewing fullscreen media</string>
     <string name="render_ultra_hdr_photos">Show Ultra HDR photos in HDR</string>
+    <string name="viewer_sdr_ui_for_legibility">Improve UI legibility on HDR photos</string>
+    <string name="viewer_sdr_ui_for_legibility_summary">When viewer controls are visible, tone down HDR display brightness so the toolbar and buttons stay readable.</string>
     <string name="crop_thumbnails">Crop thumbnails into squares</string>
     <string name="show_thumbnail_video_duration">Show video durations</string>
     <string name="screen_rotation_by">Rotate fullscreen media by</string>
