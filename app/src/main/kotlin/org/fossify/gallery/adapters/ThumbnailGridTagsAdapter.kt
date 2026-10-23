@@ -5,9 +5,11 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import org.fossify.commons.activities.BaseSimpleActivity
 import org.fossify.commons.extensions.adjustAlpha
+import org.fossify.commons.extensions.applyColorFilter
 import org.fossify.commons.extensions.getProperTextColor
 import org.fossify.commons.extensions.setupViewBackground
 import org.fossify.gallery.databinding.ItemThumbnailGridTagBinding
+import org.fossify.gallery.helpers.XmpTagDisplay
 
 data class ThumbnailGridTagEntry(val name: String, val photoCount: Int)
 
@@ -44,6 +46,10 @@ class ThumbnailGridTagsAdapter(
             binding.thumbnailGridTagCount.apply {
                 text = entry.photoCount.toString()
                 setTextColor(textColor.adjustAlpha(0.65f))
+            }
+            binding.thumbnailGridTagIcon.apply {
+                setImageResource(XmpTagDisplay.listIconResForTag(entry.name))
+                applyColorFilter(textColor)
             }
             binding.thumbnailGridTagHolder.setOnClickListener { onTagClick(entry.name) }
         }

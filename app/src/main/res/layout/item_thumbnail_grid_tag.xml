@@ -24,6 +24,14 @@
             android:gravity="center"
             android:textSize="@dimen/bigger_text_size" />
 
+        <ImageView
+            android:id="@+id/thumbnail_grid_tag_icon"
+            android:layout_width="@dimen/thumbnail_grid_tag_list_icon_size"
+            android:layout_height="@dimen/thumbnail_grid_tag_list_icon_size"
+            android:layout_marginEnd="@dimen/medium_margin"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_xmp_tags_vector" />
+
         <org.fossify.commons.views.MyTextView
             android:id="@+id/thumbnail_grid_tag_title"
             android:layout_width="0dp"

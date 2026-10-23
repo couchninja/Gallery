@@ -2,14 +2,10 @@ package org.fossify.gallery.helpers
 
 import org.fossify.gallery.models.Medium
 import org.fossify.gallery.models.ThumbnailItem
-import java.util.Locale
-
 /** XMP-tagged `private` media; shown when hidden media is shown ([Config.shouldShowHidden]). */
 object PrivateTaggedMedia {
-    private val privateTagLower = "private"
-
     fun hasPrivateTag(path: String): Boolean =
-        XmpTagIndex.getTags(path).any { it.lowercase(Locale.getDefault()) == privateTagLower }
+        XmpTagIndex.getTags(path).any { XmpTagDisplay.isPrivateTag(it) }
 
     fun hasPrivateTag(medium: Medium): Boolean = hasPrivateTag(medium.path)
 

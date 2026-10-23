@@ -59,8 +59,6 @@ enum class ThumbnailGridView(
     ),
     ;
 
-    private val cardTagNamesLowercase = setOf("klantenkaart", "card")
-
     fun matchesMedium(medium: Medium, stickyUnratedPaths: Set<String>?, selectedTagPaths: Set<String>?): Boolean {
         return when (this) {
             ALL -> true
@@ -80,9 +78,7 @@ enum class ThumbnailGridView(
     }
 
     private fun mediumHasCardTag(medium: Medium): Boolean {
-        return XmpTagIndex.getTags(medium.path).any { tag ->
-            tag.lowercase(Locale.getDefault()) in cardTagNamesLowercase
-        }
+        return XmpTagDisplay.mediumHasCardTag(XmpTagIndex.getTags(medium.path))
     }
 
     companion object {

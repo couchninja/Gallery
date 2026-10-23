@@ -41,6 +41,7 @@
     <dimen name="thumbnail_grid_bottom_nav_item_padding_bottom">0dp</dimen>
     <dimen name="thumbnail_grid_bottom_nav_label_text_size">10sp</dimen>
     <dimen name="thumbnail_grid_tag_count_column_width">52dp</dimen>
+    <dimen name="thumbnail_grid_tag_list_icon_size">22dp</dimen>
 
     <!-- Thumbnail grid bottom bar — stack diagram in ThumbnailGridBottomChromeLayout.kt -->
     <!-- (1) Height of the background strip when scroll-collapsed (above the OS nav inset). -->

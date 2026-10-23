@@ -33,4 +33,39 @@ class ThumbnailXmpTagsUiTest {
         val result = thumbnailXmpTagIndicators(listOf("KEEP forever"))
         assertEquals(true, result.showKeep)
     }
+
+    @Test
+    fun cardTagOnly_showsCardNotOtherTagIcon() {
+        val result = thumbnailXmpTagIndicators(listOf("klantenkaart"))
+        assertTrue(result.showCard)
+        assertFalse(result.showKeep)
+        assertFalse(result.showOtherTags)
+    }
+
+    @Test
+    fun privateTagOnly_showsEyeNotOtherTagIcon() {
+        val result = thumbnailXmpTagIndicators(listOf("private"))
+        assertTrue(result.showPrivate)
+        assertFalse(result.showCard)
+        assertFalse(result.showKeep)
+        assertFalse(result.showOtherTags)
+    }
+
+    @Test
+    fun favoriteTagOnly_showsHeartNotOtherTagIcon() {
+        val result = thumbnailXmpTagIndicators(listOf("favorite"))
+        assertTrue(result.showFavorite)
+        assertFalse(result.showCard)
+        assertFalse(result.showPrivate)
+        assertFalse(result.showKeep)
+        assertFalse(result.showOtherTags)
+    }
+
+    @Test
+    fun cardAndVacation_showsCardAndOtherNotKeep() {
+        val result = thumbnailXmpTagIndicators(listOf("card", "vacation"))
+        assertTrue(result.showCard)
+        assertFalse(result.showKeep)
+        assertTrue(result.showOtherTags)
+    }
 }
