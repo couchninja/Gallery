@@ -766,8 +766,18 @@ class MediaAdapter(
             if (thumbnailItems.hashCode() != currentMediaHash) {
                 currentMediaHash = thumbnailItems.hashCode()
                 media = thumbnailItems
+                val hadSelection = selectedKeys.isNotEmpty()
+                if (hadSelection) {
+                    val validKeys = thumbnailItems.filterIsInstance<Medium>()
+                        .mapTo(HashSet()) { it.path.hashCode() }
+                    selectedKeys.retainAll(validKeys)
+                    if (selectedKeys.isEmpty()) {
+                        finishActMode()
+                    } else {
+                        actMode?.invalidate()
+                    }
+                }
                 notifyDataSetChanged()
-                finishActMode()
             } else {
                 val changedPaths = syncExifRatingsFrom(thumbnailItems.filterIsInstance<Medium>())
                 if (changedPaths.isNotEmpty()) {
