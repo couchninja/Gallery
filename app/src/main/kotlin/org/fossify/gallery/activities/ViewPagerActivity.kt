@@ -1481,6 +1481,13 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
                     onPageSelected(0)
                 }
 
+                toast(
+                    resources.getQuantityString(
+                        org.fossify.commons.R.plurals.moving_items_into_bin,
+                        1,
+                        1,
+                    )
+                )
                 movePathsInRecycleBin(arrayListOf(path)) {
                     if (it) {
                         tryDeleteFileDirItem(fileDirItem, false, false) { wasSuccess ->
@@ -1523,6 +1530,13 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
                 onPageSelected(0)
             }
 
+            toast(
+                resources.getQuantityString(
+                    org.fossify.commons.R.plurals.deleting_items,
+                    1,
+                    1,
+                )
+            )
             tryDeleteFileDirItem(fileDirItem, false, true) { wasSuccess ->
                 mIgnoredPaths.remove(fileDirItem.path)
                 if (!wasSuccess) {
