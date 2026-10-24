@@ -350,6 +350,13 @@ fun BaseSimpleActivity.tryDeleteFileDirItem(
     }
 }
 
+/** Recycle-bin copy/restore must not change mtime; edits (rotate, resize, XMP) still update it naturally. */
+private fun preserveRecycleBinLastModified(path: String, lastModifiedMillis: Long) {
+    if (lastModifiedMillis != 0L) {
+        File(path).setLastModified(lastModifiedMillis)
+    }
+}
+
 fun BaseSimpleActivity.movePathsInRecycleBin(paths: ArrayList<String>, callback: ((wasSuccess: Boolean) -> Unit)?) {
     ensureBackgroundThread {
         var pathsCnt = paths.size
@@ -357,6 +364,7 @@ fun BaseSimpleActivity.movePathsInRecycleBin(paths: ArrayList<String>, callback:
 
         for (source in paths) {
             if (OTGPath.isNotEmpty() && source.startsWith(OTGPath)) {
+                val lastModified = File(source).lastModified()
                 var inputStream: InputStream? = null
                 var out: OutputStream? = null
                 try {
@@ -377,6 +385,7 @@ fun BaseSimpleActivity.movePathsInRecycleBin(paths: ArrayList<String>, callback:
                     out?.flush()
 
                     if (fileDocument.getItemSize(true) == copiedSize && getDoesFilePathExist(destination)) {
+                        preserveRecycleBinLastModified(destination, lastModified)
                         mediaDB.updateDeleted("$RECYCLE_BIN$source", System.currentTimeMillis(), source)
                         pathsCnt--
                     }
@@ -390,8 +399,10 @@ fun BaseSimpleActivity.movePathsInRecycleBin(paths: ArrayList<String>, callback:
             } else {
                 val file = File(source)
                 val internalFile = File(recycleBinPath, source)
+                val lastModified = file.lastModified()
                 try {
                     if (file.copyRecursively(internalFile, true)) {
+                        preserveRecycleBinLastModified(internalFile.path, lastModified)
                         mediaDB.updateDeleted("$RECYCLE_BIN$source", System.currentTimeMillis(), source)
                         pathsCnt--
                     }
@@ -442,6 +453,8 @@ fun BaseSimpleActivity.restoreRecycleBinPaths(paths: ArrayList<String>, callback
                 destination = newFile.path
             }
 
+            val lastModified = File(source).lastModified()
+
             var inputStream: InputStream? = null
             var out: OutputStream? = null
             try {
@@ -462,6 +475,7 @@ fun BaseSimpleActivity.restoreRecycleBinPaths(paths: ArrayList<String>, callback
                 if (File(source).length() == copiedSize) {
                     mediaDB.updateDeleted(destination.removePrefix(recycleBinPath), 0, "$RECYCLE_BIN${source.removePrefix(recycleBinPath)}")
                 }
+                preserveRecycleBinLastModified(destination, lastModified)
                 newPaths.add(destination)
             } catch (e: Exception) {
                 showErrorToast(e)
